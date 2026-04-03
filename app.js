@@ -1133,10 +1133,12 @@ function rBank(){const c=calc();let cI=0,cO=0;
 function rFS(){
   const d=dynamicFS();const c=calc();
   // SGA: dynamically from journals
-  const sgaCodeList=['520','521','523','526','531','532','536','537','570'];
-  const sga=sgaCodeList.map(code=>{const bal=acctBal(code);return {nm:tAcct(code),a:bal};}).filter(x=>x.a!==0);
+  // SGA: scan ALL expense accounts with balance (exclude NOE 540-546, tax 550+, startup 560+)
+  const sgaExclude=['540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];
+  const sga=D.accts.filter(ac=>ac.g==='비용'&&!sgaExclude.includes(ac.c)).map(ac=>({nm:ac.k,a:acctBal(ac.c)})).filter(x=>x.a!==0);
   // NOI: dynamically from journals
-  const noi=['401','402','403','405'].map(code=>{const bal=acctBal(code);return {nm:tAcct(code),a:bal};}).filter(x=>x.a!==0);
+  // NOI: scan ALL revenue accounts with balance
+  const noi=D.accts.filter(ac=>ac.g==='수익').map(ac=>({nm:ac.k,a:acctBal(ac.c)})).filter(x=>x.a!==0);
   // NOE
   const noe=[
     {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"보유종목 시가기준 자동반영"},
@@ -1476,14 +1478,14 @@ function exportFSWord(){
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅱ　販売費及び一般管理費</td></tr>
-'+function(){var codes=['520','521','523','526','531','532','536','537','570'];var r='';codes.forEach(function(c){var b=acctBal(c);if(b>0){var ac=D.accts.find(function(x){return x.c===c;});r+='<tr><td>　'+(ac?ac.n:c)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';}});return r;}()+'
+'+function(){var excl=['540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];var r='';D.accts.filter(function(ac){return ac.g==='비용'&&excl.indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBal(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;}()+'
 <tr class="sub"><td>　販管費合計</td><td></td><td class="r b">${fm(d.sgaT)}</td><td></td></tr>
 <tr><td>　創立費</td><td></td><td class="r">${fm(d.su)}</td><td></td></tr>
 <tr class="sub"><td>営業損失</td><td></td><td></td><td class="r b" style="color:#c0392b">${fm(d.ol)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅲ　営業外収益</td></tr>
-'+function(){var codes=['401','402','403','405'];var r='';codes.forEach(function(c){var b=acctBal(c);if(b>0){var ac=D.accts.find(function(x){return x.c===c;});r+='<tr><td>　'+(ac?ac.n:c)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';}});return r;}()+'
+'+function(){var r='';D.accts.filter(function(ac){return ac.g==='수익';}).forEach(function(ac){var b=acctBal(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;}()+'
 <tr class="sub"><td>　営業外収益合計</td><td></td><td></td><td class="r b">${fm(d.noiT)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
@@ -1566,6 +1568,15 @@ function go(p){
 
 function rBSTab(){
   const d=dynamicFS();
+  // Dynamic asset items (exclude 110, 191, 130 which are shown separately)
+  var extraAssets='';
+  D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){var b=acctBal(ac.c);if(b!==0)extraAssets+='<div class="fr"><span>'+ac.k+'</span><span class="m">'+fm(b)+'</span></div>';});
+  // Dynamic liability items
+  var liabItems='';
+  D.accts.filter(function(ac){return ac.g==='부채';}).forEach(function(ac){var b=acctBal(ac.c);if(b!==0)liabItems+='<div class="fr"><span>'+ac.k+'</span><span class="m">'+fm(b)+'</span></div>';});
+  // Dynamic equity items
+  var eqItems='';
+  D.accts.filter(function(ac){return ac.g==='순자산';}).forEach(function(ac){var b=acctBal(ac.c);if(b!==0)eqItems+='<div class="fr"><span>'+ac.k+'</span><span class="m">'+fm(b)+'</span></div>';});
   return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+
   '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#2563eb;margin-bottom:10px">【자산】</div>'+
   '<div class="fr"><span>보통예금</span><span class="m">'+fm(d.deposit)+'</span></div>'+
@@ -1573,16 +1584,12 @@ function rBSTab(){
   '<div class="fr b tl"><span>현금·예금계</span><span class="m">'+fm(d.cashT)+'</span></div>'+
   '<div class="fr"><span>유가증권(장부가)</span><span class="m">'+fm(d.secBookVal)+'</span></div>'+
   '<div class="fr" style="font-size:10px;color:#64748b"><span>　※시가평가: '+fm(d.secMV)+'</span><span></span></div>'+
-  '<div class="fr b tl" style="color:#2563eb;font-size:14px"><span>자산합계</span><span class="m">'+fm(d.totA)+'</span></div></div>'+
+  extraAssets+'<div class="fr b tl" style="color:#2563eb;font-size:14px"><span>자산합계</span><span class="m">'+fm(d.totA)+'</span></div></div>'+
   '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#d97706;margin-bottom:10px">【부채】</div>'+
-  '<div class="fr"><span>임원차입금</span><span class="m">'+fm(acctBal('221')+acctBal('220'))+'</span></div>'+
-  '<div class="fr"><span>미지급이자</span><span class="m">'+fm(acctBal('224'))+'</span></div>'+
-  '<div class="fr"><span>미지급금</span><span class="m">'+fm(acctBal('203'))+'</span></div>'+
-  '<div class="fr"><span>미지급법인세 등</span><span class="m">'+fm(acctBal('205'))+'</span></div>'+
+  liabItems+
   '<div class="fr b tl" style="color:#d97706"><span>부채합계</span><span class="m">'+fm(d.totL)+'</span></div>'+
   '<div style="text-align:center;font-size:14px;font-weight:700;color:#059669;margin:16px 0 10px">【순자산】</div>'+
-  '<div class="fr"><span>자본금</span><span class="m">'+fm(d.capitalBal)+'</span></div>'+
-  '<div class="fr"><span>이익잉여금(당기순이익)</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
+  eqItems+'<div class="fr"><span>이익잉여금(당기순이익)</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
   '<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">'+fm(d.totE)+'</span></div>'+
   '<div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">'+fm(d.totL+d.totE)+'</span></div></div></div>'+
   '<div class="ib" style="font-size:10px">💡 전표 기반 자동집계. 유가증권평가손·유가증권은 보유종목 시가 자동반영 → 차대 균형 보장</div>';
