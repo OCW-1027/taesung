@@ -343,7 +343,17 @@ const FS = {
   feeSum:{bC:613481,bT:61349,bTot:674830,sC:671151,sT:67112,sTot:738263,tC:1284632,tT:128461,gT:1413093},
 };
 const SEC_DEP = 88436523;
+// Save deposit to D for persistence
+if(D.secDeposit===undefined) D.secDeposit=SEC_DEP;
 
 const DEF_SET={rates:{USDJPY:159.36,JPYKRW:9.12},reportDate:''};
 let SET;
 try{const sv=localStorage.getItem('taesung_settings');SET=sv?{...DEF_SET,...JSON.parse(sv),rates:{...DEF_SET.rates,...(JSON.parse(sv).rates||{})}}:{...DEF_SET};}catch(e){SET={...DEF_SET};}
+
+const INIT_VENDORS=[
+{id:1,name:"みずほ銀行",note:"법인계좌"},
+{id:2,name:"SMBC日興証券",note:"증권계좌"},
+{id:3,name:"伊勢丹 新宿",note:"백화점"},
+{id:4,name:"ENEOS",note:"주유소"},
+];
+if(!D.vendors)D.vendors=INIT_VENDORS;

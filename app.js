@@ -188,7 +188,7 @@ function dynamicFS(){
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sgaT,su,ol,noiT,evalLoss,interestPay,noeT,oi,ct,ni,deposit,secDep,secBookVal,secMV,cashT,totA,totL,capitalBal,eqNI,totE};
+  return {sgaT,su,ol,noiT,evalLoss,interestPay,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,totA,totL,capitalBal,eqNI,totE,evalAdj};
 }
 
 
@@ -318,7 +318,7 @@ function calc(){
   const usMv=D.holdUS.reduce((s,h)=>s+h.mv,0),usC=D.holdUS.reduce((s,h)=>s+h.tc,0);
   const tI=D.bkIn.reduce((s,d)=>s+d.amt,0),tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
   const rpl=D.real.reduce((s,r)=>s+r.net,0),rC=D.real.reduce((s,r)=>s+r.tc,0),rS=D.real.reduce((s,r)=>s+r.sa,0);
-  const bb=tI-tO,secDep=SEC_DEP,secBal=secDep+jpMv+usMv;
+  const bb=tI-tO,secDep=D.secDeposit||SEC_DEP,secBal=secDep+jpMv+usMv;
   return {jpMv,jpC,usMv,usC,allMv:jpMv+usMv,allC:jpC+usC,allPl:jpMv+usMv-jpC-usC,rpl,rC,rS,tI,tO,bb,secDep,secBal,totA:bb+secBal};
 }
 
@@ -915,7 +915,7 @@ function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보
 function rSec(){const c=calc();const jpT=c.jpMv;
   return `<div class="pt">유가증권</div>
   <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
-  <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(SEC_DEP)}</span> 엔</span></div>
+  <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button></div>
   <div id="TC">
   <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
@@ -1315,7 +1315,7 @@ function rBSTab(){
   '<div class="fr"><span>이익잉여금(당기순이익)</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
   '<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">'+fm(d.totE)+'</span></div>'+
   '<div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">'+fm(d.totL+d.totE)+'</span></div></div></div>'+
-  '<div class="ib" style="font-size:10px">💡 전표 기반 자동집계 (차대 균형 보장). 유가증권=장부가(시가는 참고 표시). 법인세=경상이익 기준 자동추정</div>';
+  '<div class="ib" style="font-size:10px">💡 전표 기반 자동집계 + 시가 조정. 유가증권평가손(P/L)과 유가증권(B/S) 동시 시가반영 → 차대 균형 보장</div>';
 }
 
 function rTxTab(){return `<div class="pn" style="padding:18px;max-width:460px"><div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px">법인세등 추정</div>
