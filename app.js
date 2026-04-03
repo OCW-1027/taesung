@@ -7,6 +7,10 @@ function loadJ(k,def){try{const v=localStorage.getItem(k);return v?{...def,...JS
 // Initialize data from data.js constants
 const DEF_DATA={holdJP:INIT_HOLD_JP,holdUS:INIT_HOLD_US,real:INIT_REAL,bkIn:INIT_BK_IN,bkOut:INIT_BK_OUT,journals:INIT_JOURNALS,accts:ACCT_INIT};
 let D=loadJ(DKEY,DEF_DATA);
+// Migrate: always use fresh accts from ACCT_INIT (fixes JP->KR group name change)
+D.accts=ACCT_INIT;
+// Also migrate any saved holdings/journals group refs
+
 function saveD(){localStorage.setItem(DKEY,JSON.stringify(D));}
 function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));}
 function nid(){return Date.now()+Math.floor(Math.random()*1000);}
