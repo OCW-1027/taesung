@@ -348,6 +348,31 @@ async function fbLoad(){
 }
 
 
+
+function showDiag(){
+  const c=calc();
+  const d=dynamicFS();
+  const info=
+    '=== 데이터 진단 ===\n'+
+    '전표: '+D.journals.length+'건\n'+
+    '보유종목(JP): '+D.holdJP.length+'종목\n'+
+    '보유종목(US): '+D.holdUS.length+'종목\n'+
+    'secDeposit: '+(D.secDeposit||'없음')+'\n'+
+    '_lastSaved: '+(D._lastSaved||'없음')+'\n'+
+    '\n=== calc() ===\n'+
+    'bb(은행잔액): '+c.bb+'\n'+
+    'secDep: '+c.secDep+'\n'+
+    'jpMv: '+c.jpMv+'\n'+
+    'usMv: '+c.usMv+'\n'+
+    'allMv: '+c.allMv+'\n'+
+    'totA: '+c.totA+'\n'+
+    '\n=== holdJP cp(현재가) ===\n'+
+    D.holdJP.map(h=>h.tk+': cp='+h.cp+' mv='+h.mv).join('\n')+'\n'+
+    '\n=== holdUS ===\n'+
+    D.holdUS.map(h=>h.tk+': cpUsd='+h.cpUsd+' mv='+h.mv).join('\n');
+  alert(info);
+}
+
 async function doFbUpload(){
   if(!fbReady){alert('Firebase가 연결되지 않았습니다.\n페이지를 새로고침하세요.');return;}
   try{
@@ -402,6 +427,7 @@ async function fbInit(){
       }
       console.log('Firebase: loaded newer data ('+fbTime+')');
       go('dash');
+      console.log('Firebase auto-sync applied');
     } else {
       console.log('Firebase: local is current');
     }
@@ -1299,7 +1325,7 @@ function rSet(){return `<div class="pt">설정</div>
     <button class="bt" onclick="doFbUpload()" style="background:#d97706">📤 서버에 업로드</button>
     <button class="bt" onclick="doFbDownload()" style="background:#2563eb">📥 서버에서 다운로드</button>
   </div>
-  <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 자동 동기화: 전표 저장 시 자동으로 서버에 업로드됩니다</div></div>
+  <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 자동 동기화: 전표 저장 시 자동으로 서버에 업로드됩니다</div><button class="bt gh" onclick="showDiag()" style="font-size:9px;margin-top:6px">🔍 데이터 진단</button></div></div>
   <div class="sc"><h4>💾 데이터 백업 / 복원</h4>
   <div style="font-size:11px;color:#64748b;margin-bottom:10px">다른 기기로 데이터를 이동하거나 백업할 수 있습니다</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
