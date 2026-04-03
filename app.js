@@ -883,12 +883,12 @@ function rRpt(){const c=calc();
 
     // 2. 유가증권 평가 및 손익 현황
     '<div contenteditable="true" style="font-size:15px;font-weight:700;margin:20px 0 8px;color:#1e3a5f">2. 유가증권 평가 및 손익 현황</div>'+
-    '<div class="pn" style="padding:12px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:6px">총괄 요약</div>'+
+    '<div class="pn" style="padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:13px;font-weight:700">총괄 요약</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddSummaryRow()">+ 행추가</button></div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px">'+
     '<div>총 평가액: <b>'+fm(c.allMv)+'</b></div>'+
     '<div>총 평가손익: <b style="color:'+(c.allPl>=0?'#059669':'#dc2626')+'">'+fm(c.allPl)+'</b></div>'+
     '<div>예수금: <b>'+fm(c.secDep)+'</b></div>'+
-    '<div>증권계좌잔액: <b>'+fm(c.secBal)+'</b></div></div></div>'+
+    '<div>증권계좌잔액: <b>'+fm(c.secBal)+'</b></div></div><div id="rptSummaryExtra"></div></div>'+
 
     // 가) 일본
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div contenteditable="true" style="font-size:13px;font-weight:700">가) 일본</div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'보유(일본)\')">+ 행추가</button></div>'+
@@ -939,6 +939,16 @@ function rSet(){return `<div class="pt">설정</div>
   <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다</div>
   <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
 
+
+
+function rptAddSummaryRow(){
+  var container=document.getElementById('rptSummaryExtra');
+  if(!container)return;
+  var row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px dashed #fde68a;margin-top:4px;background:#fffbeb;font-size:12px';
+  row.innerHTML='<span contenteditable="true" style="flex:1;padding:3px 6px;outline:none;border:1px dashed #fde68a;border-radius:3px">(내용 입력)</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px" class="no-print">✕</button>';
+  container.appendChild(row);
+}
 
 // ===== Report row-add functions =====
 function rptAddRow(section){
