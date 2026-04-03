@@ -32,5 +32,20 @@
 <script src="data.js"></script>
 <script src="lang.js"></script>
 <script src="app.js"></script>
+
+<!-- PIN Lock Screen -->
+<div id="lockScreen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1e293b,#0f172a);z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="text-align:center;color:#fff">
+    <div style="font-size:40px;margin-bottom:12px">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">태성㈜ 법인 재무관리</div>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:24px" id="lockMsg">PIN을 입력하세요</div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+      <span class="pin-dot" id="pd0"></span><span class="pin-dot" id="pd1"></span>
+      <span class="pin-dot" id="pd2"></span><span class="pin-dot" id="pd3"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,64px);gap:8px;justify-content:center" id="pinPad"></div>
+    <div style="margin-top:16px;font-size:11px;color:#475569" id="lockExtra"></div>
+  </div>
+</div>
 </body>
 </html>

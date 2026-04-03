@@ -15,6 +15,132 @@ function saveD(){localStorage.setItem(DKEY,JSON.stringify(D));}
 function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));}
 function nid(){return Date.now()+Math.floor(Math.random()*1000);}
 
+
+// ===== PIN LOCK =====
+const PIN_KEY='taesung_pin';
+let pinBuffer='';
+let pinMode='unlock'; // 'unlock','setNew','confirmNew'
+let pinTemp='';
+
+function initLock(){
+  const savedPin=localStorage.getItem(PIN_KEY);
+  const lockEl=document.getElementById('lockScreen');
+  if(!savedPin){
+    // First time: set new PIN
+    pinMode='setNew';
+    document.getElementById('lockMsg').textContent='새 PIN(4자리)을 설정하세요';
+    document.getElementById('lockExtra').textContent='처음 사용시 PIN을 설정합니다';
+  } else {
+    pinMode='unlock';
+    document.getElementById('lockMsg').textContent='PIN을 입력하세요';
+    document.getElementById('lockExtra').innerHTML='<span onclick="resetPinPrompt()" style="cursor:pointer;text-decoration:underline;color:#60a5fa">PIN 초기화</span>';
+  }
+  lockEl.style.display='flex';
+  buildPinPad();
+}
+
+function buildPinPad(){
+  const pad=document.getElementById('pinPad');
+  pad.innerHTML='';
+  [1,2,3,4,5,6,7,8,9,'C',0,'⏎'].forEach(k=>{
+    const btn=document.createElement('button');
+    btn.className='pin-key'+(typeof k==='string'&&k!=='0'?' fn':'');
+    btn.textContent=k;
+    btn.onclick=()=>pinInput(String(k));
+    pad.appendChild(btn);
+  });
+}
+
+function pinInput(k){
+  if(k==='C'){pinBuffer='';updateDots();return;}
+  if(k==='⏎'){checkPin();return;}
+  if(pinBuffer.length<4){
+    pinBuffer+=k;
+    updateDots();
+    if(pinBuffer.length===4) setTimeout(checkPin,200);
+  }
+}
+
+function updateDots(){
+  for(let i=0;i<4;i++){
+    document.getElementById('pd'+i).classList.toggle('filled',i<pinBuffer.length);
+  }
+}
+
+function checkPin(){
+  const savedPin=localStorage.getItem(PIN_KEY);
+  if(pinMode==='setNew'){
+    if(pinBuffer.length!==4){document.getElementById('lockMsg').textContent='4자리를 입력하세요';pinBuffer='';updateDots();return;}
+    pinTemp=pinBuffer;pinBuffer='';updateDots();
+    pinMode='confirmNew';
+    document.getElementById('lockMsg').textContent='확인을 위해 다시 입력하세요';
+    return;
+  }
+  if(pinMode==='confirmNew'){
+    if(pinBuffer===pinTemp){
+      localStorage.setItem(PIN_KEY,pinBuffer);
+      document.getElementById('lockScreen').style.display='none';
+      pinBuffer='';pinTemp='';
+    } else {
+      document.getElementById('lockMsg').textContent='불일치! 다시 설정하세요';
+      pinBuffer='';pinTemp='';updateDots();
+      pinMode='setNew';
+    }
+    return;
+  }
+  // unlock mode
+  if(pinBuffer===savedPin){
+    document.getElementById('lockScreen').style.display='none';
+    pinBuffer='';
+  } else {
+    document.getElementById('lockMsg').textContent='❌ 틀렸습니다. 다시 입력하세요';
+    pinBuffer='';updateDots();
+    // Shake animation
+    document.querySelector('#lockScreen > div').style.animation='shake 0.3s';
+    setTimeout(()=>{document.querySelector('#lockScreen > div').style.animation='';},400);
+  }
+}
+
+function resetPinPrompt(){
+  if(confirm('PIN을 초기화하시겠습니까?\n(모든 데이터는 유지됩니다)')){
+    localStorage.removeItem(PIN_KEY);
+    pinMode='setNew';pinBuffer='';pinTemp='';updateDots();
+    document.getElementById('lockMsg').textContent='새 PIN(4자리)을 설정하세요';
+    document.getElementById('lockExtra').textContent='';
+  }
+}
+
+function changePin(){
+  document.getElementById('lockScreen').style.display='flex';
+  pinMode='setNew';pinBuffer='';pinTemp='';updateDots();
+  document.getElementById('lockMsg').textContent='새 PIN(4자리)을 설정하세요';
+  document.getElementById('lockExtra').textContent='';
+}
+
+
+// ===== EXCHANGE RATE AUTO =====
+function fetchRate(){
+  const btn=document.getElementById('rateBtn');
+  if(btn)btn.textContent='⏳ 가져오는 중...';
+  fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    .then(r=>r.json())
+    .then(data=>{
+      const jpyRate=data.rates.JPY;
+      const krwRate=data.rates.KRW;
+      SET.rates.USDJPY=Math.round(jpyRate*1000000)/1000000;
+      SET.rates.JPYKRW=krwRate&&jpyRate?Math.round(krwRate/jpyRate*1000000)/1000000:SET.rates.JPYKRW;
+      localStorage.setItem('taesung_settings',JSON.stringify(SET));
+      if(btn)btn.textContent='✅ 완료! USD/JPY: '+SET.rates.USDJPY;
+      // Update settings page inputs if visible
+      const r1=document.getElementById('r1');if(r1)r1.value=SET.rates.USDJPY;
+      const r2=document.getElementById('r2');if(r2)r2.value=SET.rates.JPYKRW;
+      setTimeout(()=>{if(btn)btn.textContent='🔄 환율 자동 가져오기';},3000);
+    })
+    .catch(e=>{
+      if(btn)btn.textContent='❌ 실패 (네트워크 확인)';
+      setTimeout(()=>{if(btn)btn.textContent='🔄 환율 자동 가져오기';},3000);
+    });
+}
 // ===== UTILS =====
 const fm=n=>n==null?"-":new Intl.NumberFormat("ja-JP").format(Math.round(n));
 const fy=n=>n==null?"-":"¥"+fm(n);
@@ -596,7 +722,7 @@ function rSec(){const c=calc();const jpT=c.jpMv;
   return `<div class="pt">유가증권</div>
   <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
   <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(SEC_DEP)}</span> 엔</span></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt gh" onclick="fetchRate()" style="font-size:10px">🔄 환율</button></div>
   <div id="TC">
   <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
     <thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">수수료</th><th class="r">취득원가</th><th class="r">BEP</th><th class="r">현재가</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th><th></th></tr></thead>
@@ -732,11 +858,14 @@ function rRpt(){const c=calc();
 
 function rSet(){return `<div class="pt">설정</div>
   <div class="sc"><h4>💱 환율 설정</h4><div style="font-size:11px;color:#64748b;margin-bottom:10px">환율 변경 시 유가증권 평가 및 전표처리에 반영</div>
+  <button class="bt" id="rateBtn" onclick="fetchRate()" style="background:#d97706;margin-bottom:12px">🔄 환율 자동 가져오기</button>
   <div class="rr"><span style="width:120px">USD/JPY:</span><input type="number" id="r1" value="${SET.rates.USDJPY}" step="0.000001"><span class="mu">1달러 = ? 엔</span></div>
   <div class="rr"><span style="width:120px">JPY/KRW:</span><input type="number" id="r2" value="${SET.rates.JPYKRW}" step="0.000001"><span class="mu">1엔 = ? 원</span></div>
   <div style="margin-top:12px"><button class="bt" onclick="SET.rates.USDJPY=+document.getElementById('r1').value;SET.rates.JPYKRW=+document.getElementById('r2').value;saveS();alert('저장됨');go('set')">💾 저장</button></div></div>
   <div class="sc"><h4>📄 보고서 기준일</h4><div class="rr"><span>기준일 (비워두면 자동):</span><input id="r3" value="${SET.reportDate}" placeholder="예: 26. 3. 27." style="width:160px"></div>
   <button class="bt" onclick="SET.reportDate=document.getElementById('r3').value;saveS();alert('저장됨')">💾 저장</button></div>
+  <div class="sc"><h4>🔐 PIN 변경</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">앱 접근 시 사용하는 4자리 PIN을 변경합니다</div>
+  <button class="bt" onclick="changePin()">🔐 PIN 변경</button></div>
   <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다</div>
   <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
 
@@ -804,6 +933,7 @@ function cP(v){let{d,p,o,f}=cS;if(v==='C'){d="0";p=null;o=null;f=true;}else if([
 
 
 document.addEventListener('DOMContentLoaded',function(){
+  initLock();
   go('dash');updateNavLabels();
   document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
   const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
