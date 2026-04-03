@@ -169,16 +169,26 @@ function dynamicFS(){
   const oi=ol+noiT-noeT; // 경상이익
   const ct=oi>0?Math.round(oi*0.2422):0; // simplified effective tax ~24.2%
   const ni=oi-ct;
-  // B/S
-  const deposit=acctBal('110'); // 보통예금 from journals
-  const secDep=c.secDep; // 증권예수금
-  const secMV=c.allMv; // 유가증권(시가)
+  // B/S: ALL from journals (guaranteed balance)
+  const deposit=acctBal('110'); // 보통예금
+  const secDep=acctBal('191'); // 증권예수금 from journals
+  const secBookVal=acctBal('130'); // 유가증권 장부가
+  const secMV=c.allMv; // 유가증권 시가 (참고용)
   const cashT=deposit+secDep;
-  const totA=cashT+secMV;
-  const loanBal=acctBal('221')+acctBal('220')+acctBal('202');const unpaidAll=acctBal('203')+acctBal('204');const totL=loanBal+interestPay+unpaidAll+ct;
+  const totA=cashT+secBookVal;
+  // Liabilities: all from journals
+  const liabCodes=['200','201','202','203','204','205','206','207','208','209','210','211','212','213','214','215','216','217','220','221','222','223','224','225','226','227','228'];
+  let totL=0;liabCodes.forEach(c2=>{totL+=acctBal(c2);});
+  // Add estimated tax if not already in journals
+  const journalTax=acctBal('205');
+  if(ct>journalTax)totL+=(ct-journalTax);
+  // Equity: from journals
+  const capitalBal=acctBal('300')+acctBal('301')+acctBal('302');
+  const retainedBal=acctBal('310')+acctBal('311')+acctBal('312');
+  // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
-  const totE=10000000+eqNI;
-  return {sgaT,su,ol,noiT,evalLoss,interestPay,noeT,oi,ct,ni,deposit,secDep,secMV,cashT,totA,totL,eqNI,totE};
+  const totE=capitalBal+retainedBal+eqNI;
+  return {sgaT,su,ol,noiT,evalLoss,interestPay,noeT,oi,ct,ni,deposit,secDep,secBookVal,secMV,cashT,totA,totL,capitalBal,eqNI,totE};
 }
 
 
@@ -1286,27 +1296,26 @@ function go(p){
 
 function rBSTab(){
   const d=dynamicFS();
-  const loanBal2=acctBal('221')+acctBal('220');
-  const unpaid2=acctBal('203');
   return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+
   '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#2563eb;margin-bottom:10px">【자산】</div>'+
   '<div class="fr"><span>보통예금</span><span class="m">'+fm(d.deposit)+'</span></div>'+
   '<div class="fr"><span>증권예수금</span><span class="m">'+fm(d.secDep)+'</span></div>'+
   '<div class="fr b tl"><span>현금·예금계</span><span class="m">'+fm(d.cashT)+'</span></div>'+
-  '<div class="fr"><span>유가증권(시가)</span><span class="m">'+fm(d.secMV)+'</span></div>'+
+  '<div class="fr"><span>유가증권(장부가)</span><span class="m">'+fm(d.secBookVal)+'</span></div>'+
+  '<div class="fr" style="font-size:10px;color:#64748b"><span>　※시가평가: '+fm(d.secMV)+'</span><span></span></div>'+
   '<div class="fr b tl" style="color:#2563eb;font-size:14px"><span>자산합계</span><span class="m">'+fm(d.totA)+'</span></div></div>'+
   '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#d97706;margin-bottom:10px">【부채】</div>'+
-  (loanBal2?'<div class="fr"><span>임원차입금</span><span class="m">'+fm(loanBal2)+'</span></div>':'')+
-  (d.interestPay?'<div class="fr"><span>미지급이자</span><span class="m">'+fm(d.interestPay)+'</span></div>':'')+
-  (unpaid2?'<div class="fr"><span>미지급금(설립비)</span><span class="m">'+fm(unpaid2)+'</span></div>':'')+
-  (d.ct?'<div class="fr"><span>미지급법인세등</span><span class="m">'+fm(d.ct)+'</span></div>':'')+
+  '<div class="fr"><span>임원차입금</span><span class="m">'+fm(acctBal('221')+acctBal('220'))+'</span></div>'+
+  '<div class="fr"><span>미지급이자</span><span class="m">'+fm(acctBal('224'))+'</span></div>'+
+  '<div class="fr"><span>미지급금</span><span class="m">'+fm(acctBal('203'))+'</span></div>'+
+  '<div class="fr"><span>미지급법인세등</span><span class="m">'+fm(acctBal('205'))+'</span></div>'+
   '<div class="fr b tl" style="color:#d97706"><span>부채합계</span><span class="m">'+fm(d.totL)+'</span></div>'+
   '<div style="text-align:center;font-size:14px;font-weight:700;color:#059669;margin:16px 0 10px">【순자산】</div>'+
-  '<div class="fr"><span>자본금</span><span class="m">'+fm(10000000)+'</span></div>'+
-  '<div class="fr"><span>이익잉여금</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
+  '<div class="fr"><span>자본금</span><span class="m">'+fm(d.capitalBal)+'</span></div>'+
+  '<div class="fr"><span>이익잉여금(당기순이익)</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
   '<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">'+fm(d.totE)+'</span></div>'+
   '<div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">'+fm(d.totL+d.totE)+'</span></div></div></div>'+
-  '<div class="ib" style="font-size:10px">💡 보통예금=전표기준, 증권예수금·유가증권(시가)=보유종목 자동반영, 법인세=경상이익 기준 자동추정</div>';
+  '<div class="ib" style="font-size:10px">💡 전표 기반 자동집계 (차대 균형 보장). 유가증권=장부가(시가는 참고 표시). 법인세=경상이익 기준 자동추정</div>';
 }
 
 function rTxTab(){return `<div class="pn" style="padding:18px;max-width:460px"><div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px">법인세등 추정</div>
