@@ -125,4 +125,5 @@ function updateNavLabels(){
   document.getElementById('langBtn').textContent=LANG==='ko'?'🌐 日本語':'🌐 한국어';
   document.querySelector('.nav-hd h3').textContent=t('app');
   document.querySelector('.nav-hd p').textContent=t('co');
+  const cb=document.getElementById('calcBtn');if(cb)cb.textContent='🧮 '+(LANG==='ja'?'計算機':'계산기');
 }

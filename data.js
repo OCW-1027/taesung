@@ -343,3 +343,17 @@ const FS = {
   feeSum:{bC:613481,bT:61349,bTot:674830,sC:671151,sT:67112,sTot:738263,tC:1284632,tT:128461,gT:1413093},
 };
 const SEC_DEP = 88436523;
+
+// ===== SETTINGS (누락된 SET 변수 추가) =====
+const DEF_SET = {
+  rates: { USDJPY: 159.36, JPYKRW: 9.12 },
+  reportDate: ''
+};
+const SKEY2 = 'taesung_settings';
+let SET;
+try {
+  const sv = localStorage.getItem('taesung_settings');
+  SET = sv ? { ...DEF_SET, ...JSON.parse(sv), rates: { ...DEF_SET.rates, ...(JSON.parse(sv).rates || {}) } } : { ...DEF_SET };
+} catch(e) {
+  SET = { ...DEF_SET };
+}
