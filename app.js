@@ -359,18 +359,18 @@ async function doFbUpload(){
 async function doFbDownload(){
   if(!fbReady){alert('Firebase가 연결되지 않았습니다.\n페이지를 새로고침하세요.');return;}
   try{
-    const fb=await fbLoad();
-    if(!fb){alert('서버에 데이터가 없습니다.');return;}
-    D=fb.data;
-    D.accts=ACCT_INIT;
-    if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
-    if(!D.vendors)D.vendors=INIT_VENDORS||[];
-    localStorage.setItem(DKEY,JSON.stringify(D));
-    if(fb.settings){
-      SET=fb.settings;
-      localStorage.setItem(SKEY,JSON.stringify(SET));
+    const doc=await db.collection(FB_COL).doc(FB_DOC).get();
+    if(!doc.exists){alert('서버에 데이터가 없습니다.');return;}
+    const fb=doc.data();
+    // Save raw data directly to localStorage
+    localStorage.setItem(DKEY,fb.data);
+    if(fb.settings)localStorage.setItem(SKEY,fb.settings);
+    // Verify save
+    const check=localStorage.getItem(DKEY);
+    if(!check||check.length<100){
+      alert('저장 실패! localStorage에 기록되지 않았습니다.');return;
     }
-    alert('서버에서 다운로드 완료!\n('+fb.updatedAt.slice(0,16)+' 기준)\n페이지를 새로고침합니다.');
+    alert('서버에서 다운로드 완료!\n('+fb.updatedAt.slice(0,16)+' 기준)\n저장 크기: '+(check.length/1024).toFixed(1)+'KB\n페이지를 새로고침합니다.');
     location.reload();
   }catch(e){alert('다운로드 실패: '+e.message);}
 }
