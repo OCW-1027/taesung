@@ -13,8 +13,8 @@ if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
 if(!D.vendors)D.vendors=INIT_VENDORS;
 // Also migrate any saved holdings/journals group refs
 
-function saveD(){D._lastSaved=new Date().toISOString();localStorage.setItem(DKEY,JSON.stringify(D));fbSave();}
-function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));fbSave();}
+function saveD(){D._lastSaved=new Date().toISOString();localStorage.setItem(DKEY,JSON.stringify(D));}
+function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));}
 function nid(){return Date.now()+Math.floor(Math.random()*1000);}
 
 
@@ -1597,7 +1597,6 @@ function cP(v){let{d,p,o,f}=cS;if(v==='C'){d="0";p=null;o=null;f=true;}else if([
 document.addEventListener('DOMContentLoaded',function(){
   initLock();
   go('dash');updateNavLabels();
-  fbInit();
   document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
   const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
   const kd=document.getElementById('cK');
