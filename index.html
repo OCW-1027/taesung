@@ -85,6 +85,7 @@ tr.a{background:#f8f9fb}tr.t{background:#f1f3f6;font-weight:700}
   <div class="nav-hd"><h3>법인 재무관리</h3><p>태성주식회사</p><p style="font-size:9px;color:#475569">FY2025</p></div>
   <div class="nav-item active" data-page="dash"><span>📊</span><span>대시보드</span></div>
   <div class="nav-item" data-page="slip"><span>📝</span><span>전표처리</span></div>
+  <div class="nav-item" data-page="jrn"><span>🔍</span><span>전표조회</span></div>
   <div class="nav-item" data-page="gl"><span>📒</span><span>총계정원장</span></div>
   <div class="nav-item" data-page="fs"><span>📋</span><span>재무제표</span></div>
   <div class="nav-item" data-page="sec"><span>📈</span><span>유가증권</span></div>
@@ -460,6 +461,94 @@ function delSlip(id){
   saveD();closeModal();go("slip");
 }
 
+
+function exportWord(){
+  const c=calc();
+  const S='border:1px solid #999;padding:4pt 6pt;font-size:10pt;';
+  const HR=S+'text-align:right;';
+  const HB=HR+'font-weight:bold;';
+  const TH='background:#e8e8e8;font-weight:bold;font-size:9pt;padding:4pt 6pt;border:1px solid #999;';
+  const THR=TH+'text-align:right;';
+  const G='color:#059669;';const R='color:#dc2626;';const B='color:#2563eb;';
+  const bg=v=>'<span style="display:inline-block;padding:1pt 5pt;border-radius:2pt;font-size:9pt;font-weight:bold;'+(v>=0?'background:#d1fae5;color:#059669':'background:#fee2e2;color:#dc2626')+'">'+(v>=0?'+':'')+fm(v)+'</span>';
+
+  let jpRows='';
+  D.holdJP.forEach((h,i)=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;const bg2=i%2?'background:#f5f5f5;':'';
+    jpRows+='<tr><td style="'+S+bg2+B+'font-weight:bold">'+h.tk+'</td><td style="'+S+bg2+'">'+h.nm+'</td><td style="'+HR+bg2+'">'+fm(h.sh)+'</td><td style="'+HR+bg2+'">'+fm(h.buyAmt)+'</td><td style="'+HR+bg2+'color:#888">'+fm(h.fee)+'</td><td style="'+HB+bg2+'">'+fm(h.tc)+'</td><td style="'+HR+bg2+'">'+fm(h.bep)+'</td><td style="'+HR+bg2+'">'+(h.cp?fm(h.cp):'-')+'</td><td style="'+HB+bg2+'">'+fm(h.mv)+'</td><td style="'+HR+bg2+(pl>=0?G:R)+'font-weight:bold">'+fm(pl)+'</td><td style="'+HR+bg2+(pl>=0?G:R)+'">'+rr.toFixed(2)+'%</td></tr>';
+  });
+  const jpPl=c.jpMv-c.jpC;
+
+  let usRows='';
+  D.holdUS.forEach(h=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;
+    usRows+='<tr><td style="'+S+B+'font-weight:bold">'+h.tk+'</td><td style="'+S+'">'+h.nm+'</td><td style="'+HR+'">'+fm(h.sh)+'</td><td style="'+HB+'">'+fm(h.tc)+'</td><td style="'+HR+'">'+h.cpUsd+'</td><td style="'+HR+'">'+(h.rate||SET.rates.USDJPY)+'</td><td style="'+HB+'">'+fm(h.mv)+'</td><td style="'+HR+(pl>=0?G:R)+'font-weight:bold">'+fm(pl)+'</td><td style="'+HR+(pl>=0?G:R)+'">'+rr.toFixed(2)+'%</td></tr>';
+  });
+
+  let realRows='';
+  D.real.forEach((r,i)=>{const bg2=i%2?'background:#f5f5f5;':'';
+    realRows+='<tr><td style="'+S+bg2+'color:#888">'+r.dt+'</td><td style="'+S+bg2+B+'font-weight:bold">'+r.tk+'</td><td style="'+S+bg2+'">'+r.nm+'</td><td style="'+HR+bg2+'">'+fm(r.sh)+'</td><td style="'+HR+bg2+'">'+fm(r.buyAmt)+'</td><td style="'+HR+bg2+'color:#888">'+fm(r.bC+r.bT)+'</td><td style="'+HB+bg2+'">'+fm(r.tc)+'</td><td style="'+HR+bg2+'">'+fm(r.sa)+'</td><td style="'+HR+bg2+'color:#888">'+fm(r.sC+r.sT)+'</td><td style="'+HR+bg2+G+'font-weight:bold">'+fm(r.net)+'</td><td style="'+HR+bg2+G+'">'+r.rr.toFixed(2)+'%</td></tr>';
+  });
+
+  let bkInRows='',cI=0;
+  D.bkIn.forEach((d,i)=>{cI+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
+    bkInRows+='<tr><td style="'+S+bg2+'color:#888">'+d.dt+'</td><td style="'+S+bg2+'">'+d.cat+'</td><td style="'+HR+bg2+G+'">'+fm(d.amt)+'</td><td style="'+HB+bg2+'">'+fm(cI)+'</td></tr>';});
+  let bkOutRows='',cO=0;
+  D.bkOut.forEach((d,i)=>{cO+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
+    bkOutRows+='<tr><td style="'+S+bg2+'color:#888">'+d.dt+'</td><td style="'+S+bg2+'">'+d.cat+'</td><td style="'+HR+bg2+R+'">'+fm(d.amt)+'</td><td style="'+HR+bg2+'">'+fm(cO)+'</td></tr>';});
+
+  const T='style="width:100%;border-collapse:collapse;margin-bottom:10pt"';
+  const wordHTML=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8">
+<style>@page{size:A4 landscape;margin:12mm} body{font-family:'Malgun Gothic',sans-serif;font-size:11pt;color:#1a2030}</style></head>
+<body>
+<div style="text-align:center;margin-bottom:16pt"><div style="font-size:20pt;font-weight:bold;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:11pt;color:#666;margin-top:4pt">${rptDt()} 기준</div></div>
+
+<h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">1. 총자산내역</h2>
+<table ${T}><tr><td style="${TH}">구분</td><td style="${THR}">내역(엔)</td><td style="${TH}">비고</td></tr>
+<tr><td style="${S}">자본금</td><td style="${HR}">10,000,000</td><td style="${S}"></td></tr>
+<tr><td style="${S}background:#f5f5f5">수입</td><td style="${HR}background:#f5f5f5">21,845</td><td style="${S}background:#f5f5f5"></td></tr>
+<tr><td style="${S}">지출</td><td style="${HR}">(1,624,866)</td><td style="${S}"></td></tr>
+<tr><td style="${S}background:#f5f5f5;font-weight:bold">법인계좌잔액---(1)</td><td style="${HB}background:#f5f5f5">${fm(c.bb)}</td><td style="${S}background:#f5f5f5;color:#888">미츠이스미토모</td></tr>
+<tr><td style="${S}">증권예수금</td><td style="${HR}">${fm(c.secDep)}</td><td style="${S}"></td></tr>
+<tr><td style="${S}background:#f5f5f5">유가증권평가액</td><td style="${HR}background:#f5f5f5">${fm(c.allMv)}</td><td style="${S}background:#f5f5f5"></td></tr>
+<tr><td style="${S}font-weight:bold">증권계좌잔액---(2)</td><td style="${HB}">${fm(c.secBal)}</td><td style="${S}color:#888">SMBC닛코증권</td></tr>
+<tr><td style="${S}background:#e8e8e8;font-weight:bold">총보유자산합계</td><td style="${HB}background:#e8e8e8">${fm(c.totA)}</td><td style="${S}background:#e8e8e8;color:#888">(1)+(2)</td></tr></table>
+
+<h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">2. 유가증권 평가 및 손익 현황</h2>
+<table style="margin-bottom:8pt"><tr><td style="padding:4pt 8pt;font-size:10pt">총 평가액: <b>${fm(c.allMv)}</b></td><td style="padding:4pt 8pt;font-size:10pt">총 평가손익: <b style="${c.allPl>=0?G:R}">${fm(c.allPl)}</b></td><td style="padding:4pt 8pt;font-size:10pt">예수금: <b>${fm(c.secDep)}</b></td></tr></table>
+
+<p style="font-weight:bold;font-size:11pt">가) 일본</p>
+<table ${T}><tr><td style="${TH}">코드</td><td style="${TH}">종목명</td><td style="${THR}">수량</td><td style="${THR}">매수금액</td><td style="${THR}">수수료</td><td style="${THR}">취득원가</td><td style="${THR}">BEP</td><td style="${THR}">현재가</td><td style="${THR}">평가액</td><td style="${THR}">손익</td><td style="${THR}">수익률</td></tr>
+${jpRows}
+<tr><td colspan="3" style="${S}background:#e8e8e8;font-weight:bold;text-align:right">합계</td><td style="${HB}background:#e8e8e8">${fm(D.holdJP.reduce((s,h)=>s+h.buyAmt,0))}</td><td style="${HB}background:#e8e8e8">${fm(D.holdJP.reduce((s,h)=>s+h.fee,0))}</td><td style="${HB}background:#e8e8e8">${fm(c.jpC)}</td><td colspan="2" style="${S}background:#e8e8e8"></td><td style="${HB}background:#e8e8e8">${fm(c.jpMv)}</td><td style="${HB}background:#e8e8e8;${jpPl>=0?G:R}">${fm(jpPl)}</td><td style="${HB}background:#e8e8e8;${jpPl>=0?G:R}">${(jpPl/c.jpC*100).toFixed(2)}%</td></tr></table>
+
+<p style="font-weight:bold;font-size:11pt">나) 미국</p>
+<table ${T}><tr><td style="${TH}">코드</td><td style="${TH}">종목명</td><td style="${THR}">수량</td><td style="${THR}">취득원가</td><td style="${THR}">현재가(USD)</td><td style="${THR}">환율</td><td style="${THR}">평가액</td><td style="${THR}">손익</td><td style="${THR}">수익률</td></tr>${usRows}</table>
+
+<p style="font-weight:bold;font-size:11pt">다) 전체</p>
+<table ${T}><tr><td style="${TH}">구분</td><td style="${THR}">취득원가</td><td style="${THR}">평가금액</td><td style="${THR}">비중</td><td style="${THR}">손익</td><td style="${THR}">수익률</td></tr>
+<tr><td style="${S}">일본</td><td style="${HR}">${fm(c.jpC)}</td><td style="${HR}">${fm(c.jpMv)}</td><td style="${HR}">${c.allMv?Math.round(c.jpMv/c.allMv*100):0}%</td><td style="${HR}${jpPl>=0?G:R}font-weight:bold">${fm(jpPl)}</td><td style="${HR}${jpPl>=0?G:R}">${(jpPl/c.jpC*100).toFixed(2)}%</td></tr>
+<tr><td style="${S}background:#f5f5f5">미국</td><td style="${HR}background:#f5f5f5">${fm(c.usC)}</td><td style="${HR}background:#f5f5f5">${fm(c.usMv)}</td><td style="${HR}background:#f5f5f5">${c.allMv?Math.round(c.usMv/c.allMv*100):0}%</td><td style="${HR}background:#f5f5f5;${R}font-weight:bold">${fm(c.usMv-c.usC)}</td><td style="${HR}background:#f5f5f5;${R}">${((c.usMv-c.usC)/c.usC*100).toFixed(2)}%</td></tr>
+<tr><td style="${S}background:#e8e8e8;font-weight:bold">합계</td><td style="${HB}background:#e8e8e8">${fm(c.allC)}</td><td style="${HB}background:#e8e8e8">${fm(c.allMv)}</td><td style="${HB}background:#e8e8e8">100%</td><td style="${HB}background:#e8e8e8;${c.allPl>=0?G:R}">${fm(c.allPl)}</td><td style="${HB}background:#e8e8e8;${c.allPl>=0?G:R}">${(c.allPl/c.allC*100).toFixed(2)}%</td></tr></table>
+
+<h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">3. 수익실현내역</h2>
+<table ${T}><tr><td style="${TH}">확정일</td><td style="${TH}">코드</td><td style="${TH}">종목명</td><td style="${THR}">수량</td><td style="${THR}">매수금액</td><td style="${THR}">수수료</td><td style="${THR}">취득원가</td><td style="${THR}">매도금액</td><td style="${THR}">매도수수료</td><td style="${THR}">순수익</td><td style="${THR}">수익률</td></tr>
+${realRows}
+<tr><td colspan="4" style="${S}background:#e8e8e8;font-weight:bold;text-align:right">합계</td><td style="${HB}background:#e8e8e8">${fm(D.real.reduce((s,r)=>s+r.buyAmt,0))}</td><td style="${HB}background:#e8e8e8">${fm(D.real.reduce((s,r)=>s+r.bC+r.bT,0))}</td><td style="${HB}background:#e8e8e8">${fm(c.rC)}</td><td style="${HB}background:#e8e8e8">${fm(c.rS)}</td><td style="${HB}background:#e8e8e8">${fm(D.real.reduce((s,r)=>s+r.sC+r.sT,0))}</td><td style="${HB}background:#e8e8e8;${G}">${fm(c.rpl)}</td><td style="${HB}background:#e8e8e8;${G}">${(c.rpl/c.rC*100).toFixed(2)}%</td></tr></table>
+
+<h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">4. 은행 법인 계좌 상세 내역</h2>
+<table style="width:48%;border-collapse:collapse;float:left;margin-right:2%"><tr><td colspan="4" style="${TH}${G}">입금 상세내역</td></tr><tr><td style="${TH}">일자</td><td style="${TH}">구분</td><td style="${THR}">입금액</td><td style="${THR}">누적</td></tr>${bkInRows}</table>
+<table style="width:48%;border-collapse:collapse;float:left"><tr><td colspan="4" style="${TH}${R}">출금 상세내역</td></tr><tr><td style="${TH}">일자</td><td style="${TH}">구분</td><td style="${THR}">출금액</td><td style="${THR}">누적</td></tr>${bkOutRows}
+<tr><td colspan="2" style="${S}background:#e8e8e8;font-weight:bold;text-align:right">잔액</td><td colspan="2" style="${HB}background:#e8e8e8;color:#2563eb;font-size:12pt">${fm(c.bb)}</td></tr></table>
+<div style="clear:both"></div>
+<br><p style="color:#999;font-size:9pt;text-align:center">본 보고서는 태성㈜ 재무관리 프로그램에서 자동 생성되었습니다.</p>
+</body></html>`;
+
+  const blob=new Blob([wordHTML],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='태성_자금운용보고서_'+new Date().toISOString().slice(0,10)+'.doc';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
 function updatePrices(){
   let rows = D.holdJP.map(h=>`<tr>
     <td class="b bl">${h.tk}</td><td>${h.nm}</td><td class="r m">${fm(h.sh)}</td>
@@ -600,13 +689,20 @@ function rSlip(){
     '<div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="bt" id="slipSubmit" style="background:#94a3b8" onclick="submitSlip()">승인·기표</button></div>'+
   '</div>'+
   '<div class="pn" style="margin-top:16px"><div class="ph"><span>전표일람 ('+D.journals.length+'건)</span></div>'+
-  '<div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid #e2e6ed">'+
-    '<button class="bt gh" style="font-size:10px;margin:2px" onclick="filterSlips(\'all\')">전체 ('+D.journals.length+')</button>'+monthBtns+
+  '<div style="padding:8px 12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #e2e6ed">'+
+    '<span style="font-size:11px;font-weight:600">회기:</span>'+
+    '<select style="padding:4px 6px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option>제1기 (2025.06~2026.05)</option></select>'+
+    '<span style="font-size:11px;font-weight:600">월:</span>'+
+    '<select id="slip_mo" onchange="filterSlipsByMonth()" style="padding:4px 6px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px">'+
+    '<option value=\'all\'>전체 ('+D.journals.length+')</option>'+
+    sortedKeys.map(k=>'<option value=\''+k+'\'>'+k+' ('+grouped[k].length+')</option>').join('')+
+    '</select>'+
   '</div>'+
   '<div id="slipListBody" style="max-height:500px;overflow-y:auto">'+allSlips+'</div>'+
   '</div>';
 }
 
+function filterSlipsByMonth(){const v=document.getElementById('slip_mo').value;filterSlips(v);}
 function filterSlips(month){
   document.querySelectorAll('.slip-month').forEach(el=>{
     el.style.display=(month==='all'||el.dataset.month===month)?'block':'none';
@@ -670,6 +766,96 @@ function showGLDetail(code){
 }
 
 // ===== PAGES =====
+
+
+// Fiscal year: June~May. Period 1 = 2025/06~2026/05, Period 2 = 2026/06~2027/05...
+function getFiscalPeriod(dt){
+  const m=dt.match(/(\d+)\//);if(!m)return{ki:1,mo:'05'};
+  const mon=parseInt(m[1]);
+  // FY starts June. 6~12 = first half, 1~5 = second half of same FY
+  if(mon>=6)return{ki:1,yr:'2025',mo:String(mon).padStart(2,'0')};
+  else return{ki:1,yr:'2026',mo:String(mon).padStart(2,'0')};
+}
+function getFiscalMonths(ki){
+  // For now just 1기. Later can add 2기 etc.
+  return [{v:'all',l:'전체'},{v:'06',l:'6월'},{v:'07',l:'7월'},{v:'08',l:'8월'},{v:'09',l:'9월'},{v:'10',l:'10월'},{v:'11',l:'11월'},{v:'12',l:'12월'},{v:'01',l:'1월'},{v:'02',l:'2월'},{v:'03',l:'3월'},{v:'04',l:'4월'},{v:'05',l:'5월(결산)'}];
+}
+function journalMatchMonth(j,mo){
+  if(mo==='all')return true;
+  const m=j.dt.match(/(\d+)\//);if(!m)return mo==='05';
+  return String(parseInt(m[1])).padStart(2,'0')===mo;
+}
+
+function rJrn(){
+  // Get all unique year-months
+  const yms=new Set();
+  D.journals.forEach(j=>{
+    const m=j.dt.match(/(\d+)\//);
+    if(m){const mon=parseInt(m[1]);const yr=mon>=6?'2025':'2026';yms.add(yr+'/'+String(mon).padStart(2,'0'));}
+  });
+  if(D.journals.some(j=>j.dt.includes('5/31')))yms.add('2026/05');
+  const sortedYMs=[...yms].sort();
+
+  // Build year-month selector
+  const ymOpts=sortedYMs.map(ym=>'<option value="'+ym+'">'+ym+'</option>').join('');
+
+  return '<div class="pt">전표조회</div>'+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">'+
+    '<span style="font-size:12px;font-weight:600">회기:</span>'+
+    '<select id="jrn_ki" onchange="onKiChange()" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">'+
+    '<option value="1">제1기 (2025.06~2026.05)</option>'+
+    '<option value="2">제2기 (2026.06~2027.05)</option>'+
+    '</select>'+
+    '<span style="font-size:12px;font-weight:600;margin-left:8px">월:</span>'+
+    '<select id="jrn_mo" onchange="filterJrn()" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">'+
+    getFiscalMonths(1).map(m=>'<option value="'+m.v+'">'+m.l+'</option>').join('')+
+    '</select>'+
+    '<span style="font-size:12px;font-weight:600;margin-left:8px">계정:</span>'+
+    '<select id="jrn_acct" onchange="filterJrn()" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">'+
+    '<option value="all">전체</option>'+
+    D.accts.map(a=>'<option value="'+a.c+'">'+a.c+' '+a.k+'</option>').join('')+
+    '</select>'+
+    '<span id="jrn_count" style="font-size:11px;color:#64748b;margin-left:auto">'+D.journals.length+'건</span>'+
+    '</div>'+
+    '<div class="pn"><div id="jrnBody" style="max-height:600px;overflow-y:auto">'+buildJrnTable(D.journals)+'</div></div>';
+}
+
+function buildJrnTable(list){
+  if(list.length===0)return '<div style="padding:30px;text-align:center;color:#64748b">해당 조건의 전표가 없습니다</div>';
+  let rows='';let totalDr=0;
+  list.forEach((e,i)=>{
+    totalDr+=e.amt;
+    rows+='<tr class="'+(i%2?'a':'')+'" onclick="viewSlip('+e.id+')" style="cursor:pointer" onmouseenter="this.style.background=\'#f0f9ff\'" onmouseleave="this.style.background=\''+( i%2?'#f8f9fb':'')+'\'">';
+    rows+='<td class="mu m" style="width:50px">'+e.dt+'</td>';
+    rows+='<td style="width:55px;color:#2563eb;font-size:10px">'+e.no+'</td>';
+    rows+='<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+e.desc+'</td>';
+    rows+='<td style="color:#2563eb">'+acctNm(e.dr)+'</td>';
+    rows+='<td style="color:#dc2626">'+acctNm(e.cr)+'</td>';
+    rows+='<td class="r m b">'+fm(e.amt)+'</td></tr>';
+  });
+  return '<table><thead><tr><th>일자</th><th>전표</th><th>적요</th><th>차변</th><th>대변</th><th class="r">금액</th></tr></thead><tbody>'+rows+'</tbody>'+
+    '<tr class="t"><td colspan="5" class="r">합계 ('+list.length+'건)</td><td class="r m">'+fm(totalDr)+'</td></tr></table>';
+}
+
+function onKiChange(){
+  // Future: load different fiscal year data
+  filterJrn();
+}
+function filterJrn(){
+  const mo=document.getElementById('jrn_mo').value;
+  const acct=document.getElementById('jrn_acct').value;
+  let filtered=D.journals;
+  if(mo!=='all'){
+    filtered=filtered.filter(j=>journalMatchMonth(j,mo));
+  }
+  if(acct!=='all'){
+    filtered=filtered.filter(j=>j.dr===acct||j.cr===acct);
+  }
+  document.getElementById('jrnBody').innerHTML=buildJrnTable(filtered);
+  document.getElementById('jrn_count').textContent=filtered.length+'건';
+}
+
+
 function rDash(){const c=calc();return `<div class="pt">대시보드</div>
   <div class="cards"><div class="cd bl"><div class="l">총 보유 자산</div><div class="v">${fy(c.totA)}</div></div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
   <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>`;}
@@ -751,7 +937,7 @@ function rRpt(){const c=calc();
 
   return '<div style="max-width:1100px">'+
     '<div style="text-align:center;margin-bottom:20px"><div style="font-size:22px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:13px;color:#64748b;margin-top:4px">'+rptDt()+' 기준</div></div>'+
-    '<button class="bt" onclick="window.print()" style="margin-bottom:12px">🖨 인쇄 (A4)</button>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px"><button class="bt" onclick="window.print()">🖨 인쇄 (A4)</button><button class="bt" onclick="exportWord()" style="background:#2563eb">📝 워드 내보내기</button></div>'+
 
     // 1. 총자산내역
     '<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#1e3a5f">1. 총자산내역</div>'+
@@ -822,7 +1008,7 @@ function rSet(){return `<div class="pt">설정</div>
   <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
 
 // ===== ROUTING =====
-const pages={dash:rDash,slip:rSlip,gl:rGL,fs:rFS,sec:rSec,bank:rBank,rpt:rRpt,set:rSet};
+const pages={dash:rDash,slip:rSlip,jrn:rJrn,gl:rGL,fs:rFS,sec:rSec,bank:rBank,rpt:rRpt,set:rSet};
 let cur='dash';
 
 function go(p){
