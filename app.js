@@ -981,11 +981,11 @@ function rFS(){
 
   return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button></div>'+
   '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
-  '<div class="fr"><span>Ⅰ 매출고</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
-  '<div class="fr h"><span>Ⅱ 판매비및일반관리비</span></div>'+
+  '<div class="fr"><span>Ⅰ 매출액</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
+  '<div class="fr h"><span>Ⅱ 판매비와 일반관리비</span></div>'+
   sga.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
   '<div class="fr b tl"><span>판관비 합계</span><span class="m">'+fm(d.sgaT)+'</span></div>'+
-  '<div class="fr"><span>창립비</span><span class="m">'+fm(d.su)+'</span></div>'+
+  '<div class="fr"><span>설립비</span><span class="m">'+fm(d.su)+'</span></div>'+
   '<div class="fr b tl" style="color:#dc2626"><span>영업손실</span><span class="m">'+fm(d.ol)+'</span></div><div style="height:8px"></div>'+
   '<div class="fr h"><span>Ⅲ 영업외수익</span></div>'+
   noi.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
@@ -994,7 +994,7 @@ function rFS(){
   noe.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
   '<div class="fr b tl"><span>영업외비용 합계</span><span class="m">'+fm(d.noeT)+'</span></div><div style="height:8px"></div>'+
   '<div class="fr b tl" style="color:#059669"><span>경상이익</span><span class="m">'+fm(d.oi)+'</span></div>'+
-  '<div class="fr"><span>Ⅴ 법인세등</span><span class="m">'+fm(d.ct)+'</span></div>'+
+  '<div class="fr"><span>Ⅴ 법인세 등</span><span class="m">'+fm(d.ct)+'</span></div>'+
   '<div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:16px;font-weight:700;border-top:3px solid #e2e6ed;margin-top:8px;background:#d1fae560;border-radius:0 0 6px 6px"><span>당기순이익</span><span style="color:'+(d.ni>=0?'#059669':'#dc2626')+'" class="m">'+fy(d.ni)+'</span></div>'+
   '<div class="ib" style="margin-top:8px;font-size:10px">💡 유가증권평가손·법인세는 보유종목 시가 기준 자동 반영됩니다</div>'+
   '</div></div>';
@@ -1325,7 +1325,7 @@ function rBSTab(){
   '<div class="fr"><span>임원차입금</span><span class="m">'+fm(acctBal('221')+acctBal('220'))+'</span></div>'+
   '<div class="fr"><span>미지급이자</span><span class="m">'+fm(acctBal('224'))+'</span></div>'+
   '<div class="fr"><span>미지급금</span><span class="m">'+fm(acctBal('203'))+'</span></div>'+
-  '<div class="fr"><span>미지급법인세등</span><span class="m">'+fm(acctBal('205'))+'</span></div>'+
+  '<div class="fr"><span>미지급법인세 등</span><span class="m">'+fm(acctBal('205'))+'</span></div>'+
   '<div class="fr b tl" style="color:#d97706"><span>부채합계</span><span class="m">'+fm(d.totL)+'</span></div>'+
   '<div style="text-align:center;font-size:14px;font-weight:700;color:#059669;margin:16px 0 10px">【순자산】</div>'+
   '<div class="fr"><span>자본금</span><span class="m">'+fm(d.capitalBal)+'</span></div>'+
