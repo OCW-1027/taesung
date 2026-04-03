@@ -494,6 +494,11 @@ function delSlip(id){
 
 function exportWord(){
   const c=calc();
+  const tI2=D.bkIn.reduce((s,d)=>s+d.amt,0);const tO2=D.bkOut.reduce((s,d)=>s+d.amt,0);
+  const isSec2=cat=>{const c2=cat.toLowerCase();return c2.includes('증권')||c2.includes('주식')||c2.includes('매수')||c2.includes('매도')||c2.includes('이체')||c2.includes('ipo')||c2.includes('증거금');};
+  const isCap2=cat=>{const c2=cat.toLowerCase();return c2.includes('자본')||c2.includes('출자');};
+  const opIn2=D.bkIn.reduce((s,d)=>s+(!isSec2(d.cat)&&!isCap2(d.cat)?d.amt:0),0);
+  const opOut2=D.bkOut.reduce((s,d)=>s+(!isSec2(d.cat)?d.amt:0),0);
   const S='border:1px solid #999;padding:4pt 6pt;font-size:10pt;';
   const HR=S+'text-align:right;';
   const HB=HR+'font-weight:bold;';
@@ -957,6 +962,21 @@ function rRealTab(){const c=calc();
   <tr class="t"><td colspan="4" class="r">합계</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.buyAmt,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.bC,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.bT,0))}</td><td class="r m">${fm(c.rC)}</td><td class="r m">${fm(c.rS)}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.sC,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.sT,0))}</td><td class="r">${bg(c.rpl)}</td><td class="r m gn">${(c.rpl/c.rC*100).toFixed(2)}%</td><td></td></tr>
   </table></div></div>`;}
 
+function bkTag(cat){
+  if(!cat)return '';
+  const c=cat.toLowerCase();
+  if(c.includes('증권')||c.includes('주식')||c.includes('매수')||c.includes('매도')||c.includes('이체')||c.includes('ipo')||c.includes('증거금'))return '<span style="font-size:9px;background:#dbeafe;color:#2563eb;padding:1px 5px;border-radius:3px;margin-left:4px">증권</span>';
+  if(c.includes('자본')||c.includes('출자'))return '<span style="font-size:9px;background:#d1fae5;color:#059669;padding:1px 5px;border-radius:3px;margin-left:4px">자본</span>';
+  if(c.includes('이자')||c.includes('배당')||c.includes('수입'))return '<span style="font-size:9px;background:#fef3c7;color:#d97706;padding:1px 5px;border-radius:3px;margin-left:4px">수익</span>';
+  return '<span style="font-size:9px;background:#fee2e2;color:#dc2626;padding:1px 5px;border-radius:3px;margin-left:4px">경비</span>';
+}
+function bkSummary(){
+  const isSec=cat=>{const c=cat.toLowerCase();return c.includes('증권')||c.includes('주식')||c.includes('매수')||c.includes('매도')||c.includes('이체')||c.includes('ipo')||c.includes('증거금');};
+  let secOut=0,expOut=0,capIn=0,secIn=0,incIn=0;
+  D.bkOut.forEach(d=>{if(isSec(d.cat))secOut+=d.amt;else expOut+=d.amt;});
+  D.bkIn.forEach(d=>{const c=d.cat.toLowerCase();if(c.includes('자본')||c.includes('출자'))capIn+=d.amt;else if(isSec(d.cat))secIn+=d.amt;else incIn+=d.amt;});
+  return {secOut,expOut,capIn,secIn,incIn};
+}
 function rBank(){const c=calc();let cI=0,cO=0;
   return `<div class="pt">법인계좌</div>
   <div class="cards"><div class="cd bl"><div class="l">잔액</div><div class="v">${fy(c.bb)}</div></div><div class="cd gn"><div class="l">총입금</div><div class="v">${fy(c.tI)}</div></div><div class="cd rd"><div class="l">총출금</div><div class="v">${fy(c.tO)}</div></div></div>
@@ -1004,7 +1024,7 @@ function rRpt(){const c=calc();
   const tI=D.bkIn.reduce((s,d)=>s+d.amt,0);
   const tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
   // Operating only (exclude capital + securities transfers)
-  const isSec=cat=>{const c2=cat.toLowerCase();return c2.includes('증권')||c2.includes('주식')||c2.includes('매수')||c2.includes('매도')||c2.includes('이체');};
+  const isSec=cat=>{const c2=cat.toLowerCase();return c2.includes('증권')||c2.includes('주식')||c2.includes('매수')||c2.includes('매도')||c2.includes('이체')||c2.includes('ipo')||c2.includes('증거금');};
   const isCap=cat=>{const c2=cat.toLowerCase();return c2.includes('자본')||c2.includes('출자');};
   const opIn=D.bkIn.reduce((s,d)=>s+(!isSec(d.cat)&&!isCap(d.cat)?d.amt:0),0);
   const opOut=D.bkOut.reduce((s,d)=>s+(!isSec(d.cat)?d.amt:0),0);
