@@ -1123,6 +1123,71 @@ function rRpt(){const c=calc();
     '</div>';
 }
 
+
+// ===== DATA BACKUP / RESTORE =====
+function exportBackup(){
+  const backup={
+    version:'taesung_v26',
+    exportDate:new Date().toISOString(),
+    data:D,
+    settings:SET,
+    pin:localStorage.getItem(PIN_KEY)
+  };
+  const json=JSON.stringify(backup,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a2=document.createElement('a');
+  a2.href=url;
+  a2.download='taesung_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a2);a2.click();document.body.removeChild(a2);
+  URL.revokeObjectURL(url);
+  alert('백업 완료!\n파일: '+a2.download);
+}
+
+function importBackup(){
+  const input=document.createElement('input');
+  input.type='file';input.accept='.json';
+  input.onchange=function(e){
+    const file=e.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        const backup=JSON.parse(ev.target.result);
+        if(!backup.data||!backup.data.journals){
+          alert('올바른 백업 파일이 아닙니다.');return;
+        }
+        const info='백업 정보:\n'+
+          '- 내보낸 날짜: '+(backup.exportDate||'불명').slice(0,10)+'\n'+
+          '- 전표: '+backup.data.journals.length+'건\n'+
+          '- 보유종목(일본): '+(backup.data.holdJP||[]).length+'종목\n'+
+          '- 보유종목(미국): '+(backup.data.holdUS||[]).length+'종목\n\n'+
+          '현재 데이터를 덮어씁니다. 진행하시겠습니까?';
+        if(!confirm(info))return;
+        // Restore data
+        D=backup.data;
+        D.accts=ACCT_INIT; // Always use fresh accounts
+        saveD();
+        // Restore settings
+        if(backup.settings){
+          SET=backup.settings;
+          localStorage.setItem(SKEY,JSON.stringify(SET));
+        }
+        // Restore PIN
+        if(backup.pin){
+          localStorage.setItem(PIN_KEY,backup.pin);
+        }
+        alert('복원 완료! 페이지를 새로고침합니다.');
+        location.reload();
+      }catch(err){
+        alert('파일 읽기 오류: '+err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 function rSet(){return `<div class="pt">설정</div>
   <div class="sc"><h4>💱 환율 설정</h4><div style="font-size:11px;color:#64748b;margin-bottom:10px">환율 변경 시 유가증권 평가 및 전표처리에 반영</div>
   <button class="bt" id="rateBtn" onclick="fetchRate()" style="background:#d97706;margin-bottom:12px">🔄 환율 자동 가져오기</button>
@@ -1131,6 +1196,13 @@ function rSet(){return `<div class="pt">설정</div>
   <div style="margin-top:12px"><button class="bt" onclick="SET.rates.USDJPY=+document.getElementById('r1').value;SET.rates.JPYKRW=+document.getElementById('r2').value;saveS();alert('저장됨');go('set')">💾 저장</button></div></div>
   <div class="sc"><h4>📄 보고서 기준일</h4><div class="rr"><span>기준일 (비워두면 자동):</span><input id="r3" value="${SET.reportDate}" placeholder="예: 26. 3. 27." style="width:160px"></div>
   <button class="bt" onclick="SET.reportDate=document.getElementById('r3').value;saveS();alert('저장됨')">💾 저장</button></div>
+  <div class="sc"><h4>💾 데이터 백업 / 복원</h4>
+  <div style="font-size:11px;color:#64748b;margin-bottom:10px">다른 기기로 데이터를 이동하거나 백업할 수 있습니다</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="bt" onclick="exportBackup()" style="background:#059669">📤 백업 내보내기 (JSON)</button>
+    <button class="bt" onclick="importBackup()" style="background:#2563eb">📥 백업 가져오기</button>
+  </div>
+  <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 PC에서 내보내기 → 휴대폰에서 가져오기로 동기화 가능</div></div>
   <div class="sc"><h4>🔐 PIN 변경</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">앱 접근 시 사용하는 4자리 PIN을 변경합니다</div>
   <button class="bt" onclick="changePin()">🔐 PIN 변경</button></div>
   <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다</div>
