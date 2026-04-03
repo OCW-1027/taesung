@@ -468,6 +468,12 @@ function saveMonthlyClose(){
   alert('월차 마감 저장 완료!\n'+key+'\n총자산: '+fm(c.totA)+'\n경상이익: '+fm(d.oi));
 }
 
+function showMonthlyTab(btn){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  btn.classList.add('on');
+  var tc=document.getElementById('TC');
+  if(tc) tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';
+}
 function rMonthlyTable(){
   if(!D.monthlyClosed||Object.keys(D.monthlyClosed).length===0) return '<div style="padding:20px;text-align:center;color:#94a3b8">월차 마감 데이터가 없습니다.\n설정에서 월차 마감을 실행하세요.</div>';
   const keys=Object.keys(D.monthlyClosed).sort();
@@ -1235,7 +1241,7 @@ function rFS(){
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
-  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly">월차추이</button></div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly" onclick="showMonthlyTab(this)">월차추이</button></div>'+
   '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
   '<div class="fr"><span>Ⅰ 매출액</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
   '<div class="fr h"><span>Ⅱ 판매비와 일반관리비</span></div>'+
@@ -1655,7 +1661,7 @@ function go(p){
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));this.classList.add('on');
     const tc=document.getElementById('TC'),id=this.dataset.tab;if(!tc)return;
     if(cur==='sec'){if(id==='real')tc.innerHTML=rRealTab();else go('sec');}
-    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else go('fs');}
+    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else go('fs');}
   }));
 }
 
