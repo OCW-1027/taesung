@@ -534,9 +534,9 @@ function exportWord(){
 
 <h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">1. 총자산내역</h2>
 <table ${T}><tr><td style="${TH}">구분</td><td style="${THR}">내역(엔)</td><td style="${TH}">비고</td></tr>
-<tr><td style="${S}">자본금</td><td style="${HR}">10,000,000</td><td style="${S}"></td></tr>
-<tr><td style="${S}background:#f5f5f5">수입</td><td style="${HR}background:#f5f5f5">21,845</td><td style="${S}background:#f5f5f5"></td></tr>
-<tr><td style="${S}">지출</td><td style="${HR}">(1,624,866)</td><td style="${S}"></td></tr>
+<tr><td style="${S}">자본금</td><td style="${HR}">${fm(acctBal("300"))}</td><td style="${S}"></td></tr>
+<tr><td style="${S}background:#f5f5f5">수입</td><td style="${HR}background:#f5f5f5">${fm(tI2-acctBal("300"))}</td><td style="${S}background:#f5f5f5"></td></tr>
+<tr><td style="${S}">지출</td><td style="${HR}">(${fm(tO2)})</td><td style="${S}"></td></tr>
 <tr><td style="${S}background:#f5f5f5;font-weight:bold">법인계좌잔액---(1)</td><td style="${HB}background:#f5f5f5">${fm(c.bb)}</td><td style="${S}background:#f5f5f5;color:#888">미츠이스미토모</td></tr>
 <tr><td style="${S}">증권예수금</td><td style="${HR}">${fm(c.secDep)}</td><td style="${S}"></td></tr>
 <tr><td style="${S}background:#f5f5f5">유가증권평가액</td><td style="${HR}background:#f5f5f5">${fm(c.allMv)}</td><td style="${S}background:#f5f5f5"></td></tr>
@@ -1001,6 +1001,8 @@ function rFS(){
 }
 
 function rRpt(){const c=calc();
+  const tI=D.bkIn.reduce((s,d)=>s+d.amt,0);
+  const tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
   // Build JP table
   let jpRows='';
   D.holdJP.forEach((h,i)=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;
@@ -1030,9 +1032,9 @@ function rRpt(){const c=calc();
     // 1. 총자산내역
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">1. 총자산내역</div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'총자산\')">+ 행추가</button></div>'+
     '<div class="pn"><table><thead><tr><th>구분</th><th class="r">내역(엔)</th><th>비고</th></tr></thead><tbody>'+
-    '<tr><td>자본금</td><td class="r m">10,000,000</td><td></td></tr>'+
-    '<tr class="a"><td>수입</td><td class="r m">21,845</td><td></td></tr>'+
-    '<tr><td>지출</td><td class="r m">(1,624,866)</td><td></td></tr>'+
+    '<tr><td>자본금</td><td class="r m">'+fm(acctBal('300'))+'</td><td></td></tr>'+
+    '<tr class="a"><td>수입</td><td class="r m">'+fm(tI-acctBal('300'))+'</td><td>자본금 외 입금</td></tr>'+
+    '<tr><td>지출</td><td class="r m">('+fm(tO)+')</td><td></td></tr>'+
     '<tr class="a" style="font-weight:700"><td>법인계좌잔액---(1)</td><td class="r m b">'+fm(c.bb)+'</td><td class="mu">미츠이스미토모</td></tr>'+
     '<tr><td>증권예수금</td><td class="r m">'+fm(c.secDep)+'</td><td></td></tr>'+
     '<tr class="a"><td>유가증권평가액</td><td class="r m">'+fm(c.allMv)+'</td><td></td></tr>'+
@@ -1275,7 +1277,7 @@ function exportFSWord(){
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">【純資産の部】</td></tr>
-<tr><td>　資本金</td><td class="r">${fm(10000000)}</td><td></td><td></td></tr>
+<tr><td>　資本金</td><td class="r">${fm(acctBal("300"))}</td><td></td><td></td></tr>
 <tr><td>　利益剰余金（当期純利益）</td><td class="r">${fm(d.eqNI)}</td><td></td><td></td></tr>
 <tr class="total"><td>純資産合計</td><td></td><td></td><td class="r">${fm(d.totE)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
