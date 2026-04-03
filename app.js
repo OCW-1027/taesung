@@ -752,6 +752,19 @@ function editSlip(id){var j=D.journals.find(x=>x.id===id);if(!j)return;closeModa
 
 function copySlip(id){var j=D.journals.find(x=>x.id===id);if(!j)return;closeModal();window._editSlipId=null;go('slip');setTimeout(function(){var d2=document.getElementById('sl_desc');if(d2)d2.value=(j.desc||'')+' (복사)';var c2=document.getElementById('sl_cur');if(c2)c2.value=j.cur||'JPY';var vs=document.getElementById('sl_vendor_sel');if(vs)vs.value=j.vendor||'';var vi=document.getElementById('sl_vendor_inp');if(vi){vi.value=j.vendor||'';vi.style.display=vs&&vs.value?'none':'block';}var rows=document.querySelectorAll('#slipRows tr');if(rows[0]){rows[0].querySelector('.sl_side').value='dr';rows[0].querySelector('.sl_acct').value=j.dr;rows[0].querySelector('.sl_amt').value=j.amt;}if(rows[1]){rows[1].querySelector('.sl_side').value='cr';rows[1].querySelector('.sl_acct').value=j.cr;rows[1].querySelector('.sl_amt').value=j.amt;}updSlipBal();},300);}
 
+function saveDeposit(){
+  var el=document.getElementById('depEdit');
+  if(!el)return;
+  var raw=el.textContent.replace(/[,\s]/g,'');
+  var val=parseInt(raw);
+  if(!isNaN(val)&&val>=0){
+    D.secDeposit=val;
+    saveD();
+    el.textContent=fm(val);
+    alert('증권예수금 저장: ¥'+fm(val));
+    go('sec');
+  }
+}
 function calcSlipTax(sel){
   const tr=sel.closest('tr');
   const amt=+(tr.querySelector('.sl_amt').value)||0;
@@ -918,7 +931,7 @@ function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보
 function rSec(){const c=calc();const jpT=c.jpMv;
   return `<div class="pt">유가증권</div>
   <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
-  <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span></div>
+  <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span><button class="bt" onclick="saveDeposit()" style="font-size:10px;padding:3px 10px">💾 저장</button></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button></div>
   <div id="TC">
   <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
