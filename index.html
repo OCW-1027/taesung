@@ -313,14 +313,14 @@ const DEF_DATA={
     {c:"400",n:"売上高",k:"매출",g:"収益"},{c:"401",n:"受取利息",k:"수취이자",g:"収益"},
     {c:"402",n:"受取配当金",k:"수취배당금",g:"収益"},{c:"403",n:"有価証券売却益",k:"유가증권매각이익",g:"収益"},
     {c:"405",n:"雑収入",k:"잡수입",g:"収益"},
-    {c:"510",n:"役員報酬",k:"임원보수",g:"費用"},{c:"511",n:"給料手当",k:"급여수당",g:"費用"},
-    {c:"520",n:"旅費交通費",k:"여비교통비",g:"費用"},{c:"521",n:"海外渡航費",k:"해외출장비",g:"費用"},
-    {c:"523",n:"消耗品費",k:"소모품비",g:"費用"},{c:"526",n:"地代家賃",k:"임차료",g:"費用"},
-    {c:"530",n:"租税公課",k:"세금공과",g:"費用"},{c:"531",n:"車両費",k:"차량비",g:"費用"},
-    {c:"532",n:"接待交際費",k:"접대교제비",g:"費用"},{c:"536",n:"支払手数料",k:"지급수수료",g:"費用"},{c:"537",n:"有価証券売買手数料",k:"유가증권매매수수료",g:"費用"},
-    {c:"540",n:"支払利息",k:"지급이자",g:"費用"},{c:"542",n:"有価証券評価損",k:"유가증권평가손",g:"費用"},
-    {c:"550",n:"法人税等",k:"법인세등",g:"費用"},{c:"560",n:"創立費",k:"창립비",g:"費用"},
-    {c:"570",n:"雑費",k:"잡비",g:"費用"},
+    {c:"510",p:"s",n:"役員報酬",k:"임원보수",g:"費用"},{c:"511",p:"s",n:"給料手当",k:"급여수당",g:"費用"},
+    {c:"520",p:"s",n:"旅費交通費",k:"여비교통비",g:"費用"},{c:"521",p:"s",n:"海外渡航費",k:"해외출장비",g:"費用"},
+    {c:"523",p:"s",n:"消耗品費",k:"소모품비",g:"費用"},{c:"526",p:"s",n:"地代家賃",k:"임차료",g:"費用"},
+    {c:"530",p:"s",n:"租税公課",k:"세금공과",g:"費用"},{c:"531",p:"s",n:"車両費",k:"차량비",g:"費用"},
+    {c:"532",p:"s",n:"接待交際費",k:"접대교제비",g:"費用"},{c:"536",p:"s",n:"支払手数料",k:"지급수수료",g:"費用"},{c:"537",p:"s",n:"有価証券売買手数料",k:"유가증권매매수수료",g:"費用"},
+    {c:"540",p:"o",n:"支払利息",k:"지급이자",g:"費用"},{c:"542",p:"o",n:"有価証券評価損",k:"유가증권평가손",g:"費用"},
+    {c:"550",p:"t",n:"法人税等",k:"법인세등",g:"費用"},{c:"560",p:"x",n:"創立費",k:"창립비",g:"費用"},
+    {c:"570",p:"s",n:"雑費",k:"잡비",g:"費用"},
   ],
 };
 
@@ -414,6 +414,35 @@ function editReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;showModal('
 function doEditReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;r.dt=document.getElementById('f_dt').value;r.tk=document.getElementById('f_tk').value;r.nm=document.getElementById('f_nm').value;r.sh=+document.getElementById('f_sh').value;r.buyAmt=+document.getElementById('f_ba').value;r.bC=+document.getElementById('f_bc').value;r.bT=+document.getElementById('f_bt').value;r.sa=+document.getElementById('f_sa').value;r.sC=+document.getElementById('f_sc').value;r.sT=+document.getElementById('f_st').value;r.tc=r.buyAmt+r.bC+r.bT;r.sp=r.sh?Math.round(r.sa/r.sh):0;r.gr=r.sa-r.tc;r.net=r.gr-r.sC-r.sT;r.rr=r.tc?Math.round(r.net/r.tc*10000)/100:0;saveD();closeModal();go('sec');}
 
 
+
+function viewSlip(id){
+  const j=D.journals.find(x=>x.id===id);
+  if(!j)return;
+  const drNm=acctNm(j.dr),crNm=acctNm(j.cr);
+  showModal('전표 상세 ['+j.no+']',
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px">'+
+    '<div><label style="font-size:10px;color:#64748b">전표번호</label><div style="font-weight:700;color:#2563eb">'+j.no+'</div></div>'+
+    '<div><label style="font-size:10px;color:#64748b">일자</label><div>'+j.dt+(j.edt?' (증빙:'+j.edt+')':'')+'</div></div>'+
+    '<div style="grid-column:1/-1"><label style="font-size:10px;color:#64748b">적요</label><div style="font-weight:600">'+j.desc+'</div></div>'+
+    '</div>'+
+    '<table style="margin-top:14px"><thead><tr><th>차/대</th><th>계정과목</th><th>코드</th><th class="r">금액</th></tr></thead>'+
+    '<tbody>'+
+    '<tr style="background:#dbeafe"><td style="color:#2563eb;font-weight:700">차변</td><td style="font-weight:600">'+drNm+'</td><td class="mu">'+j.dr+'</td><td class="r m b">'+fm(j.amt)+'</td></tr>'+
+    '<tr style="background:#fee2e2"><td style="color:#dc2626;font-weight:700">대변</td><td style="font-weight:600">'+crNm+'</td><td class="mu">'+j.cr+'</td><td class="r m b">'+fm(j.amt)+'</td></tr>'+
+    '</tbody></table>'+
+    (j.cur?'<div style="margin-top:8px;font-size:11px;color:#64748b">통화: '+j.cur+'</div>':'')+
+    (j.exp?'<div style="font-size:11px;color:#64748b">원가구분: '+(j.exp==="s"?"판관비":j.exp==="c"?"매출원가":j.exp==="o"?"영업외":"특별")+'</div>':'')+
+    '<div style="margin-top:16px;display:flex;gap:8px;justify-content:space-between">'+
+    '<button class="bt" style="background:#dc2626" onclick="delSlip('+id+')">🗑 전표 삭제</button>'+
+    '<button class="bt gh" onclick="closeModal()">닫기</button>'+
+    '</div>');
+}
+function delSlip(id){
+  if(!confirm("이 전표를 삭제하시겠습니까?\n삭제하면 총계정원장과 재무제표에도 반영됩니다."))return;
+  D.journals=D.journals.filter(x=>x.id!==id);
+  saveD();closeModal();go("slip");
+}
+
 function updatePrices(){
   let rows = D.holdJP.map(h=>`<tr>
     <td class="b bl">${h.tk}</td><td>${h.nm}</td><td class="r m">${fm(h.sh)}</td>
@@ -477,40 +506,103 @@ function applyPrices(){
 }
 
 // ===== SLIP (전표처리) =====
-function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend',`<tr id="sr_${id}"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">${acctOptions()}</select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td class="r"><input type="number" class="sl_fee" placeholder="0" style="width:70px;padding:3px;border:1px solid #fffbeb;border-radius:4px;font-size:11px;text-align:right;background:#fffbeb"></td><td class="r"><input type="number" class="sl_tax" placeholder="0" style="width:70px;padding:3px;border:1px solid #fee2e2;border-radius:4px;font-size:11px;text-align:right;background:#fee2e2"></td><td><button class="del" onclick="document.getElementById('sr_${id}').remove();updSlipBal()">✕</button></td></tr>`);}
+function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend','<tr id="sr_'+id+'"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td><td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td><select class="sl_taxr" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px" onchange="calcSlipTax(this)"><option value="0">비과세</option><option value="10">🇯🇵 10%</option><option value="8">🇯🇵 8%(경감)</option><option value="10k">🇰🇷 10%</option></select></td><td class="r"><span class="sl_taxamt" style="font-size:11px;color:#dc2626">0</span></td><td><button class="del" onclick="document.getElementById(\'sr_'+id+'\').remove();updSlipBal()">✕</button></td></tr>');}
 function acctOptions(){return '<option value="">--</option>'+["資産","負債","純資産","収益","費用"].map(g=>`<optgroup label="${g}">${D.accts.filter(a=>a.g===g).map(a=>`<option value="${a.c}">${a.c} ${a.k}</option>`).join('')}</optgroup>`).join('');}
-function updSlipBal(){let dr=0,cr=0;document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,a=+(r.querySelector('.sl_amt').value)||0;if(s==='dr')dr+=a;else cr+=a;});const ok=dr===cr&&dr>0;document.getElementById('slipBal').innerHTML=`<span>차변: <b>${fm(dr)}</b></span><span>대변: <b>${fm(cr)}</b></span><span style="font-weight:700;color:${ok?'#059669':'#dc2626'}">${ok?'✓ 차대일치':'✗ 불일치'}</span>`;document.getElementById('slipSubmit').style.background=ok?'#059669':'#94a3b8';}
-function submitSlip(){let dr=0,cr=0;const rows=[];document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,ac=r.querySelector('.sl_acct').value,a=+(r.querySelector('.sl_amt').value)||0,f=+(r.querySelector('.sl_fee')?.value)||0,t=+(r.querySelector('.sl_tax')?.value)||0;if(ac&&a>0){rows.push({side:s,ac,amt:a,fee:f,tax:t});if(s==='dr')dr+=a;else cr+=a;}});if(dr!==cr||dr===0)return alert('차대가 일치하지 않습니다');const dt=document.getElementById('sl_dt').value,desc=document.getElementById('sl_desc').value,cur=document.getElementById('sl_cur').value;const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,fee:d.fee||c.fee,tax:d.tax||c.tax,cur});});});saveD();go('slip');}
+function updSlipBal(){let dr=0,cr=0;document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,a=+(r.querySelector('.sl_amt').value)||0;if(s==='dr')dr+=a;else cr+=a;});const ok=dr===cr&&dr>0;document.getElementById('slipBal').innerHTML='<span>차변: <b>'+fm(dr)+'</b></span><span>대변: <b>'+fm(cr)+'</b></span><span style="font-weight:700;color:'+(ok?'#059669':'#dc2626')+'">'+(ok?'✓ 차대일치':'✗ 불일치')+'</span>';document.getElementById('slipSubmit').style.background=ok?'#059669':'#94a3b8';}
+function submitSlip(){let dr=0,cr=0;const rows=[];document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,ac=r.querySelector('.sl_acct').value,a=+(r.querySelector('.sl_amt').value)||0,exp=r.querySelector('.sl_exp')?.value||'',taxr=r.querySelector('.sl_taxr')?.value||'0';if(ac&&a>0){rows.push({side:s,ac,amt:a,exp,taxr});if(s==='dr')dr+=a;else cr+=a;}});if(dr!==cr||dr===0)return alert('차대가 일치하지 않습니다');const edt=document.getElementById('sl_edt').value,pdt=document.getElementById('sl_pdt').value,desc=document.getElementById('sl_desc').value,cur=document.getElementById('sl_cur').value;const mo=edt.split('-')[1]||'01';const dt=mo+'/'+edt.split('-')[2];const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,edt,pdt,cur,exp:d.exp||c.exp,taxr:d.taxr||c.taxr});});});saveD();go('slip');}
 function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="資産">자산</option><option value="負債">부채</option><option value="純資産">순자산</option><option value="収益">수익</option><option value="費用">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
 function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');D.accts.push({c,n,k,g});saveD();closeModal();go('slip');}
 
 function rSlip(){
-  const grouped={};D.journals.forEach(j=>{if(!grouped[j.no])grouped[j.no]={no:j.no,dt:j.dt,desc:j.desc,entries:[]};grouped[j.no].entries.push(j);});
-  const slipList=Object.values(grouped).reverse();
-  return `<div class="pt">전표처리</div>
-  <div class="ib">💡 전표 기표 → 총계정원장 자동 반영. 환율: USD/JPY ${SET.rates.USDJPY} | JPY/KRW ${SET.rates.JPYKRW}</div>
-  <div class="pn" style="padding:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1e3a5f">
-      <span style="font-size:16px;font-weight:700;color:#1e3a5f">대체전표</span>
-      <div style="border:2px solid #1e3a5f;border-radius:6px;padding:3px 10px;text-align:center"><div style="font-size:7px;color:#64748b">결재</div><div style="font-size:11px;font-weight:700;color:#1e3a5f">본인전결</div></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><div><label>전표일자</label><input type="date" id="sl_dt" value="${new Date().toISOString().slice(0,10)}"></div></div>
-      <div class="fg"><div><label>적요</label><input id="sl_desc" placeholder="거래 내용"></div></div>
-      <div class="fg"><div><label>통화</label><select id="sl_cur"><option value="JPY">🇯🇵 JPY</option><option value="KRW">🇰🇷 KRW</option><option value="USD">🇺🇸 USD</option></select></div></div>
-    </div>
-    <table><thead><tr><th>차/대</th><th>계정과목</th><th class="r">금액</th><th class="r">수수료</th><th class="r">소비세</th><th></th></tr></thead>
-    <tbody id="slipRows">
-      <tr id="sr_1"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#dbeafe"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">${acctOptions()}</select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td class="r"><input type="number" class="sl_fee" placeholder="0" style="width:70px;padding:3px;border:1px solid #fffbeb;border-radius:4px;font-size:11px;text-align:right;background:#fffbeb"></td><td class="r"><input type="number" class="sl_tax" placeholder="0" style="width:70px;padding:3px;border:1px solid #fee2e2;border-radius:4px;font-size:11px;text-align:right;background:#fee2e2"></td><td></td></tr>
-      <tr id="sr_2"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#fee2e2"><option value="cr">대변</option><option value="dr">차변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">${acctOptions()}</select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td class="r"><input type="number" class="sl_fee" placeholder="0" style="width:70px;padding:3px;border:1px solid #fffbeb;border-radius:4px;font-size:11px;text-align:right;background:#fffbeb"></td><td class="r"><input type="number" class="sl_tax" placeholder="0" style="width:70px;padding:3px;border:1px solid #fee2e2;border-radius:4px;font-size:11px;text-align:right;background:#fee2e2"></td><td></td></tr>
-    </tbody></table>
-    <div style="margin-top:8px;display:flex;gap:6px"><button class="bt gh" style="font-size:10px" onclick="addSlipRow()">+ 행추가</button><button class="bt gh" style="font-size:10px" onclick="addAcct()">+ 과목추가</button></div>
-    <div id="slipBal" style="margin-top:10px;padding:6px 10px;background:#fee2e2;border-radius:6px;font-size:11px;display:flex;justify-content:space-between"><span>차변: <b>0</b></span><span>대변: <b>0</b></span><span style="font-weight:700;color:#dc2626">✗ 불일치</span></div>
-    <div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="bt" id="slipSubmit" style="background:#94a3b8" onclick="submitSlip()">승인·기표</button></div>
-  </div>
-  <div class="pn" style="margin-top:16px"><div class="ph">전표일람 (${slipList.length}건)</div>
-  ${slipList.length===0?'<div style="padding:20px;text-align:center;color:#64748b">기표된 전표가 없습니다</div>':slipList.slice(0,15).map(s=>`<div style="padding:10px 14px;border-bottom:1px solid #e2e6ed;font-size:11px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span><b style="color:#2563eb">${s.no}</b> <span class="mu">${s.dt}</span> ${s.desc||''}</span><span style="font-size:9px;color:#059669">✓ 본인전결</span></div>${s.entries.map(e=>`<div style="display:flex;gap:8px"><span style="color:#2563eb;width:140px">차 ${acctNm(e.dr)}</span><span class="m" style="width:80px;text-align:right">${fm(e.amt)}</span><span style="color:#dc2626;width:140px">대 ${acctNm(e.cr)}</span></div>`).join('')}</div>`).join('')}
-  </div>`;}
+  // Group journals by year-month
+  const grouped={};
+  D.journals.forEach(j=>{
+    const ym=j.dt.replace(/\/.*$/,'').replace(/^(\d+)\/(\d+)$/,'$1/$2');
+    // Extract month key
+    let mk='기타';
+    const m=j.dt.match(/(\d+)\//);
+    if(m){const mon=parseInt(m[1]);mk=mon>=6?'2025/'+(mon<10?'0'+mon:mon):'2026/'+(mon<10?'0'+mon:mon);}
+    if(j.dt.includes('5/31'))mk='2026/05(결산)';
+    if(!grouped[mk])grouped[mk]=[];
+    grouped[mk].push(j);
+  });
+  const sortedKeys=Object.keys(grouped).sort();
+
+  // Slip list with year/month tabs
+  const monthBtns=sortedKeys.map(k=>'<button class="bt gh" style="font-size:10px;margin:2px" onclick="filterSlips(\''+k+'\')">'+k+' ('+grouped[k].length+')</button>').join('');
+
+  let allSlips='';
+  sortedKeys.forEach(mk=>{
+    allSlips+='<div class="slip-month" data-month="'+mk+'"><div style="padding:8px 12px;background:#dbeafe;font-weight:700;font-size:12px;color:#1e3a5f;border-bottom:1px solid #e2e6ed">📅 '+mk+' ('+grouped[mk].length+'건)</div>';
+    grouped[mk].forEach(e=>{
+      const drNm=acctNm(e.dr),crNm=acctNm(e.cr);
+      allSlips+='<div onclick="viewSlip('+e.id+')" style="padding:6px 14px;border-bottom:1px solid #f1f3f6;font-size:11px;display:flex;gap:8px;align-items:center;cursor:pointer" onmouseenter="this.style.background=\'#f0f9ff\'" onmouseleave="this.style.background=\'\'">'+
+        '<span class="mu" style="width:50px">'+e.dt+'</span>'+
+        '<span style="color:#2563eb;width:55px;font-size:10px">'+e.no+'</span>'+
+        '<span style="width:180px;overflow:hidden;text-overflow:ellipsis">'+e.desc+'</span>'+
+        '<span style="color:#2563eb;width:120px">차 '+drNm+'</span>'+
+        '<span style="color:#dc2626;width:120px">대 '+crNm+'</span>'+
+        '<span class="m" style="width:90px;text-align:right;font-weight:600">'+fm(e.amt)+'</span>'+
+        '</div>';
+    });
+    allSlips+='</div>';
+  });
+
+  return '<div class="pt">전표처리</div>'+
+  '<div class="ib">💡 전표 '+D.journals.length+'건 등록 | 전표 → 총계정원장 → 재무제표 자동연동</div>'+
+  '<div class="pn" style="padding:14px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1e3a5f">'+
+      '<span style="font-size:16px;font-weight:700;color:#1e3a5f">대체전표</span>'+
+      '<div style="border:2px solid #1e3a5f;border-radius:6px;padding:3px 10px;text-align:center"><div style="font-size:7px;color:#64748b">결재</div><div style="font-size:11px;font-weight:700;color:#1e3a5f">본인전결</div></div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">'+
+      '<div class="fg"><div><label>증빙일자</label><input type="date" id="sl_edt" value="'+new Date().toISOString().slice(0,10)+'"></div></div>'+
+      '<div class="fg"><div><label>전기일자</label><input type="date" id="sl_pdt" value="'+new Date().toISOString().slice(0,10)+'"></div></div>'+
+      '<div class="fg"><div><label>적요</label><input id="sl_desc" placeholder="거래 내용"></div></div>'+
+      '<div class="fg"><div><label>통화</label><select id="sl_cur"><option value="JPY">🇯🇵 JPY</option><option value="KRW">🇰🇷 KRW</option><option value="USD">🇺🇸 USD</option></select></div></div>'+
+    '</div>'+
+    '<table><thead><tr><th>차/대</th><th>계정과목</th><th>원가구분</th><th class="r">금액</th><th>소비세</th><th class="r">세액</th><th></th></tr></thead>'+
+    '<tbody id="slipRows">'+
+      '<tr id="sr_1"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#dbeafe"><option value="dr">차변</option><option value="cr">대변</option></select></td>'+
+      '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td>'+
+      '<td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td>'+
+      '<td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td>'+
+      '<td><select class="sl_taxr" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px" onchange="calcSlipTax(this)"><option value="0">비과세</option><option value="10">🇯🇵 10%</option><option value="8">🇯🇵 8%(경감)</option><option value="10k">🇰🇷 10%</option></select></td>'+
+      '<td class="r"><span class="sl_taxamt" style="font-size:11px;color:#dc2626">0</span></td>'+
+      '<td></td></tr>'+
+      '<tr id="sr_2"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#fee2e2"><option value="cr">대변</option><option value="dr">차변</option></select></td>'+
+      '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td>'+
+      '<td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td>'+
+      '<td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td>'+
+      '<td><select class="sl_taxr" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px" onchange="calcSlipTax(this)"><option value="0">비과세</option><option value="10">🇯🇵 10%</option><option value="8">🇯🇵 8%(경감)</option><option value="10k">🇰🇷 10%</option></select></td>'+
+      '<td class="r"><span class="sl_taxamt" style="font-size:11px;color:#dc2626">0</span></td>'+
+      '<td></td></tr>'+
+    '</tbody></table>'+
+    '<div style="margin-top:8px;display:flex;gap:6px"><button class="bt gh" style="font-size:10px" onclick="addSlipRow()">+ 행추가</button><button class="bt gh" style="font-size:10px" onclick="addAcct()">+ 과목추가</button></div>'+
+    '<div id="slipBal" style="margin-top:10px;padding:6px 10px;background:#fee2e2;border-radius:6px;font-size:11px;display:flex;justify-content:space-between"><span>차변: <b>0</b></span><span>대변: <b>0</b></span><span style="font-weight:700;color:#dc2626">✗ 불일치</span></div>'+
+    '<div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="bt" id="slipSubmit" style="background:#94a3b8" onclick="submitSlip()">승인·기표</button></div>'+
+  '</div>'+
+  '<div class="pn" style="margin-top:16px"><div class="ph"><span>전표일람 ('+D.journals.length+'건)</span></div>'+
+  '<div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid #e2e6ed">'+
+    '<button class="bt gh" style="font-size:10px;margin:2px" onclick="filterSlips(\'all\')">전체 ('+D.journals.length+')</button>'+monthBtns+
+  '</div>'+
+  '<div id="slipListBody" style="max-height:500px;overflow-y:auto">'+allSlips+'</div>'+
+  '</div>';
+}
+
+function filterSlips(month){
+  document.querySelectorAll('.slip-month').forEach(el=>{
+    el.style.display=(month==='all'||el.dataset.month===month)?'block':'none';
+  });
+}
+
+function calcSlipTax(sel){
+  const tr=sel.closest('tr');
+  const amt=+(tr.querySelector('.sl_amt').value)||0;
+  const rate=sel.value==='10k'?10:parseInt(sel.value)||0;
+  const tax=Math.round(amt*rate/100);
+  tr.querySelector('.sl_taxamt').textContent=tax?fm(tax):'0';
+}
 
 function acctNm(c){const a=D.accts.find(x=>x.c===c);return a?a.k:c;}
 
