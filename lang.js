@@ -6,7 +6,7 @@ const TX = {
   app:['법인 재무관리','法人財務管理'],co:['태성주식회사','泰成株式会社'],
   dash:['대시보드','ダッシュボード'],slip:['전표처리','伝票処理'],jrn:['전표조회','伝票照会'],
   gl:['총계정원장','総勘定元帳'],fs:['재무제표','財務諸表'],sec:['유가증권','有価証券'],
-  bank:['법인계좌','法人口座'],rpt:['운용보고서','運用報告書'],set:['설정','設定'],
+  bank:['법인계좌','法人口座'],rpt:['운용보고서','運用報告書'],set:['설정','設定'],calc:['계산기','計算機'],
   // Table headers
   code:['코드','コード'],name:['종목명','銘柄名'],qty:['수량','数量'],
   buyAmt:['매수금액','買付金額'],fee:['수수료','手数料'],tc:['취득원가','取得原価'],
@@ -58,7 +58,7 @@ const TX = {
   capital:['자본금','資本金'],income:['수입','収入'],expense:['지출','支出'],
   bankBal1:['법인계좌잔액---(1)','法人口座残高---(1)'],secDep:['증권예수금','証券預り金'],
   evalAmtLabel:['유가증권평가액','有価証券評価額'],
-  secBal1:['증권계좌잔액---(2)','証券口座残高---(2)'],totalHold:['총보유자산합계','総保有資産合計'],
+  secBal1:['증권계좌잔액---(2)','証券口座残高---(2)'],totalHold:['총보유자산','総保有資産'],bankBal:['법인계좌','法人口座'],realPL:['실현손익','実現損益'],evalPL:['평가손익','評価損益'],totalPL:['총합손익','総合損益'],evalAmt:['유가증권평가액','有価証券評価額'],
   summary:['총괄 요약','総括要約'],totalEval:['총 평가액','総評価額'],totalEvalPL:['총 평가손익','総評価損益'],
   inDetail:['입금 상세내역','入金詳細内訳'],outDetail:['출금 상세내역','出金詳細内訳'],
   // Slip
@@ -79,7 +79,7 @@ const TX = {
   // Actions
   print:['🖨 인쇄 (A4)','🖨 印刷（A4）'],wordExport:['📝 워드 내보내기','📝 Word出力'],
   priceUpdate:['📊 시세 업데이트','📊 時価更新'],addEntry:['+ 내역추가','+ 内訳追加'],
-  cancel:['취소','取消'],close:['닫기','閉じる'],add:['추가','追加'],
+  cancel:['취소','取消'],close:['닫기','閉じる'],add:['추가','追加'],edit:['수정','修正'],save2:['저장','保存'],mv:['평가액','評価額'],
   noSlip:['기표된 전표가 없습니다','起票された伝票がありません'],
   items:['건','件'],accts:['개 과목','科目'],
   mitsui:['미츠이스미토모','三井住友'],nikko:['SMBC닛코증권','SMBC日興証券'],
@@ -125,5 +125,5 @@ function updateNavLabels(){
   document.getElementById('langBtn').textContent=LANG==='ko'?'🌐 日本語':'🌐 한국어';
   document.querySelector('.nav-hd h3').textContent=t('app');
   document.querySelector('.nav-hd p').textContent=t('co');
-  const cb=document.getElementById('calcBtn');if(cb)cb.textContent='🧮 '+(LANG==='ja'?'計算機':'계산기');
+  const cb=document.getElementById('calcBtn');if(cb)cb.textContent='🧮 '+t('calc');
 }

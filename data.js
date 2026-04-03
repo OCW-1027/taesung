@@ -344,16 +344,7 @@ const FS = {
 };
 const SEC_DEP = 88436523;
 
-// ===== SETTINGS (누락된 SET 변수 추가) =====
-const DEF_SET = {
-  rates: { USDJPY: 159.36, JPYKRW: 9.12 },
-  reportDate: ''
-};
-const SKEY2 = 'taesung_settings';
+// ===== SETTINGS =====
+const DEF_SET={rates:{USDJPY:159.36,JPYKRW:9.12},reportDate:''};
 let SET;
-try {
-  const sv = localStorage.getItem('taesung_settings');
-  SET = sv ? { ...DEF_SET, ...JSON.parse(sv), rates: { ...DEF_SET.rates, ...(JSON.parse(sv).rates || {}) } } : { ...DEF_SET };
-} catch(e) {
-  SET = { ...DEF_SET };
-}
+try{const sv=localStorage.getItem('taesung_settings');SET=sv?{...DEF_SET,...JSON.parse(sv),rates:{...DEF_SET.rates,...(JSON.parse(sv).rates||{})}}:{...DEF_SET};}catch(e){SET={...DEF_SET};}
