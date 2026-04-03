@@ -315,7 +315,8 @@ function renderTrendChart(period){
 // ===== FIREBASE SYNC =====
 const FB_DOC = 'taesung_main';
 const FB_COL = 'appdata';
-let fbReady = typeof firebase !== 'undefined' && typeof db !== 'undefined';
+let fbReady = false;
+try{fbReady = typeof firebase !== 'undefined' && typeof db !== 'undefined' && db !== null;}catch(e){fbReady=false;}
 
 async function fbSave(){
   if(!fbReady) return;
@@ -344,6 +345,34 @@ async function fbLoad(){
     }
   }catch(e){console.log('Firebase load error:',e.message);}
   return null;
+}
+
+
+async function doFbUpload(){
+  if(!fbReady){alert('Firebase가 연결되지 않았습니다.\n페이지를 새로고침하세요.');return;}
+  try{
+    await fbSave();
+    alert('서버에 업로드 완료!');
+  }catch(e){alert('업로드 실패: '+e.message);}
+}
+
+async function doFbDownload(){
+  if(!fbReady){alert('Firebase가 연결되지 않았습니다.\n페이지를 새로고침하세요.');return;}
+  try{
+    const fb=await fbLoad();
+    if(!fb){alert('서버에 데이터가 없습니다.');return;}
+    D=fb.data;
+    D.accts=ACCT_INIT;
+    if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
+    if(!D.vendors)D.vendors=INIT_VENDORS||[];
+    localStorage.setItem(DKEY,JSON.stringify(D));
+    if(fb.settings){
+      SET=fb.settings;
+      localStorage.setItem(SKEY,JSON.stringify(SET));
+    }
+    alert('서버에서 다운로드 완료!\n('+fb.updatedAt.slice(0,16)+' 기준)\n페이지를 새로고침합니다.');
+    location.reload();
+  }catch(e){alert('다운로드 실패: '+e.message);}
 }
 
 async function fbInit(){
@@ -1265,10 +1294,10 @@ function rSet(){return `<div class="pt">설정</div>
   <div class="sc"><h4>📄 보고서 기준일</h4><div class="rr"><span>기준일 (비워두면 자동):</span><input id="r3" value="${SET.reportDate}" placeholder="예: 26. 3. 27." style="width:160px"></div>
   <button class="bt" onclick="SET.reportDate=document.getElementById('r3').value;saveS();alert('저장됨')">💾 저장</button></div>
   <div class="sc"><h4>☁️ Firebase 동기화</h4>
-  <div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 기기에서 동일한 데이터를 공유합니다</div>
+  <div style="font-size:11px;margin-bottom:8px" id="fbStatus">${fbReady?'<span style="color:#059669">✅ Firebase 연결됨</span>':'<span style="color:#dc2626">❌ Firebase 미연결 (새로고침 필요)</span>'}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="bt" onclick="fbSave().then(()=>alert('서버에 업로드 완료!'))" style="background:#d97706">📤 서버에 업로드</button>
-    <button class="bt" onclick="fbLoad().then(fb=>{if(fb){D=fb.data;D.accts=ACCT_INIT;if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;if(!D.vendors)D.vendors=INIT_VENDORS;saveD();if(fb.settings){SET=fb.settings;localStorage.setItem(SKEY,JSON.stringify(SET));}alert('서버에서 다운로드 완료!');location.reload();}else{alert('서버에 데이터가 없습니다');}})" style="background:#2563eb">📥 서버에서 다운로드</button>
+    <button class="bt" onclick="doFbUpload()" style="background:#d97706">📤 서버에 업로드</button>
+    <button class="bt" onclick="doFbDownload()" style="background:#2563eb">📥 서버에서 다운로드</button>
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 자동 동기화: 전표 저장 시 자동으로 서버에 업로드됩니다</div></div>
   <div class="sc"><h4>💾 데이터 백업 / 복원</h4>
