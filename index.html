@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>태성㈜ 법인 재무관리</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans JP','Noto Sans KR',-apple-system,sans-serif;background:#f8f9fb;color:#1a2030;font-size:13px}
+.app{display:flex;min-height:100vh}
+.nav{width:175px;background:#1e293b;padding:14px 0;display:flex;flex-direction:column;flex-shrink:0;position:fixed;height:100vh;overflow-y:auto}
+.nav-hd{padding:0 12px 14px;border-bottom:1px solid #334155;margin-bottom:6px}
+.nav-hd h3{font-size:11px;color:#60a5fa}.nav-hd p{font-size:10px;color:#94a3b8;margin-top:2px}
+.nav-item{display:flex;align-items:center;gap:6px;padding:7px 12px;cursor:pointer;color:#94a3b8;border-left:3px solid transparent;font-size:12px}
+.nav-item:hover{background:#334155}
+.nav-item.active{background:#334155;color:#fff;border-left-color:#60a5fa;font-weight:600}
+.nav-bottom{margin-top:auto;padding:10px 12px;border-top:1px solid #334155}
+.nav-bottom button{width:100%;padding:6px;background:#334155;border:none;border-radius:6px;color:#94a3b8;cursor:pointer;font-size:11px;margin-bottom:4px}
+.main{flex:1;margin-left:175px;padding:20px 24px;max-height:100vh;overflow-y:auto}
+.pt{font-size:17px;font-weight:700;color:#1e3a5f;margin-bottom:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:16px}
+.cd{background:#fff;border:1px solid #e2e6ed;border-radius:9px;padding:11px 13px;border-left:4px solid #2563eb}
+.cd .l{font-size:10px;color:#64748b;margin-bottom:2px}.cd .v{font-size:16px;font-weight:700;font-feature-settings:'tnum'}
+.cd.gn{border-left-color:#059669}.cd.gn .v{color:#059669}
+.cd.rd{border-left-color:#dc2626}.cd.rd .v{color:#dc2626}
+.cd.go{border-left-color:#d97706}.cd.go .v{color:#d97706}
+.cd.bl .v{color:#2563eb}
+.pn{background:#fff;border:1px solid #e2e6ed;border-radius:9px;overflow:hidden;margin-bottom:14px}
+.ph{padding:10px 14px;border-bottom:1px solid #e2e6ed;font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+table{width:100%;border-collapse:collapse}
+th{padding:5px 6px;text-align:left;font-size:10px;font-weight:600;color:#64748b;border-bottom:2px solid #e2e6ed;background:#f1f3f6;white-space:nowrap}
+th.r{text-align:right}
+td{padding:4px 6px;border-bottom:1px solid #e2e6ed;font-size:11px;white-space:nowrap}
+td.r{text-align:right}td.b{font-weight:600}td.m{font-feature-settings:'tnum'}
+td.gn{color:#059669}td.rd{color:#dc2626}td.mu{color:#64748b}td.bl{color:#2563eb}
+tr.a{background:#f8f9fb}tr.t{background:#f1f3f6;font-weight:700}
+.bg{display:inline-block;padding:2px 6px;border-radius:5px;font-size:11px;font-weight:600;font-feature-settings:'tnum'}
+.bg.p{background:#d1fae5;color:#059669}.bg.n{background:#fee2e2;color:#dc2626}
+.bt{padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:11px;font-weight:500;color:#fff;background:#2563eb}
+.bt.gn{background:#059669}.bt.rd{background:#dc2626}.bt.gh{background:transparent;border:1px solid #e2e6ed;color:#64748b}
+.tabs{display:flex;gap:2px;border-bottom:2px solid #e2e6ed;margin-bottom:14px}
+.tab{padding:7px 14px;border:none;background:transparent;color:#64748b;cursor:pointer;font-size:12px;border-bottom:2px solid transparent;margin-bottom:-2px}
+.tab.on{color:#2563eb;border-bottom-color:#2563eb;font-weight:600}
+.fr{display:flex;justify-content:space-between;padding:4px 14px;font-size:12px}
+.fr.i{padding-left:28px}.fr.b{font-weight:700}.fr.h{color:#2563eb;font-weight:700}
+.fr.tl{border-top:1px solid #e2e6ed;margin-top:4px;padding-top:6px}
+.ib{padding:8px 12px;border-radius:6px;font-size:11px;margin-bottom:12px;background:#dbeafe;color:#1e3a5f}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+.mc{background:#fff;border-radius:12px;padding:20px;width:620px;max-width:94vw;max-height:85vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.2)}
+.mc h3{font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:14px}
+.fg{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.fg label{font-size:10px;color:#64748b;display:block;margin-bottom:2px}
+.fg input,.fg select{padding:6px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px;outline:none;width:100%}
+.fg .full{grid-column:1/-1}
+.del{background:none;border:none;color:#dc2626;cursor:pointer;font-size:10px;padding:2px 4px}
+.preview{grid-column:1/-1;background:#f8f9fb;border-radius:6px;padding:8px;font-size:11px;display:flex;gap:14px}
+.sc{background:#fff;border:1px solid #e2e6ed;border-radius:9px;padding:14px;margin-bottom:12px}
+.sc h4{font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:10px}
+.rr{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}
+.rr input{width:100px;padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px;text-align:right}
+.hidden{display:none}
+@media(max-width:768px){.nav{width:60px}.nav-item span:last-child{display:none}.main{margin-left:60px;padding:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<nav class="nav">
+  <div class="nav-hd"><h3>법인 재무관리</h3><p>태성주식회사</p><p style="font-size:9px;color:#475569">FY2025</p></div>
+  <div class="nav-item active" data-page="dash"><span>📊</span><span>대시보드</span></div>
+  <div class="nav-item" data-page="slip"><span>📝</span><span>전표처리</span></div>
+  <div class="nav-item" data-page="gl"><span>📒</span><span>총계정원장</span></div>
+  <div class="nav-item" data-page="fs"><span>📋</span><span>재무제표</span></div>
+  <div class="nav-item" data-page="sec"><span>📈</span><span>유가증권</span></div>
+  <div class="nav-item" data-page="bank"><span>🏦</span><span>법인계좌</span></div>
+  <div class="nav-item" data-page="rpt"><span>📄</span><span>운용보고서</span></div>
+  <div class="nav-item" data-page="set"><span>⚙️</span><span>설정</span></div>
+  <div style="margin-top:10px;padding:0 12px"><button class="bt" style="width:100%;background:#334155" onclick="document.getElementById('calc').classList.toggle('hidden')">🧮 계산기</button></div>
+  <div class="nav-bottom"><button onclick="toggleLang()">🌐 日本語</button></div>
+</nav>
+<main class="main" id="M"></main>
+</div>
+<div id="calc" class="hidden" style="position:fixed;bottom:16px;right:16px;width:250px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:200;border:1px solid #e2e6ed;overflow:hidden">
+  <div style="display:flex;justify-content:space-between;padding:6px 10px;background:#1e3a5f;color:#fff"><span>🧮</span><button onclick="document.getElementById('calc').classList.add('hidden')" style="background:none;border:none;color:#fff;cursor:pointer">✕</button></div>
+  <div id="cD" style="padding:8px;text-align:right;font-size:22px;font-weight:700;min-height:32px">0</div>
+  <div id="cK" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:2px 3px 3px"></div>
+</div>
+<div id="modal" class="hidden"></div>
+
+<script>
+// ===== STORAGE =====
+const DKEY='taesung_data', SKEY='taesung_settings';
+const DEF_SET={rates:{USDJPY:159.63,KRWJPY:0.1065,JPYKRW:9389},reportDate:""};
+let SET=loadJ(SKEY,DEF_SET);
+
+const DEF_DATA={
+  holdJP:[
+    {id:1,tk:"6501",nm:"히타치제작소",sh:2000,px:5183,buyAmt:10365870,fee:93950,tc:10459820,bep:5230,cp:4716,mv:9432000},
+    {id:2,tk:"9401",nm:"TBS홀딩스",sh:2000,px:5785,buyAmt:11570778,fee:89802,tc:11660580,bep:5830,cp:5832,mv:11664000},
+    {id:3,tk:"464A",nm:"QPS홀딩스",sh:5000,px:2149,buyAmt:10743594,fee:99506,tc:10843100,bep:2169,cp:2298,mv:11490000},
+    {id:4,tk:"6594",nm:"NIDEC",sh:2000,px:2306,buyAmt:4611929,fee:44311,tc:4656240,bep:2328,cp:2080,mv:4160000},
+    {id:5,tk:"1540",nm:"순금신탁ETF",sh:417,px:23960,buyAmt:9991320,fee:80241,tc:10071561,bep:24152,cp:21440,mv:8940480},
+    {id:6,tk:"8884",nm:"미국주식인덱스F",sh:3014882,px:41461,buyAmt:12500002,fee:0,tc:12500002,bep:41461,cp:40215,mv:12124347},
+  ],
+  holdUS:[{id:1,tk:"GOOG",nm:"알파벳C",sh:250,buyAmt:12568104,fee:0,tc:12568104,bep:50272,cpUsd:280.74,rate:159.63,mv:11203631}],
+  real:[
+    {id:1,dt:"2025-09-29",tk:"409A",nm:"오리온맥주",sh:600,px:850,buyAmt:510000,bC:0,bT:0,tc:510000,sp:1955,sa:1173000,gr:663000,sC:13057,sT:1305,net:648638,rr:127.18},
+    {id:2,dt:"2025-12-17",tk:"8303",nm:"SBI신세이",sh:1100,px:1450,buyAmt:1595000,bC:0,bT:0,tc:1595000,sp:1610,sa:1771000,gr:176000,sC:18439,sT:1843,net:155718,rr:9.76},
+    {id:3,dt:"2025-12-26",tk:"1542",nm:"순은신탁",sh:470,px:26627,buyAmt:12514554,bC:86834,bT:8683,tc:12610071,sp:35463,sa:16667790,gr:4153236,sC:109672,sT:10967,net:3937083,rr:31.22},
+    {id:4,dt:"2026-02-02",tk:"1540",nm:"순금신탁",sh:830,px:20498,buyAmt:17013200,bC:113655,bT:11366,tc:17138221,sp:23363,sa:19391230,gr:2378030,sC:124651,sT:12465,net:2115893,rr:12.35},
+    {id:5,dt:"2026-03-09",tk:"1540",nm:"순금신탁",sh:1140,px:21896,buyAmt:24961609,bC:174338,bT:17434,tc:25153381,sp:24425,sa:27844400,gr:2882791,sC:167222,sT:16722,net:2507075,rr:9.97},
+    {id:6,dt:"2026-03-09",tk:"6332",nm:"츠키시마HD",sh:2000,px:2605,buyAmt:5210000,bC:35036,bT:3504,tc:5248540,sp:2955,sa:5910250,gr:700250,sC:48461,sT:4846,net:608403,rr:11.59},
+    {id:7,dt:"2026-03-09",tk:"7203",nm:"토요타",sh:3000,px:3210,buyAmt:9629000,bC:74300,bT:7430,tc:9710730,sp:3387,sa:10161080,gr:532080,sC:73885,sT:7388,net:369077,rr:3.80},
+    {id:8,dt:"2026-03-09",tk:"8306",nm:"미쓰비시UFJ",sh:3000,px:2509,buyAmt:7525500,bC:79227,bT:7923,tc:7612650,sp:2639,sa:7915500,gr:390000,sC:60493,sT:6049,net:236308,rr:3.10},
+    {id:9,dt:"2026-03-09",tk:"8593",nm:"미쓰비시HC",sh:5000,px:1264,buyAmt:6321400,bC:50091,bT:5009,tc:6376500,sp:1409,sa:7045330,gr:723930,sC:55271,sT:5527,net:608032,rr:9.54},
+  ],
+  bkIn:[{id:1,dt:"2025-07-09",cat:"자본금",amt:5100000},{id:2,dt:"2025-07-09",cat:"자본금",amt:4900000},{id:3,dt:"2025-08-18",cat:"보통예금이자",amt:1856},{id:4,dt:"2025-08-21",cat:"임원차입금(21회)",amt:100000000},{id:5,dt:"2025-09-26",cat:"임원차입금(10회)",amt:50000000},{id:6,dt:"2026-02-16",cat:"보통예금이자",amt:19989}],
+  bkOut:[{id:1,dt:"2025-08-26",cat:"법인카드(7월)",amt:228946},{id:2,dt:"2025-09-04",cat:"업무용노트북",amt:200000},{id:3,dt:"2025-09-04",cat:"송금수수료",amt:220},{id:4,dt:"2025-09-18",cat:"IPO증거금",amt:510000},{id:5,dt:"2025-09-26",cat:"법인카드(8월)",amt:193347},{id:6,dt:"2025-09-26",cat:"→증권이체",amt:99490000},{id:7,dt:"2025-10-16",cat:"→증권이체",amt:50000000},{id:8,dt:"2025-10-27",cat:"법인카드(9월)",amt:70035},{id:9,dt:"2025-11-26",cat:"법인카드(10월)",amt:175048},{id:10,dt:"2025-12-26",cat:"법인카드(11월)",amt:41640},{id:11,dt:"2026-01-21",cat:"EB수수료(1월)",amt:2200},{id:12,dt:"2026-01-26",cat:"법인카드(12월)",amt:155615},{id:13,dt:"2026-02-24",cat:"EB수수료(2월)",amt:2200},{id:14,dt:"2026-02-26",cat:"법인카드(1월)",amt:538792},{id:15,dt:"2026-03-23",cat:"EB수수료(3월)",amt:2200},{id:16,dt:"2026-03-26",cat:"법인카드(2월)",amt:14623}],
+  journals:[
+{id:1,dt:"7/9",no:"S0001",desc:"자본금 납입",dr:"110",cr:"300",amt:10000000},
+{id:2,dt:"8/18",no:"S0002",desc:"보통예금 이자(세후)",dr:"110",cr:"401",amt:1856},
+{id:3,dt:"8/21",no:"S0003",desc:"임원차입금 21회(8~9월)",dr:"110",cr:"221",amt:100000000},
+{id:4,dt:"9/26",no:"S0004",desc:"임원차입금 10회(9~10월)",dr:"110",cr:"221",amt:50000000},
+{id:5,dt:"2/16",no:"S0005",desc:"보통예금 이자(세후)",dr:"110",cr:"401",amt:19989},
+{id:6,dt:"3/17",no:"S0006",desc:"배당금(알파벳C)",dr:"191",cr:"402",amt:6356},
+{id:7,dt:"9/26",no:"S0007",desc:"법인계좌→증권계좌 이체",dr:"191",cr:"110",amt:99490000},
+{id:8,dt:"10/16",no:"S0008",desc:"법인계좌→증권계좌 이체",dr:"191",cr:"110",amt:50000000},
+{id:100,dt:"7/28",no:"S0100",desc:"そば処 丸屋",dr:"532",cr:"110",amt:2750},
+{id:101,dt:"7/30",no:"S0101",desc:"廻転鮨 銀座おのでら",dr:"532",cr:"110",amt:27410},
+{id:102,dt:"7/31",no:"S0102",desc:"つるとんたん 六本木",dr:"532",cr:"110",amt:8560},
+{id:103,dt:"9/18",no:"S0103",desc:"さつまゴルフリゾート",dr:"532",cr:"110",amt:70240},
+{id:104,dt:"9/30",no:"S0104",desc:"Hotels.com 정산차액",dr:"532",cr:"110",amt:-205},
+{id:105,dt:"11/28",no:"S0105",desc:"六本木ヒルズ",dr:"532",cr:"110",amt:7070},
+{id:106,dt:"11/29",no:"S0106",desc:"代官山HEAVENLY",dr:"532",cr:"110",amt:11850},
+{id:107,dt:"12/1",no:"S0107",desc:"東京ミッドタウン",dr:"532",cr:"110",amt:7830},
+{id:108,dt:"12/4",no:"S0108",desc:"JS炭火焼鳥 だんご本店",dr:"532",cr:"110",amt:7139},
+{id:109,dt:"12/9",no:"S0109",desc:"温野菜 六本木",dr:"532",cr:"110",amt:9350},
+{id:110,dt:"12/12",no:"S0110",desc:"東京ミッドタウン",dr:"532",cr:"110",amt:4800},
+{id:111,dt:"12/15",no:"S0111",desc:"12월카드2P 미확인분(식사)",dr:"532",cr:"110",amt:9372},
+{id:112,dt:"1/7",no:"S0112",desc:"すしざんまい 別館",dr:"532",cr:"110",amt:6380},
+{id:113,dt:"1/7",no:"S0113",desc:"温野菜 渋谷",dr:"532",cr:"110",amt:14058},
+{id:114,dt:"1/8",no:"S0114",desc:"中国飯店 宮麗華",dr:"532",cr:"110",amt:19360},
+{id:115,dt:"1/8",no:"S0115",desc:"伊勢丹 新宿(선물)",dr:"532",cr:"110",amt:37400},
+{id:116,dt:"1/8",no:"S0116",desc:"伊勢丹 新宿(선물)",dr:"532",cr:"110",amt:41100},
+{id:117,dt:"1/8",no:"S0117",desc:"伊勢丹 新宿(선물)",dr:"532",cr:"110",amt:4000},
+{id:118,dt:"1/10",no:"S0118",desc:"山笑ふ 表参道",dr:"532",cr:"110",amt:21340},
+{id:119,dt:"1/17",no:"S0119",desc:"六甲ガーデンテラス",dr:"532",cr:"110",amt:5100},
+{id:120,dt:"1/20",no:"S0120",desc:"1월카드2P 미확인분(식사)",dr:"532",cr:"110",amt:26372},
+{id:121,dt:"2/1",no:"S0121",desc:"渋谷パルコ(식사)",dr:"532",cr:"110",amt:4200},
+{id:122,dt:"2/2",no:"S0122",desc:"つるとんたん 六本木",dr:"532",cr:"110",amt:4560},
+{id:130,dt:"7/28",no:"S0130",desc:"パラカ(주차)",dr:"531",cr:"110",amt:1200},
+{id:131,dt:"7/29",no:"S0131",desc:"ENEOS(주유)",dr:"531",cr:"110",amt:3850},
+{id:132,dt:"7/29",no:"S0132",desc:"ENEOS(주유)",dr:"531",cr:"110",amt:2200},
+{id:133,dt:"7/29",no:"S0133",desc:"ENEOS(주유)",dr:"531",cr:"110",amt:9826},
+{id:134,dt:"7/30",no:"S0134",desc:"表参道ヒルズ駐車場",dr:"531",cr:"110",amt:1350},
+{id:135,dt:"7/30",no:"S0135",desc:"コバヤシタイヤ",dr:"531",cr:"110",amt:145200},
+{id:136,dt:"7/31",no:"S0136",desc:"EVOLTA(EV충전)",dr:"531",cr:"110",amt:6600},
+{id:137,dt:"8/1",no:"S0137",desc:"EVOLTA(EV충전)",dr:"531",cr:"110",amt:6600},
+{id:138,dt:"12/3",no:"S0138",desc:"三菱レンタカー 神戸",dr:"531",cr:"110",amt:19085},
+{id:139,dt:"12/15",no:"S0139",desc:"ETC 통행료(12월)",dr:"531",cr:"110",amt:5600},
+{id:140,dt:"1/7",no:"S0140",desc:"Parking 港南",dr:"531",cr:"110",amt:2000},
+{id:141,dt:"1/16",no:"S0141",desc:"トヨタレンタリース 神戸",dr:"531",cr:"110",amt:26950},
+{id:142,dt:"1/17",no:"S0142",desc:"パークタイム さんのみや",dr:"531",cr:"110",amt:900},
+{id:143,dt:"1/18",no:"S0143",desc:"トヨタレンタリース 神戸",dr:"531",cr:"110",amt:1530},
+{id:144,dt:"1/18",no:"S0144",desc:"イデミツ(주유)",dr:"531",cr:"110",amt:1420},
+{id:145,dt:"1/20",no:"S0145",desc:"ETC 통행료(1월)",dr:"531",cr:"110",amt:3130},
+{id:146,dt:"2/3",no:"S0146",desc:"ETC 통행료(2월)",dr:"531",cr:"110",amt:630},
+{id:150,dt:"7/31",no:"S0150",desc:"チェッカーキャブ(택시)",dr:"520",cr:"110",amt:2000},
+{id:151,dt:"7/31",no:"S0151",desc:"三井ガーデンホテル(숙박)",dr:"520",cr:"110",amt:18000},
+{id:152,dt:"8/1",no:"S0152",desc:"新宿高速バスターミナル",dr:"520",cr:"110",amt:3600},
+{id:153,dt:"11/27",no:"S0153",desc:"Booking.com(숙박)",dr:"520",cr:"110",amt:22720},
+{id:154,dt:"12/4",no:"S0154",desc:"ホテルモントレ 神戸",dr:"520",cr:"110",amt:5000},
+{id:155,dt:"1/6",no:"S0155",desc:"三井ガーデンホテル(숙박)",dr:"520",cr:"110",amt:74675},
+{id:156,dt:"1/10",no:"S0156",desc:"国際自動車(택시)",dr:"520",cr:"110",amt:12250},
+{id:160,dt:"8/13",no:"S0160",desc:"서울 HYEONHAE",dr:"521",cr:"110",amt:19514},
+{id:161,dt:"8/27",no:"S0161",desc:"부산 ANAN TIKOBEU",dr:"521",cr:"110",amt:137032},
+{id:162,dt:"8/28",no:"S0162",desc:"서울 HONGMYUNG",dr:"521",cr:"110",amt:26601},
+{id:163,dt:"10/22",no:"S0163",desc:"제주 CJ Korea",dr:"521",cr:"110",amt:175048},
+{id:164,dt:"12/27",no:"S0164",desc:"서울 SONGSUEPEU",dr:"521",cr:"110",amt:62262},
+{id:165,dt:"12/28",no:"S0165",desc:"서울 TORISIKEY",dr:"521",cr:"110",amt:25177},
+{id:166,dt:"1/2",no:"S0166",desc:"한국 HOTELCOM",dr:"521",cr:"110",amt:56690},
+{id:167,dt:"1/3",no:"S0167",desc:"한국 HOTELS.COM",dr:"521",cr:"110",amt:79235},
+{id:168,dt:"1/10",no:"S0168",desc:"서울 T-MONEY TAXI",dr:"521",cr:"110",amt:4360},
+{id:169,dt:"1/29",no:"S0169",desc:"한국 KEUMSOOBOKKOOK",dr:"521",cr:"110",amt:12332},
+{id:170,dt:"1/30",no:"S0170",desc:"한국 HOTELS.COM",dr:"521",cr:"110",amt:88210},
+{id:171,dt:"2/14",no:"S0171",desc:"한국 HOTELS.COM",dr:"521",cr:"110",amt:102847},
+{id:172,dt:"2/16",no:"S0172",desc:"한국 HOTELS.COM(환불)",dr:"521",cr:"110",amt:-102514},
+{id:180,dt:"9/4",no:"S0180",desc:"LG gram PC(업무용)",dr:"523",cr:"110",amt:200000},
+{id:181,dt:"9/4",no:"S0181",desc:"PC구입 송금수수료",dr:"523",cr:"110",amt:220},
+{id:182,dt:"2/3",no:"S0182",desc:"吉見商事(비품)",dr:"523",cr:"110",amt:1200},
+{id:185,dt:"1/21",no:"S0185",desc:"SMBC EB수수료 1월",dr:"536",cr:"110",amt:2200},
+{id:186,dt:"2/24",no:"S0186",desc:"SMBC EB수수료 2월",dr:"536",cr:"110",amt:2200},
+{id:187,dt:"3/23",no:"S0187",desc:"SMBC EB수수료 3월",dr:"536",cr:"110",amt:2200},
+{id:190,dt:"2/1",no:"S0190",desc:"渋谷パルコ(주차)",dr:"570",cr:"110",amt:800},
+{id:191,dt:"2/2",no:"S0191",desc:"東京ミッドタウン(주차)",dr:"570",cr:"110",amt:2900},
+{id:200,dt:"9/25",no:"S0200",desc:"오리온(매도) 수수료",dr:"537",cr:"191",amt:13057},
+{id:201,dt:"9/25",no:"S0201",desc:"오리온(매도) 소비세",dr:"537",cr:"191",amt:1305},
+{id:202,dt:"12/17",no:"S0202",desc:"SBI신생(매도) 수수료",dr:"537",cr:"191",amt:18439},
+{id:203,dt:"12/17",no:"S0203",desc:"SBI신생(매도) 소비세",dr:"537",cr:"191",amt:1843},
+{id:204,dt:"12/3",no:"S0204",desc:"순은(매수) 수수료",dr:"537",cr:"191",amt:86834},
+{id:205,dt:"12/3",no:"S0205",desc:"순은(매수) 소비세",dr:"537",cr:"191",amt:8683},
+{id:206,dt:"12/26",no:"S0206",desc:"순은(매도) 수수료",dr:"537",cr:"191",amt:109672},
+{id:207,dt:"12/26",no:"S0207",desc:"순은(매도) 소비세",dr:"537",cr:"191",amt:10967},
+{id:208,dt:"11/27",no:"S0208",desc:"순금(매수11월) 수수료",dr:"537",cr:"191",amt:135838},
+{id:209,dt:"11/27",no:"S0209",desc:"순금(매수11월) 소비세",dr:"537",cr:"191",amt:13583},
+{id:210,dt:"1/7",no:"S0210",desc:"순금(매수1월) 수수료",dr:"537",cr:"191",amt:86553},
+{id:211,dt:"1/7",no:"S0211",desc:"순금(매수1월) 소비세",dr:"537",cr:"191",amt:8655},
+{id:212,dt:"2/2",no:"S0212",desc:"순금(매도2월) 수수료",dr:"537",cr:"191",amt:124651},
+{id:213,dt:"2/2",no:"S0213",desc:"순금(매도2월) 소비세",dr:"537",cr:"191",amt:12465},
+{id:214,dt:"3/3",no:"S0214",desc:"순금(매수3월) 수수료",dr:"537",cr:"191",amt:60690},
+{id:215,dt:"3/3",no:"S0215",desc:"순금(매수3월) 소비세",dr:"537",cr:"191",amt:6069},
+{id:216,dt:"3/9",no:"S0216",desc:"순금(매도3월) 수수료",dr:"537",cr:"191",amt:167222},
+{id:217,dt:"3/9",no:"S0217",desc:"순금(매도3월) 소비세",dr:"537",cr:"191",amt:16722},
+{id:218,dt:"3/18",no:"S0218",desc:"순금(매수3/18) 수수료",dr:"537",cr:"191",amt:72947},
+{id:219,dt:"3/18",no:"S0219",desc:"순금(매수3/18) 소비세",dr:"537",cr:"191",amt:7294},
+{id:220,dt:"11/27",no:"S0220",desc:"츠키시마(매수) 수수료",dr:"537",cr:"191",amt:44199},
+{id:221,dt:"11/27",no:"S0221",desc:"츠키시마(매수) 소비세",dr:"537",cr:"191",amt:4419},
+{id:222,dt:"3/9",no:"S0222",desc:"츠키시마(매도) 수수료",dr:"537",cr:"191",amt:48461},
+{id:223,dt:"3/9",no:"S0223",desc:"츠키시마(매도) 소비세",dr:"537",cr:"191",amt:4846},
+{id:224,dt:"11/27",no:"S0224",desc:"히타치(매수) 수수료",dr:"537",cr:"191",amt:42615},
+{id:225,dt:"11/27",no:"S0225",desc:"히타치(매수) 소비세",dr:"537",cr:"191",amt:4261},
+{id:226,dt:"1/7",no:"S0226",desc:"히타치(매수) 수수료",dr:"537",cr:"191",amt:45507},
+{id:227,dt:"1/7",no:"S0227",desc:"히타치(매수) 소비세",dr:"537",cr:"191",amt:4550},
+{id:228,dt:"11/27",no:"S0228",desc:"토요타(매수) 수수료",dr:"537",cr:"191",amt:50654},
+{id:229,dt:"11/27",no:"S0229",desc:"토요타(매수) 소비세",dr:"537",cr:"191",amt:5065},
+{id:230,dt:"1/7",no:"S0230",desc:"토요타(매수) 수수료",dr:"537",cr:"191",amt:31087},
+{id:231,dt:"1/7",no:"S0231",desc:"토요타(매수) 소비세",dr:"537",cr:"191",amt:3108},
+{id:232,dt:"3/9",no:"S0232",desc:"토요타(매도) 수수료",dr:"537",cr:"191",amt:73885},
+{id:233,dt:"3/9",no:"S0233",desc:"토요타(매도) 소비세",dr:"537",cr:"191",amt:7388},
+{id:234,dt:"11/27",no:"S0234",desc:"UFJ(매수) 수수료",dr:"537",cr:"191",amt:42506},
+{id:235,dt:"11/27",no:"S0235",desc:"UFJ(매수) 소비세",dr:"537",cr:"191",amt:4250},
+{id:236,dt:"1/7",no:"S0236",desc:"UFJ(매수) 수수료",dr:"537",cr:"191",amt:25368},
+{id:237,dt:"1/7",no:"S0237",desc:"UFJ(매수) 소비세",dr:"537",cr:"191",amt:2536},
+{id:238,dt:"3/9",no:"S0238",desc:"UFJ(매도) 수수료",dr:"537",cr:"191",amt:60493},
+{id:239,dt:"3/9",no:"S0239",desc:"UFJ(매도) 소비세",dr:"537",cr:"191",amt:6049},
+{id:240,dt:"11/27",no:"S0240",desc:"HC(매수) 수수료",dr:"537",cr:"191",amt:42747},
+{id:241,dt:"11/27",no:"S0241",desc:"HC(매수) 소비세",dr:"537",cr:"191",amt:4274},
+{id:242,dt:"1/7",no:"S0242",desc:"HC(매수) 수수료",dr:"537",cr:"191",amt:14644},
+{id:243,dt:"1/7",no:"S0243",desc:"HC(매수) 소비세",dr:"537",cr:"191",amt:1464},
+{id:244,dt:"3/9",no:"S0244",desc:"HC(매도) 수수료",dr:"537",cr:"191",amt:55271},
+{id:245,dt:"3/9",no:"S0245",desc:"HC(매도) 소비세",dr:"537",cr:"191",amt:5527},
+{id:246,dt:"3/3",no:"S0246",desc:"TBS(매수) 수수료",dr:"537",cr:"191",amt:81639},
+{id:247,dt:"3/3",no:"S0247",desc:"TBS(매수) 소비세",dr:"537",cr:"191",amt:8163},
+{id:248,dt:"3/3",no:"S0248",desc:"QPS(매수3/3) 수수료",dr:"537",cr:"191",amt:46233},
+{id:249,dt:"3/3",no:"S0249",desc:"QPS(매수3/3) 소비세",dr:"537",cr:"191",amt:4623},
+{id:250,dt:"3/5",no:"S0250",desc:"QPS(매수3/5) 수수료",dr:"537",cr:"191",amt:44228},
+{id:251,dt:"3/5",no:"S0251",desc:"QPS(매수3/5) 소비세",dr:"537",cr:"191",amt:4422},
+{id:252,dt:"3/12",no:"S0252",desc:"니덱(매수) 수수료",dr:"537",cr:"191",amt:40283},
+{id:253,dt:"3/12",no:"S0253",desc:"니덱(매수) 소비세",dr:"537",cr:"191",amt:4028},
+{id:300,dt:"9/25",no:"S0300",desc:"오리온맥주 매각이익",dr:"191",cr:"403",amt:648638},
+{id:301,dt:"12/17",no:"S0301",desc:"SBI신세이 매각이익",dr:"191",cr:"403",amt:155718},
+{id:302,dt:"12/26",no:"S0302",desc:"순은신탁 매각이익",dr:"191",cr:"403",amt:3937083},
+{id:303,dt:"2/2",no:"S0303",desc:"순금신탁(830) 매각이익",dr:"191",cr:"403",amt:2115893},
+{id:304,dt:"3/9",no:"S0304",desc:"순금신탁(1140) 매각이익",dr:"191",cr:"403",amt:2507075},
+{id:305,dt:"3/9",no:"S0305",desc:"츠키시마HD 매각이익",dr:"191",cr:"403",amt:608403},
+{id:306,dt:"3/9",no:"S0306",desc:"토요타 매각이익",dr:"191",cr:"403",amt:369077},
+{id:307,dt:"3/9",no:"S0307",desc:"미쓰비시UFJ 매각이익",dr:"191",cr:"403",amt:236308},
+{id:308,dt:"3/9",no:"S0308",desc:"미쓰비시HC 매각이익",dr:"191",cr:"403",amt:608032},
+{id:310,dt:"3/20",no:"S0310",desc:"잡수입",dr:"191",cr:"405",amt:3349},
+{id:400,dt:"5/31",no:"S0400",desc:"유가증권 평가손(미실현)",dr:"542",cr:"130",amt:3489453},
+{id:401,dt:"5/31",no:"S0401",desc:"지급이자(임원차입 1.5억×1%×289/365)",dr:"540",cr:"224",amt:1187671},
+{id:402,dt:"5/31",no:"S0402",desc:"창립비 미지급 계상",dr:"560",cr:"203",amt:371400},
+{id:403,dt:"5/31",no:"S0403",desc:"법인세등 추정 계상",dr:"550",cr:"205",amt:1100700},
+{id:500,dt:"11/27",no:"S0500",desc:"히타치(1000주) 매수",dr:"130",cr:"191",amt:4991876},
+{id:501,dt:"1/7",no:"S0501",desc:"히타치(300주) 매수",dr:"130",cr:"191",amt:1640354},
+{id:502,dt:"1/7",no:"S0502",desc:"히타치(700주) 매수",dr:"130",cr:"191",amt:3827573},
+{id:510,dt:"3/3",no:"S0510",desc:"TBSHD(2000주) 매수",dr:"130",cr:"191",amt:11570778},
+{id:520,dt:"3/3",no:"S0520",desc:"G-QPSHD(2500주) 매수 3/3",dr:"130",cr:"191",amt:5539706},
+{id:521,dt:"3/5",no:"S0521",desc:"G-QPSHD(2500주) 매수 3/5",dr:"130",cr:"191",amt:5253350},
+{id:530,dt:"3/12",no:"S0530",desc:"ニデック(2000주) 매수",dr:"130",cr:"191",amt:4656231},
+{id:540,dt:"3/18",no:"S0540",desc:"순금신탁(417주) 매수",dr:"130",cr:"191",amt:10071561},
+{id:550,dt:"1/7",no:"S0550",desc:"미국주식인덱스F 매수",dr:"130",cr:"191",amt:12500002},
+{id:560,dt:"1/7",no:"S0560",desc:"アルファベットC(250주) 매수",dr:"130",cr:"191",amt:12568104},
+{id:600,dt:"9/25",no:"S0600",desc:"오리온맥주(600주) 원가제거",dr:"191",cr:"130",amt:510000},
+{id:601,dt:"12/17",no:"S0601",desc:"SBI신세이(1100주) 원가제거",dr:"191",cr:"130",amt:1595000},
+{id:602,dt:"12/26",no:"S0602",desc:"순은신탁(470주) 원가제거",dr:"191",cr:"130",amt:12514554},
+{id:603,dt:"2/2",no:"S0603",desc:"순금신탁(830주) 원가제거",dr:"191",cr:"130",amt:17013200},
+{id:604,dt:"3/9",no:"S0604",desc:"순금신탁(1140주) 원가제거",dr:"191",cr:"130",amt:24961609},
+{id:605,dt:"3/9",no:"S0605",desc:"츠키시마HD(2000주) 원가제거",dr:"191",cr:"130",amt:5210000},
+{id:606,dt:"3/9",no:"S0606",desc:"토요타(3000주) 원가제거",dr:"191",cr:"130",amt:9629000},
+{id:607,dt:"3/9",no:"S0607",desc:"미쓰비시UFJ(3000주) 원가제거",dr:"191",cr:"130",amt:7525500},
+{id:608,dt:"3/9",no:"S0608",desc:"미쓰비시HC(5000주) 원가제거",dr:"191",cr:"130",amt:6321400},
+{id:610,dt:"11/27",no:"S0610",desc:"순금신탁(1080주) 매수 11월",dr:"130",cr:"191",amt:21717021},
+{id:611,dt:"1/7",no:"S0611",desc:"순금신탁(580주) 매수 1월",dr:"130",cr:"191",amt:12559408},
+{id:612,dt:"3/3",no:"S0612",desc:"순금신탁(310주) 매수 3월",dr:"130",cr:"191",amt:8015159},
+{id:620,dt:"11/27",no:"S0620",desc:"月島HD(100주) 매수",dr:"130",cr:"191",amt:262349},
+{id:621,dt:"11/27",no:"S0621",desc:"月島HD(1900주) 매수",dr:"130",cr:"191",amt:4986189},
+{id:630,dt:"11/27",no:"S0630",desc:"トヨタ(2000주) 매수",dr:"130",cr:"191",amt:6331519},
+{id:631,dt:"1/7",no:"S0631",desc:"トヨタ(1000주) 매수",dr:"130",cr:"191",amt:3379195},
+{id:640,dt:"11/27",no:"S0640",desc:"三菱UFJ(2000주) 매수",dr:"130",cr:"191",amt:4976226},
+{id:641,dt:"1/7",no:"S0641",desc:"三菱UFJ(1000주) 매수",dr:"130",cr:"191",amt:2636404},
+{id:650,dt:"11/27",no:"S0650",desc:"三菱HC(4000주) 매수",dr:"130",cr:"191",amt:5010981},
+{id:651,dt:"1/7",no:"S0651",desc:"三菱HC(1000주) 매수",dr:"130",cr:"191",amt:1365508},
+{id:660,dt:"12/3",no:"S0660",desc:"純銀信託(470주) 매수",dr:"130",cr:"191",amt:12514554},
+{id:670,dt:"9/17",no:"S0670",desc:"オリオンビール(600주) IPO매수",dr:"130",cr:"191",amt:510000},
+{id:680,dt:"12/9",no:"S0680",desc:"SBI新生銀行(1100주) 매수",dr:"130",cr:"191",amt:1595000}
+],
+  accts:[
+    {c:"100",n:"現金",k:"현금",g:"資産"},{c:"110",n:"普通預金",k:"보통예금",g:"資産"},{c:"112",n:"定期預金",k:"정기예금",g:"資産"},
+    {c:"121",n:"売掛金",k:"매출채권",g:"資産"},{c:"122",n:"未収入金",k:"미수입금",g:"資産"},
+    {c:"130",n:"有価証券",k:"유가증권",g:"資産"},{c:"131",n:"投資有価証券",k:"투자유가증권",g:"資産"},
+    {c:"150",n:"前払費用",k:"선급비용",g:"資産"},{c:"154",n:"仮払消費税",k:"가지급소비세",g:"資産"},
+    {c:"165",n:"器具備品",k:"비품",g:"資産"},{c:"170",n:"ソフトウェア",k:"소프트웨어",g:"資産"},
+    {c:"180",n:"敷金・保証金",k:"보증금",g:"資産"},{c:"191",n:"証券預り金",k:"증권예수금",g:"資産"},
+    {c:"200",n:"支払手形",k:"지급어음",g:"負債"},{c:"201",n:"買掛金",k:"매입채무",g:"負債"},
+    {c:"202",n:"短期借入金",k:"단기차입금",g:"負債"},{c:"203",n:"未払金",k:"미지급금",g:"負債"},
+    {c:"204",n:"未払費用",k:"미지급비용",g:"負債"},{c:"205",n:"未払法人税等",k:"미지급법인세",g:"負債"},
+    {c:"206",n:"未払消費税等",k:"미지급소비세",g:"負債"},{c:"207",n:"預り金",k:"예수금",g:"負債"},
+    {c:"211",n:"仮受消費税",k:"가수소비세",g:"負債"},
+    {c:"220",n:"長期借入金",k:"장기차입금",g:"負債"},{c:"221",n:"役員借入金",k:"임원차입금",g:"負債"},
+    {c:"224",n:"未払利息",k:"미지급이자",g:"負債"},
+    {c:"300",n:"資本金",k:"자본금",g:"純資産"},{c:"301",n:"資本準備金",k:"자본준비금",g:"純資産"},
+    {c:"311",n:"繰越利益剰余金",k:"이월이익잉여금",g:"純資産"},
+    {c:"400",n:"売上高",k:"매출",g:"収益"},{c:"401",n:"受取利息",k:"수취이자",g:"収益"},
+    {c:"402",n:"受取配当金",k:"수취배당금",g:"収益"},{c:"403",n:"有価証券売却益",k:"유가증권매각이익",g:"収益"},
+    {c:"405",n:"雑収入",k:"잡수입",g:"収益"},
+    {c:"510",n:"役員報酬",k:"임원보수",g:"費用"},{c:"511",n:"給料手当",k:"급여수당",g:"費用"},
+    {c:"520",n:"旅費交通費",k:"여비교통비",g:"費用"},{c:"521",n:"海外渡航費",k:"해외출장비",g:"費用"},
+    {c:"523",n:"消耗品費",k:"소모품비",g:"費用"},{c:"526",n:"地代家賃",k:"임차료",g:"費用"},
+    {c:"530",n:"租税公課",k:"세금공과",g:"費用"},{c:"531",n:"車両費",k:"차량비",g:"費用"},
+    {c:"532",n:"接待交際費",k:"접대교제비",g:"費用"},{c:"536",n:"支払手数料",k:"지급수수료",g:"費用"},{c:"537",n:"有価証券売買手数料",k:"유가증권매매수수료",g:"費用"},
+    {c:"540",n:"支払利息",k:"지급이자",g:"費用"},{c:"542",n:"有価証券評価損",k:"유가증권평가손",g:"費用"},
+    {c:"550",n:"法人税等",k:"법인세등",g:"費用"},{c:"560",n:"創立費",k:"창립비",g:"費用"},
+    {c:"570",n:"雑費",k:"잡비",g:"費用"},
+  ],
+};
+
+let D = loadJ(DKEY, DEF_DATA);
+function loadJ(k,def){try{const v=localStorage.getItem(k);return v?{...def,...JSON.parse(v)}:def;}catch(e){return def;}}
+function saveD(){localStorage.setItem(DKEY,JSON.stringify(D));}
+function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));}
+function nid(){return Date.now()+Math.floor(Math.random()*1000);}
+
+// ===== COMPUTED =====
+function calc(){
+  const jpMv=D.holdJP.reduce((s,h)=>s+h.mv,0),jpC=D.holdJP.reduce((s,h)=>s+h.tc,0);
+  const usMv=D.holdUS.reduce((s,h)=>s+h.mv,0),usC=D.holdUS.reduce((s,h)=>s+h.tc,0);
+  const tI=D.bkIn.reduce((s,d)=>s+d.amt,0),tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
+  const rpl=D.real.reduce((s,r)=>s+r.net,0),rC=D.real.reduce((s,r)=>s+r.tc,0),rS=D.real.reduce((s,r)=>s+r.sa,0);
+  const bb=tI-tO,secDep=88436523,secBal=secDep+jpMv+usMv;
+  return {jpMv,jpC,usMv,usC,allMv:jpMv+usMv,allC:jpC+usC,allPl:jpMv+usMv-jpC-usC,rpl,rC,rS,tI,tO,bb,secDep,secBal,totA:bb+secBal};
+}
+
+const fm=n=>n==null?"-":new Intl.NumberFormat("ja-JP").format(Math.round(n));
+const fy=n=>n==null?"-":"¥"+fm(n);
+const bg=v=>`<span class="bg ${v>=0?'p':'n'}">${v>=0?'+':''}${fm(v)}</span>`;
+function rptDt(){return SET.reportDate||new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});}
+
+// ===== MODAL =====
+function showModal(title, html){document.getElementById('modal').innerHTML=`<div class="mo" onclick="closeModal()"><div class="mc" onclick="event.stopPropagation()"><h3>${title}</h3>${html}</div></div>`;document.getElementById('modal').classList.remove('hidden');}
+function closeModal(){document.getElementById('modal').classList.add('hidden');}
+
+// ===== CRUD: Bank =====
+function addBkIn(){showModal('입금 내역추가',`<div class="fg"><div><label>날짜</label><input type="date" id="f_dt"></div><div><label>구분</label><input id="f_cat" placeholder="구분(내역)"></div><div><label>금액 (엔)</label><input type="number" id="f_amt" placeholder="0"></div><div style="display:flex;gap:8px;justify-content:flex-end;align-items:end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt gn" onclick="doAddBkIn()">추가</button></div></div>`);}
+function doAddBkIn(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value);if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkIn.push({id:nid(),dt,cat,amt});saveD();closeModal();go('bank');}
+function addBkOut(){showModal('출금 내역추가',`<div class="fg"><div><label>날짜</label><input type="date" id="f_dt"></div><div><label>구분</label><input id="f_cat" placeholder="구분(내역)"></div><div><label>금액 (엔)</label><input type="number" id="f_amt" placeholder="0"></div><div style="display:flex;gap:8px;justify-content:flex-end;align-items:end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt rd" onclick="doAddBkOut()">추가</button></div></div>`);}
+function doAddBkOut(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value);if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkOut.push({id:nid(),dt,cat,amt});saveD();closeModal();go('bank');}
+function delBk(type,id){if(!confirm('삭제하시겠습니까?'))return;if(type==='in')D.bkIn=D.bkIn.filter(x=>x.id!==id);else D.bkOut=D.bkOut.filter(x=>x.id!==id);saveD();go('bank');}
+
+// ===== CRUD: Securities Holdings =====
+function addHoldJP(){showModal('일본 종목 추가',`<div class="fg">
+  <div><label>종목코드</label><input id="f_tk"></div><div><label>종목명</label><input id="f_nm"></div>
+  <div><label>수량</label><input type="number" id="f_sh"></div><div><label>매수금액(수수료제외)</label><input type="number" id="f_ba"></div>
+  <div><label>매수수수료</label><input type="number" id="f_fee" value="0"></div><div><label>현재가</label><input type="number" id="f_cp"></div>
+  <div class="full" id="f_preview"></div>
+  <div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddHoldJP()">추가</button></div></div>
+  <script>['f_sh','f_ba','f_fee','f_cp'].forEach(id=>document.getElementById(id).addEventListener('input',updPreview));function updPreview(){const sh=+document.getElementById('f_sh').value||0,ba=+document.getElementById('f_ba').value||0,fee=+document.getElementById('f_fee').value||0,cp=+document.getElementById('f_cp').value||0;const tc=ba+fee,mv=sh*cp,pl=mv-tc;document.getElementById('f_preview').innerHTML=sh&&cp?'<div class=\"preview\"><span>취득원가: <b>'+fm(tc)+'</b></span><span>평가액: <b>'+fm(mv)+'</b></span><span>손익: <b style=\"color:'+(pl>=0?'#059669':'#dc2626')+'\">'+fm(pl)+'</b></span></div>':'';}<\/script>`);}
+function doAddHoldJP(){const tk=document.getElementById('f_tk').value,nm=document.getElementById('f_nm').value,sh=+document.getElementById('f_sh').value,ba=+document.getElementById('f_ba').value,fee=+document.getElementById('f_fee').value||0,cp=+document.getElementById('f_cp').value;if(!tk||!sh)return alert('코드와 수량을 입력하세요');const tc=ba+fee,bep=sh?Math.round(tc/sh):0,mv=sh*cp;D.holdJP.push({id:nid(),tk,nm,sh,px:sh?Math.round(ba/sh):0,buyAmt:ba,fee,tc,bep,cp,mv});saveD();closeModal();go('sec');}
+function delHoldJP(id){if(!confirm('삭제하시겠습니까?'))return;D.holdJP=D.holdJP.filter(x=>x.id!==id);saveD();go('sec');}
+
+function addHoldUS(){showModal('미국 종목 추가',`<div class="fg">
+  <div><label>종목코드</label><input id="f_tk"></div><div><label>종목명</label><input id="f_nm"></div>
+  <div><label>수량</label><input type="number" id="f_sh"></div><div><label>매수금액(엔)</label><input type="number" id="f_ba"></div>
+  <div><label>현재가(USD)</label><input type="number" id="f_cpu" step="0.01"></div><div><label>환율(USD/JPY)</label><input type="number" id="f_rate" value="${SET.rates.USDJPY}" step="0.000001"></div>
+  <div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddHoldUS()">추가</button></div></div>`);}
+function doAddHoldUS(){const tk=document.getElementById('f_tk').value,nm=document.getElementById('f_nm').value,sh=+document.getElementById('f_sh').value,ba=+document.getElementById('f_ba').value,cpu=+document.getElementById('f_cpu').value,rate=+document.getElementById('f_rate').value;if(!tk||!sh)return alert('코드와 수량을 입력하세요');const mv=Math.round(sh*cpu*rate);D.holdUS.push({id:nid(),tk,nm,sh,buyAmt:ba,fee:0,tc:ba,bep:sh?Math.round(ba/sh):0,cpUsd:cpu,rate,mv});saveD();closeModal();go('sec');}
+function delHoldUS(id){if(!confirm('삭제하시겠습니까?'))return;D.holdUS=D.holdUS.filter(x=>x.id!==id);saveD();go('sec');}
+
+// ===== CRUD: Realized =====
+function addReal(){showModal('수익실현 추가',`<div class="fg">
+  <div><label>확정일</label><input type="date" id="f_dt"></div><div><label>종목코드</label><input id="f_tk"></div>
+  <div><label>종목명</label><input id="f_nm"></div><div><label>수량</label><input type="number" id="f_sh"></div>
+  <div><label>매수금액</label><input type="number" id="f_ba"></div><div><label>매수수수료</label><input type="number" id="f_bc" value="0"></div>
+  <div><label>매수소비세</label><input type="number" id="f_bt" value="0"></div><div><label>매도금액</label><input type="number" id="f_sa"></div>
+  <div><label>매도수수료</label><input type="number" id="f_sc" value="0"></div><div><label>매도소비세</label><input type="number" id="f_st" value="0"></div>
+  <div class="full" id="f_rp"></div>
+  <div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt gn" onclick="doAddReal()">추가</button></div></div>
+  <script>['f_ba','f_bc','f_bt','f_sa','f_sc','f_st'].forEach(id=>document.getElementById(id).addEventListener('input',updRP));function updRP(){const ba=+document.getElementById('f_ba').value||0,bc=+document.getElementById('f_bc').value||0,bt=+document.getElementById('f_bt').value||0,sa=+document.getElementById('f_sa').value||0,sc=+document.getElementById('f_sc').value||0,st=+document.getElementById('f_st').value||0;const tc=ba+bc+bt,net=sa-tc-sc-st;document.getElementById('f_rp').innerHTML=ba&&sa?'<div class=\"preview\"><span>취득원가: <b>'+fm(tc)+'</b></span><span>순수익: <b style=\"color:'+(net>=0?'#059669':'#dc2626')+'\">'+fm(net)+'</b></span><span>수익률: <b>'+(tc?(net/tc*100).toFixed(2):'0')+'%</b></span></div>':'';}<\/script>`);}
+function doAddReal(){const dt=document.getElementById('f_dt').value,tk=document.getElementById('f_tk').value,nm=document.getElementById('f_nm').value,sh=+document.getElementById('f_sh').value,ba=+document.getElementById('f_ba').value,bC=+document.getElementById('f_bc').value||0,bT=+document.getElementById('f_bt').value||0,sa=+document.getElementById('f_sa').value,sC=+document.getElementById('f_sc').value||0,sT=+document.getElementById('f_st').value||0;if(!tk||!sa)return alert('필수항목을 입력하세요');const tc=ba+bC+bT,gr=sa-tc,net=gr-sC-sT,rr=tc?(net/tc*100):0;D.real.push({id:nid(),dt,tk,nm,sh,px:sh?Math.round(ba/sh):0,buyAmt:ba,bC,bT,tc,sp:sh?Math.round(sa/sh):0,sa,gr,sC,sT,net,rr:Math.round(rr*100)/100});saveD();closeModal();go('sec');}
+function delReal(id){if(!confirm('삭제하시겠습니까?'))return;D.real=D.real.filter(x=>x.id!==id);saveD();go('sec');}
+
+
+function editHoldJP(id){const h=D.holdJP.find(x=>x.id===id);if(!h)return;showModal('종목 수정 ('+h.tk+')',
+  '<div class="fg">'+
+  '<div><label>종목코드</label><input id="f_tk" value="'+h.tk+'"></div><div><label>종목명</label><input id="f_nm" value="'+h.nm+'"></div>'+
+  '<div><label>수량</label><input type="number" id="f_sh" value="'+h.sh+'"></div><div><label>매수금액</label><input type="number" id="f_ba" value="'+h.buyAmt+'"></div>'+
+  '<div><label>수수료</label><input type="number" id="f_fee" value="'+h.fee+'"></div><div><label>현재가</label><input type="number" id="f_cp" value="'+h.cp+'"></div>'+
+  '<div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doEditHoldJP('+id+')">저장</button></div></div>');}
+function doEditHoldJP(id){const h=D.holdJP.find(x=>x.id===id);if(!h)return;h.tk=document.getElementById('f_tk').value;h.nm=document.getElementById('f_nm').value;h.sh=+document.getElementById('f_sh').value;h.buyAmt=+document.getElementById('f_ba').value;h.fee=+document.getElementById('f_fee').value;h.cp=+document.getElementById('f_cp').value;h.tc=h.buyAmt+h.fee;h.bep=h.sh?Math.round(h.tc/h.sh):0;h.mv=h.sh*h.cp;saveD();closeModal();go('sec');}
+function editHoldUS(id){const h=D.holdUS.find(x=>x.id===id);if(!h)return;showModal('미국종목 수정 ('+h.tk+')',
+  '<div class="fg">'+
+  '<div><label>종목코드</label><input id="f_tk" value="'+h.tk+'"></div><div><label>종목명</label><input id="f_nm" value="'+h.nm+'"></div>'+
+  '<div><label>수량</label><input type="number" id="f_sh" value="'+h.sh+'"></div><div><label>매수금액(엔)</label><input type="number" id="f_ba" value="'+h.buyAmt+'"></div>'+
+  '<div><label>현재가(USD)</label><input type="number" id="f_cpu" value="'+h.cpUsd+'" step="0.01"></div><div><label>환율(USD/JPY)</label><input type="number" id="f_rate" value="'+(h.rate||SET.rates.USDJPY)+'" step="0.000001"></div>'+
+  '<div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doEditHoldUS('+id+')">저장</button></div></div>');}
+function doEditHoldUS(id){const h=D.holdUS.find(x=>x.id===id);if(!h)return;h.tk=document.getElementById('f_tk').value;h.nm=document.getElementById('f_nm').value;h.sh=+document.getElementById('f_sh').value;h.buyAmt=+document.getElementById('f_ba').value;h.cpUsd=+document.getElementById('f_cpu').value;h.rate=+document.getElementById('f_rate').value;h.tc=h.buyAmt;h.mv=Math.round(h.sh*h.cpUsd*h.rate);saveD();closeModal();go('sec');}
+function editReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;showModal('수익실현 수정 ('+r.tk+')',
+  '<div class="fg">'+
+  '<div><label>확정일</label><input type="date" id="f_dt" value="'+r.dt+'"></div><div><label>코드</label><input id="f_tk" value="'+r.tk+'"></div>'+
+  '<div><label>종목명</label><input id="f_nm" value="'+r.nm+'"></div><div><label>수량</label><input type="number" id="f_sh" value="'+r.sh+'"></div>'+
+  '<div><label>매수금액</label><input type="number" id="f_ba" value="'+r.buyAmt+'"></div><div><label>매수수수료</label><input type="number" id="f_bc" value="'+r.bC+'"></div>'+
+  '<div><label>매수소비세</label><input type="number" id="f_bt" value="'+r.bT+'"></div><div><label>매도금액</label><input type="number" id="f_sa" value="'+r.sa+'"></div>'+
+  '<div><label>매도수수료</label><input type="number" id="f_sc" value="'+r.sC+'"></div><div><label>매도소비세</label><input type="number" id="f_st" value="'+r.sT+'"></div>'+
+  '<div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doEditReal('+id+')">저장</button></div></div>');}
+function doEditReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;r.dt=document.getElementById('f_dt').value;r.tk=document.getElementById('f_tk').value;r.nm=document.getElementById('f_nm').value;r.sh=+document.getElementById('f_sh').value;r.buyAmt=+document.getElementById('f_ba').value;r.bC=+document.getElementById('f_bc').value;r.bT=+document.getElementById('f_bt').value;r.sa=+document.getElementById('f_sa').value;r.sC=+document.getElementById('f_sc').value;r.sT=+document.getElementById('f_st').value;r.tc=r.buyAmt+r.bC+r.bT;r.sp=r.sh?Math.round(r.sa/r.sh):0;r.gr=r.sa-r.tc;r.net=r.gr-r.sC-r.sT;r.rr=r.tc?Math.round(r.net/r.tc*10000)/100:0;saveD();closeModal();go('sec');}
+
+
+function updatePrices(){
+  let rows = D.holdJP.map(h=>`<tr>
+    <td class="b bl">${h.tk}</td><td>${h.nm}</td><td class="r m">${fm(h.sh)}</td>
+    <td class="r m mu">${fm(h.cp)}</td>
+    <td class="r"><input type="number" id="up_${h.id}" value="${h.cp}" style="width:90px;padding:4px;border:1px solid #e2e6ed;border-radius:4px;font-size:12px;text-align:right"></td>
+    <td class="r m">${fm(h.mv)}</td></tr>`).join('');
+  let usRows = D.holdUS.map(h=>`<tr style="background:#f0f9ff">
+    <td class="b bl">${h.tk}</td><td>${h.nm} 🇺🇸</td><td class="r m">${fm(h.sh)}</td>
+    <td class="r m mu">${h.cpUsd}</td>
+    <td class="r"><input type="number" id="upu_${h.id}" value="${h.cpUsd}" step="0.01" style="width:90px;padding:4px;border:1px solid #e2e6ed;border-radius:4px;font-size:12px;text-align:right"></td>
+    <td class="r m">${fm(h.mv)}</td></tr>`).join('');
+  showModal('📊 시세 업데이트 (현재가 일괄수정)',`
+    <div style="font-size:11px;color:#64748b;margin-bottom:10px">각 종목의 현재가를 입력하고 [일괄 적용]을 누르세요</div>
+    <table><thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">기존 현재가</th><th class="r">새 현재가</th><th class="r">기존 평가액</th></tr></thead>
+    <tbody>${rows}${usRows}</tbody></table>
+    <div style="margin-top:10px;padding:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px">
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px">
+        <span>🇺🇸 USD/JPY 환율:</span>
+        <input type="number" id="up_rate" value="${SET.rates.USDJPY}" step="0.000001" style="width:120px;padding:4px;border:1px solid #e2e6ed;border-radius:4px;font-size:12px;text-align:right">
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="bt gh" onclick="closeModal()">취소</button>
+      <button class="bt gn" onclick="applyPrices()">✓ 일괄 적용</button>
+    </div>`);
+}
+function applyPrices(){
+  let changed = 0;
+  D.holdJP.forEach(h=>{
+    const el = document.getElementById('up_'+h.id);
+    if(el){
+      const newCp = +el.value;
+      if(newCp !== h.cp){
+        h.cp = newCp;
+        h.mv = h.sh * newCp;
+        changed++;
+      }
+    }
+  });
+  const newRate = +document.getElementById('up_rate').value;
+  if(newRate !== SET.rates.USDJPY){
+    SET.rates.USDJPY = newRate;
+    saveS();
+  }
+  D.holdUS.forEach(h=>{
+    const el = document.getElementById('upu_'+h.id);
+    if(el){
+      const newCpUsd = +el.value;
+      if(newCpUsd !== h.cpUsd){
+        h.cpUsd = newCpUsd;
+        h.rate = newRate;
+        h.mv = Math.round(h.sh * newCpUsd * newRate);
+        changed++;
+      }
+    }
+  });
+  saveD();
+  closeModal();
+  go('sec');
+  alert(changed + '종목 현재가가 업데이트되었습니다.');
+}
+
+// ===== SLIP (전표처리) =====
+function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend',`<tr id="sr_${id}"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">${acctOptions()}</select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td class="r"><input type="number" class="sl_fee" placeholder="0" style="width:70px;padding:3px;border:1px solid #fffbeb;border-radius:4px;font-size:11px;text-align:right;background:#fffbeb"></td><td class="r"><input type="number" class="sl_tax" placeholder="0" style="width:70px;padding:3px;border:1px solid #fee2e2;border-radius:4px;font-size:11px;text-align:right;background:#fee2e2"></td><td><button class="del" onclick="document.getElementById('sr_${id}').remove();updSlipBal()">✕</button></td></tr>`);}
+function acctOptions(){return '<option value="">--</option>'+["資産","負債","純資産","収益","費用"].map(g=>`<optgroup label="${g}">${D.accts.filter(a=>a.g===g).map(a=>`<option value="${a.c}">${a.c} ${a.k}</option>`).join('')}</optgroup>`).join('');}
+function updSlipBal(){let dr=0,cr=0;document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,a=+(r.querySelector('.sl_amt').value)||0;if(s==='dr')dr+=a;else cr+=a;});const ok=dr===cr&&dr>0;document.getElementById('slipBal').innerHTML=`<span>차변: <b>${fm(dr)}</b></span><span>대변: <b>${fm(cr)}</b></span><span style="font-weight:700;color:${ok?'#059669':'#dc2626'}">${ok?'✓ 차대일치':'✗ 불일치'}</span>`;document.getElementById('slipSubmit').style.background=ok?'#059669':'#94a3b8';}
+function submitSlip(){let dr=0,cr=0;const rows=[];document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,ac=r.querySelector('.sl_acct').value,a=+(r.querySelector('.sl_amt').value)||0,f=+(r.querySelector('.sl_fee')?.value)||0,t=+(r.querySelector('.sl_tax')?.value)||0;if(ac&&a>0){rows.push({side:s,ac,amt:a,fee:f,tax:t});if(s==='dr')dr+=a;else cr+=a;}});if(dr!==cr||dr===0)return alert('차대가 일치하지 않습니다');const dt=document.getElementById('sl_dt').value,desc=document.getElementById('sl_desc').value,cur=document.getElementById('sl_cur').value;const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,fee:d.fee||c.fee,tax:d.tax||c.tax,cur});});});saveD();go('slip');}
+function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="資産">자산</option><option value="負債">부채</option><option value="純資産">순자산</option><option value="収益">수익</option><option value="費用">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
+function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');D.accts.push({c,n,k,g});saveD();closeModal();go('slip');}
+
+function rSlip(){
+  const grouped={};D.journals.forEach(j=>{if(!grouped[j.no])grouped[j.no]={no:j.no,dt:j.dt,desc:j.desc,entries:[]};grouped[j.no].entries.push(j);});
+  const slipList=Object.values(grouped).reverse();
+  return `<div class="pt">전표처리</div>
+  <div class="ib">💡 전표 기표 → 총계정원장 자동 반영. 환율: USD/JPY ${SET.rates.USDJPY} | JPY/KRW ${SET.rates.JPYKRW}</div>
+  <div class="pn" style="padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1e3a5f">
+      <span style="font-size:16px;font-weight:700;color:#1e3a5f">대체전표</span>
+      <div style="border:2px solid #1e3a5f;border-radius:6px;padding:3px 10px;text-align:center"><div style="font-size:7px;color:#64748b">결재</div><div style="font-size:11px;font-weight:700;color:#1e3a5f">본인전결</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg"><div><label>전표일자</label><input type="date" id="sl_dt" value="${new Date().toISOString().slice(0,10)}"></div></div>
+      <div class="fg"><div><label>적요</label><input id="sl_desc" placeholder="거래 내용"></div></div>
+      <div class="fg"><div><label>통화</label><select id="sl_cur"><option value="JPY">🇯🇵 JPY</option><option value="KRW">🇰🇷 KRW</option><option value="USD">🇺🇸 USD</option></select></div></div>
+    </div>
+    <table><thead><tr><th>차/대</th><th>계정과목</th><th class="r">금액</th><th class="r">수수료</th><th class="r">소비세</th><th></th></tr></thead>
+    <tbody id="slipRows">
+      <tr id="sr_1"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#dbeafe"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">${acctOptions()}</select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td class="r"><input type="number" class="sl_fee" placeholder="0" style="width:70px;padding:3px;border:1px solid #fffbeb;border-radius:4px;font-size:11px;text-align:right;background:#fffbeb"></td><td class="r"><input type="number" class="sl_tax" placeholder="0" style="width:70px;padding:3px;border:1px solid #fee2e2;border-radius:4px;font-size:11px;text-align:right;background:#fee2e2"></td><td></td></tr>
+      <tr id="sr_2"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#fee2e2"><option value="cr">대변</option><option value="dr">차변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">${acctOptions()}</select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td class="r"><input type="number" class="sl_fee" placeholder="0" style="width:70px;padding:3px;border:1px solid #fffbeb;border-radius:4px;font-size:11px;text-align:right;background:#fffbeb"></td><td class="r"><input type="number" class="sl_tax" placeholder="0" style="width:70px;padding:3px;border:1px solid #fee2e2;border-radius:4px;font-size:11px;text-align:right;background:#fee2e2"></td><td></td></tr>
+    </tbody></table>
+    <div style="margin-top:8px;display:flex;gap:6px"><button class="bt gh" style="font-size:10px" onclick="addSlipRow()">+ 행추가</button><button class="bt gh" style="font-size:10px" onclick="addAcct()">+ 과목추가</button></div>
+    <div id="slipBal" style="margin-top:10px;padding:6px 10px;background:#fee2e2;border-radius:6px;font-size:11px;display:flex;justify-content:space-between"><span>차변: <b>0</b></span><span>대변: <b>0</b></span><span style="font-weight:700;color:#dc2626">✗ 불일치</span></div>
+    <div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="bt" id="slipSubmit" style="background:#94a3b8" onclick="submitSlip()">승인·기표</button></div>
+  </div>
+  <div class="pn" style="margin-top:16px"><div class="ph">전표일람 (${slipList.length}건)</div>
+  ${slipList.length===0?'<div style="padding:20px;text-align:center;color:#64748b">기표된 전표가 없습니다</div>':slipList.slice(0,15).map(s=>`<div style="padding:10px 14px;border-bottom:1px solid #e2e6ed;font-size:11px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span><b style="color:#2563eb">${s.no}</b> <span class="mu">${s.dt}</span> ${s.desc||''}</span><span style="font-size:9px;color:#059669">✓ 본인전결</span></div>${s.entries.map(e=>`<div style="display:flex;gap:8px"><span style="color:#2563eb;width:140px">차 ${acctNm(e.dr)}</span><span class="m" style="width:80px;text-align:right">${fm(e.amt)}</span><span style="color:#dc2626;width:140px">대 ${acctNm(e.cr)}</span></div>`).join('')}</div>`).join('')}
+  </div>`;}
+
+function acctNm(c){const a=D.accts.find(x=>x.c===c);return a?a.k:c;}
+
+// ===== GENERAL LEDGER (총계정원장) =====
+function rGL(){
+  // Compute balances from journals
+  const bal={};
+  D.journals.forEach(j=>{
+    if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
+    if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
+    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true});
+    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push({...j,isDr:false});
+  });
+  const groups={};
+  Object.entries(bal).forEach(([code,v])=>{
+    const a=D.accts.find(x=>x.c===code);if(!a)return;
+    const isDb=["資産","費用"].includes(a.g);
+    v.net=isDb?v.dr-v.cr:v.cr-v.dr;
+    if(!groups[a.g])groups[a.g]=[];
+    groups[a.g].push({code,name:a.k,...v});
+  });
+
+  if(D.journals.length===0){
+    return `<div class="pt">총계정원장</div>
+    <div class="ib">💡 전표를 기표하면 여기에 계정별로 자동 집계됩니다</div>
+    <div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:40px;margin-bottom:12px">📒</div><div>아직 기표된 전표가 없습니다.<br>[전표처리] 메뉴에서 전표를 입력하세요.</div></div>`;}
+
+  return `<div class="pt">총계정원장</div>
+  <div class="ib">💡 전표 ${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
+  ${["資産","負債","純資産","収益","費用"].filter(g=>groups[g]).map(g=>`
+    <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:6px;padding:3px 8px;background:#dbeafe;border-radius:5px;display:inline-block">${g}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px">
+    ${groups[g].map(a=>`<div onclick="showGLDetail('${a.code}')" style="background:#fff;border:1px solid #e2e6ed;border-radius:7px;padding:8px 12px;cursor:pointer" onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e6ed'"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">${a.name}</div><div style="font-size:9px;color:#64748b">${a.code} · ${a.entries.length}건</div></div><div style="font-size:13px;font-weight:700;font-feature-settings:'tnum'">${fy(a.net)}</div></div></div>`).join('')}
+    </div></div>`).join('')}`;}
+
+function showGLDetail(code){
+  const a=D.accts.find(x=>x.c===code);if(!a)return;
+  const isDb=["資産","費用"].includes(a.g);
+  const entries=[];let bal=0;
+  D.journals.filter(j=>j.dr===code||j.cr===code).forEach(j=>{
+    const isDr=j.dr===code;const dr=isDr?j.amt:0;const cr=isDr?0:j.amt;
+    bal+=isDb?(dr-cr):(cr-dr);
+    entries.push({dt:j.dt,no:j.no,desc:j.desc,dr,cr,bal});
+  });
+  showModal(`【${a.k}】 원장 (잔액: ${fy(bal)})`,`
+    <table><thead><tr><th>날짜</th><th>전표</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th class="r">잔액</th></tr></thead>
+    <tbody>${entries.map((e,i)=>`<tr class="${i%2?'a':''}"><td class="mu m">${e.dt}</td><td class="bl">${e.no}</td><td>${e.desc||''}</td><td class="r m">${e.dr?fm(e.dr):''}</td><td class="r m">${e.cr?fm(e.cr):''}</td><td class="r m b">${fm(e.bal)}</td></tr>`).join('')}</tbody></table>`);
+}
+
+// ===== PAGES =====
+function rDash(){const c=calc();return `<div class="pt">대시보드</div>
+  <div class="cards"><div class="cd bl"><div class="l">총 보유 자산</div><div class="v">${fy(c.totA)}</div></div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
+  <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>`;}
+
+function rSec(){const c=calc();const jpT=c.jpMv;
+  return `<div class="pt">유가증권</div>
+  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button></div>
+  <div id="TC">
+  <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
+    <thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">수수료</th><th class="r">취득원가</th><th class="r">BEP</th><th class="r">현재가</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th><th></th></tr></thead>
+    <tbody>${D.holdJP.map((h,i)=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;return`<tr class="${i%2?'a':''}"><td class="b bl">${h.tk}</td><td>${h.nm}</td><td class="r m">${fm(h.sh)}</td><td class="r m">${fm(h.buyAmt)}</td><td class="r m mu">${fm(h.fee)}</td><td class="r m b">${fm(h.tc)}</td><td class="r m">${fm(h.bep)}</td><td class="r m">${h.cp?fm(h.cp):'-'}</td><td class="r m b">${fm(h.mv)}</td><td class="r">${bg(pl)}</td><td class="r m ${pl>=0?'gn':'rd'}">${rr.toFixed(2)}%</td><td><button class="del" onclick="editHoldJP(${h.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delHoldJP(${h.id})">✕</button></td></tr>`;}).join('')}</tbody>
+    <tr class="t"><td colspan="3" class="r">합계</td><td class="r m">${fm(D.holdJP.reduce((s,h)=>s+h.buyAmt,0))}</td><td class="r m">${fm(D.holdJP.reduce((s,h)=>s+h.fee,0))}</td><td class="r m">${fm(c.jpC)}</td><td colspan="2"></td><td class="r m">${fm(c.jpMv)}</td><td class="r">${bg(c.jpMv-c.jpC)}</td><td class="r m">${((c.jpMv-c.jpC)/c.jpC*100).toFixed(2)}%</td><td></td></tr>
+  </table></div></div>
+  <div class="pn"><div class="ph"><span>나) 미국</span><button class="bt" onclick="addHoldUS()">+ 종목추가</button></div><table>
+    <thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">취득원가</th><th class="r">현재가(USD)</th><th class="r">환율</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th><th></th></tr></thead>
+    <tbody>${D.holdUS.map(h=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;return`<tr><td class="b bl">${h.tk}</td><td>${h.nm}</td><td class="r m">${fm(h.sh)}</td><td class="r m">${fm(h.tc)}</td><td class="r m">${h.cpUsd}</td><td class="r m">${h.rate||SET.rates.USDJPY}</td><td class="r m b">${fm(h.mv)}</td><td class="r">${bg(pl)}</td><td class="r m rd">${rr.toFixed(2)}%</td><td><button class="del" onclick="editHoldUS(${h.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delHoldUS(${h.id})">✕</button></td></tr>`;}).join('')}</tbody>
+  </table></div>
+  <div class="pn"><div class="ph">다) 전체</div><table><thead><tr><th>구분</th><th class="r">취득원가</th><th class="r">평가금액</th><th class="r">비중</th><th class="r">손익</th><th class="r">수익률</th></tr></thead>
+    <tbody><tr><td>일본</td><td class="r m">${fm(c.jpC)}</td><td class="r m">${fm(c.jpMv)}</td><td class="r">${c.allMv?Math.round(c.jpMv/c.allMv*100):0}%</td><td class="r">${bg(c.jpMv-c.jpC)}</td><td class="r m">${((c.jpMv-c.jpC)/c.jpC*100).toFixed(2)}%</td></tr>
+    <tr class="a"><td>미국</td><td class="r m">${fm(c.usC)}</td><td class="r m">${fm(c.usMv)}</td><td class="r">${c.allMv?Math.round(c.usMv/c.allMv*100):0}%</td><td class="r">${bg(c.usMv-c.usC)}</td><td class="r m rd">${((c.usMv-c.usC)/c.usC*100).toFixed(2)}%</td></tr>
+    <tr class="t"><td>합계</td><td class="r m">${fm(c.allC)}</td><td class="r m">${fm(c.allMv)}</td><td class="r">100%</td><td class="r">${bg(c.allPl)}</td><td class="r m ${c.allPl>=0?'gn':'rd'}">${(c.allPl/c.allC*100).toFixed(2)}%</td></tr></tbody></table></div>
+  </div>`;}
+
+function rRealTab(){const c=calc();
+  return `<div class="pn"><div class="ph"><span>수익실현 내역 (${D.real.length}건)</span><button class="bt gn" onclick="addReal()">+ 내역추가</button></div>
+  <div style="overflow-x:auto"><table style="min-width:1150px"><thead><tr><th>확정일</th><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">매수수수료</th><th class="r">매수소비세</th><th class="r">취득원가</th><th class="r">매도금액</th><th class="r">매도수수료</th><th class="r">매도소비세</th><th class="r">순수익</th><th class="r">수익률</th><th></th></tr></thead>
+  <tbody>${D.real.map((r,i)=>`<tr class="${i%2?'a':''}"><td class="mu m">${r.dt}</td><td class="b bl">${r.tk}</td><td>${r.nm}</td><td class="r m">${fm(r.sh)}</td><td class="r m">${fm(r.buyAmt)}</td><td class="r m mu">${fm(r.bC)}</td><td class="r m rd">${fm(r.bT)}</td><td class="r m b">${fm(r.tc)}</td><td class="r m">${fm(r.sa)}</td><td class="r m mu">${fm(r.sC)}</td><td class="r m rd">${fm(r.sT)}</td><td class="r">${bg(r.net)}</td><td class="r m gn">${r.rr.toFixed(2)}%</td><td><button class="del" onclick="editReal(${r.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delReal(${r.id})">✕</button></td></tr>`).join('')}</tbody>
+  <tr class="t"><td colspan="4" class="r">합계</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.buyAmt,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.bC,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.bT,0))}</td><td class="r m">${fm(c.rC)}</td><td class="r m">${fm(c.rS)}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.sC,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.sT,0))}</td><td class="r">${bg(c.rpl)}</td><td class="r m gn">${(c.rpl/c.rC*100).toFixed(2)}%</td><td></td></tr>
+  </table></div></div>`;}
+
+function rBank(){const c=calc();let cI=0,cO=0;
+  return `<div class="pt">법인계좌</div>
+  <div class="cards"><div class="cd bl"><div class="l">잔액</div><div class="v">${fy(c.bb)}</div></div><div class="cd gn"><div class="l">총입금</div><div class="v">${fy(c.tI)}</div></div><div class="cd rd"><div class="l">총출금</div><div class="v">${fy(c.tO)}</div></div></div>
+  <div class="pn"><div class="ph" style="color:#059669"><span>입금</span><button class="bt gn" onclick="addBkIn()">+ 내역추가</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">입금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
+  <tbody>${D.bkIn.map((d,i)=>{cI+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m gn">${fm(d.amt)}</td><td class="r m b">${fm(cI)}</td><td><button class="del" onclick="delBk('in',${d.id})">✕</button></td></tr>`;}).join('')}</tbody></table></div>
+  <div class="pn"><div class="ph" style="color:#dc2626"><span>출금</span><button class="bt rd" onclick="addBkOut()">+ 내역추가</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">출금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
+  <tbody>${D.bkOut.map((d,i)=>{cO+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m rd">${fm(d.amt)}</td><td class="r m">${fm(cO)}</td><td><button class="del" onclick="delBk('out',${d.id})">✕</button></td></tr>`;}).join('')}</tbody>
+  <tr class="t"><td colspan="2" class="r">잔액</td><td colspan="3" class="r m" style="font-size:15px;color:#2563eb">${fm(c.bb)}</td></tr></table></div>`;}
+
+function rFS(){const d={sga:[{nm:"접대교제비",a:350036},{nm:"차량비",a:238071},{nm:"여비교통비",a:138245},{nm:"해외출장비",a:686794},{nm:"소모품비",a:201420},{nm:"지급수수료(EB)",a:6600},{nm:"유가증권매매수수료",a:1413093,n:"세전1,284,632+소비세128,461"},{nm:"잡비",a:3700}],sgaT:3037959,su:371400,ol:-3409359,noi:[{nm:"유가증권매각이익(총액)",a:12599320,n:"수수료공제전"},{nm:"배당금",a:6356},{nm:"이자수입(세후)",a:21845},{nm:"잡수입",a:3349}],noiT:12630870,noe:[{nm:"유가증권평가손(미실현)",a:3489453},{nm:"지급이자(임원차입 연1%)",a:1187671,n:"1.5억×1%×289일/365일"}],noeT:4677124,oi:4544387,ct:1100700,ni:3443687,ast:[{nm:"보통예금",a:8396979},{nm:"증권예수금",a:88436523}],cashT:96833502,secMV:69269956,totA:166103458,lib:[{nm:"임원차입금",a:150000000},{nm:"미지급이자",a:1187671},{nm:"미지급금(설립비)",a:371400},{nm:"미지급법인세등",a:1100700}],totL:152659771,eq:[{nm:"자본금",a:10000000},{nm:"이익잉여금",a:3443687}],totE:13443687};
+  return `<div class="pt">재무제표</div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button></div>
+  <div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>
+  <div class="fr"><span>Ⅰ 매출고</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>
+  <div class="fr h"><span>Ⅱ 판매비및일반관리비</span></div>
+  ${d.sga.map(s=>`<div class="fr i"><span>${s.nm}${s.n?` <span style="font-size:10px;color:#64748b">(${s.n})</span>`:''}</span><span class="m">${fm(s.a)}</span></div>`).join('')}
+  <div class="fr b tl"><span>판관비 합계</span><span class="m">${fm(d.sgaT)}</span></div><div class="fr"><span>창립비</span><span class="m">${fm(d.su)}</span></div>
+  <div class="fr b tl" style="color:#dc2626"><span>영업손실</span><span class="m">${fm(d.ol)}</span></div><div style="height:8px"></div>
+  <div class="fr h"><span>Ⅲ 영업외수익</span></div>${d.noi.map(s=>`<div class="fr i"><span>${s.nm}${s.n?` <span style="font-size:10px;color:#64748b">(${s.n})</span>`:''}</span><span class="m">${fm(s.a)}</span></div>`).join('')}
+  <div class="fr b tl"><span>영업외수익 합계</span><span class="m">${fm(d.noiT)}</span></div><div style="height:6px"></div>
+  <div class="fr h"><span>Ⅳ 영업외비용</span></div>${d.noe.map(s=>`<div class="fr i"><span>${s.nm}${s.n?` <span style="font-size:10px;color:#64748b">(${s.n})</span>`:''}</span><span class="m">${fm(s.a)}</span></div>`).join('')}
+  <div class="fr b tl"><span>영업외비용 합계</span><span class="m">${fm(d.noeT)}</span></div><div style="height:8px"></div>
+  <div class="fr b tl" style="color:#059669"><span>경상이익</span><span class="m">${fm(d.oi)}</span></div><div class="fr"><span>Ⅴ 법인세등</span><span class="m">${fm(d.ct)}</span></div>
+  <div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:16px;font-weight:700;border-top:3px solid #e2e6ed;margin-top:8px;background:#d1fae560;border-radius:0 0 6px 6px"><span>당기순이익</span><span style="color:#059669" class="m">${fy(d.ni)}</span></div>
+  </div></div>`;}
+
+function rRpt(){const c=calc();
+  return `<div style="max-width:900px"><div style="text-align:center;margin-bottom:20px"><div style="font-size:20px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:13px;color:#64748b;margin-top:4px">${rptDt()} 기준</div></div>
+  <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:#1e3a5f">1. 총자산내역</div>
+  <div class="pn"><table><thead><tr><th>구분</th><th class="r">내역(엔)</th><th>비고</th></tr></thead><tbody>
+    <tr><td>자본금</td><td class="r m">10,000,000</td><td></td></tr><tr class="a"><td>수입</td><td class="r m">21,845</td><td></td></tr><tr><td>지출</td><td class="r m">(1,624,866)</td><td></td></tr>
+    <tr class="a" style="font-weight:700"><td>법인계좌잔액---(1)</td><td class="r m b">${fm(c.bb)}</td><td class="mu">미츠이스미토모</td></tr>
+    <tr><td>증권예수금</td><td class="r m">${fm(c.secDep)}</td><td></td></tr><tr class="a"><td>유가증권평가액</td><td class="r m">${fm(c.allMv)}</td><td></td></tr>
+    <tr style="font-weight:700"><td>증권계좌잔액---(2)</td><td class="r m b">${fm(c.secBal)}</td><td class="mu">SMBC닛코증권</td></tr>
+    <tr class="t"><td>총보유자산합계</td><td class="r m">${fm(c.totA)}</td><td class="mu">(1)+(2)</td></tr>
+  </tbody></table></div>
+  <div style="font-size:15px;font-weight:700;margin:20px 0 10px;color:#1e3a5f">2. 유가증권 평가 및 손익 현황</div>
+  <div class="pn" style="padding:14px;margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">총괄 요약</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px"><div>총 평가액: <b>${fm(c.allMv)}</b> 엔</div><div>총 평가손익: <b style="color:${c.allPl>=0?'#059669':'#dc2626'}">${fm(c.allPl)}</b> 엔</div><div>예수금: <b>${fm(c.secDep)}</b> 엔</div></div></div>
+  ${document.getElementById('TC')?document.getElementById('TC').innerHTML.replace(/onclick="[^"]*"/g,'').replace(/<button[^>]*class="del"[^>]*>✕<\/button>/g,'').replace(/<button[^>]*>.*?추가<\/button>/g,''):`<div class="ib">유가증권 메뉴에서 상세 내역을 확인하세요</div>`}
+  </div>`;}
+
+function rSet(){return `<div class="pt">설정</div>
+  <div class="sc"><h4>💱 환율 설정</h4><div style="font-size:11px;color:#64748b;margin-bottom:10px">환율 변경 시 유가증권 평가 및 전표처리에 반영</div>
+  <div class="rr"><span style="width:120px">USD/JPY:</span><input type="number" id="r1" value="${SET.rates.USDJPY}" step="0.000001"><span class="mu">1달러 = ? 엔</span></div>
+  <div class="rr"><span style="width:120px">JPY/KRW:</span><input type="number" id="r2" value="${SET.rates.JPYKRW}" step="0.000001"><span class="mu">1엔 = ? 원</span></div>
+  <div style="margin-top:12px"><button class="bt" onclick="SET.rates.USDJPY=+document.getElementById('r1').value;SET.rates.JPYKRW=+document.getElementById('r2').value;saveS();alert('저장됨');go('set')">💾 저장</button></div></div>
+  <div class="sc"><h4>📄 보고서 기준일</h4><div class="rr"><span>기준일 (비워두면 자동):</span><input id="r3" value="${SET.reportDate}" placeholder="예: 26. 3. 27." style="width:160px"></div>
+  <button class="bt" onclick="SET.reportDate=document.getElementById('r3').value;saveS();alert('저장됨')">💾 저장</button></div>
+  <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다</div>
+  <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
+
+// ===== ROUTING =====
+const pages={dash:rDash,slip:rSlip,gl:rGL,fs:rFS,sec:rSec,bank:rBank,rpt:rRpt,set:rSet};
+let cur='dash';
+
+function go(p){
+  cur=p;
+  document.getElementById('M').innerHTML=pages[p]();
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===p));
+  // Tab events
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));this.classList.add('on');
+    const tc=document.getElementById('TC'),id=this.dataset.tab;if(!tc)return;
+    if(cur==='sec'){if(id==='real')tc.innerHTML=rRealTab();else go('sec');}
+    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else go('fs');}
+  }));
+}
+
+function rBSTab(){const d={ast:[{nm:"보통예금",a:8396979},{nm:"증권예수금",a:88436523}],cashT:96833502,secMV:69269956,totA:166103458,lib:[{nm:"임원차입금",a:150000000},{nm:"미지급이자",a:1187671},{nm:"미지급금",a:371400},{nm:"미지급법인세등",a:1100700}],totL:152659771,eq:[{nm:"자본금",a:10000000},{nm:"이익잉여금",a:3443687}],totE:13443687};
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#2563eb;margin-bottom:10px">【자산】</div>${d.ast.map(a=>`<div class="fr"><span>${a.nm}</span><span class="m">${fm(a.a)}</span></div>`).join('')}<div class="fr b tl"><span>현금·예금계</span><span class="m">${fm(d.cashT)}</span></div><div class="fr"><span>유가증권(시가)</span><span class="m">${fm(d.secMV)}</span></div><div class="fr b tl" style="color:#2563eb;font-size:14px"><span>자산합계</span><span class="m">${fm(d.totA)}</span></div></div>
+  <div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#d97706;margin-bottom:10px">【부채】</div>${d.lib.map(a=>`<div class="fr"><span>${a.nm}</span><span class="m">${fm(a.a)}</span></div>`).join('')}<div class="fr b tl" style="color:#d97706"><span>부채합계</span><span class="m">${fm(d.totL)}</span></div><div style="text-align:center;font-size:14px;font-weight:700;color:#059669;margin:16px 0 10px">【순자산】</div>${d.eq.map(a=>`<div class="fr"><span>${a.nm}</span><span class="m">${fm(a.a)}</span></div>`).join('')}<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">${fm(d.totE)}</span></div><div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">${fm(d.totA)}</span></div></div></div>`;}
+
+function rTxTab(){return `<div class="pn" style="padding:18px;max-width:460px"><div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px">법인세등 추정</div>
+  ${[["과세소득","",4544387,1],["법인세","15%",681600],["지방법인세","10.3%",70200],["도민세(할)","7%",50200],["도민세(균등)","70,000",70000],["사업세","3.5~5.3%",168800],["특별사업세","37%",62400]].map(t=>`<div class="fr" style="${t[3]?'background:#dbeafe;border-radius:4px;font-weight:700':''}"><span>${t[0]}</span><span style="color:#64748b;width:70px;text-align:right">${t[1]}</span><span class="m" style="width:100px;text-align:right;font-weight:600">${fm(t[2])}</span></div>`).join('')}
+  <div class="fr b tl"><span>합계</span><span class="m" style="color:#d97706">${fm(1100700)}</span></div><div style="height:10px"></div>
+  <div class="fr"><span>기납부원천세</span><span class="m">${fm(5097)}</span></div><div class="fr"><span>외국세액공제</span><span class="m">${fm(833)}</span></div>
+  <div class="fr b tl" style="color:#dc2626;font-size:14px"><span>차감납부액</span><span class="m">${fm(1094770)}</span></div></div>`;}
+
+// Calculator
+let cS={d:"0",p:null,o:null,f:true};
+function cP(v){let{d,p,o,f}=cS;if(v==='C'){d="0";p=null;o=null;f=true;}else if(['+','-','×','÷'].includes(v)){p=parseFloat(d);o=v;f=true;}else if(v==='='){if(p!=null&&o){const c=parseFloat(d);let r=0;if(o==='+')r=p+c;if(o==='-')r=p-c;if(o==='×')r=p*c;if(o==='÷')r=c?p/c:0;d=String(Math.round(r*1e8)/1e8);p=null;o=null;f=true;}}else if(v==='.'){if(!d.includes('.')){d+='.';f=false;}}else{d=f?(v==='0'?'0':v):(d==='0'?v:d+v);f=false;}cS={d,p,o,f};document.getElementById('cD').textContent=isNaN(d)?d:Number(d).toLocaleString('ja-JP',{maximumFractionDigits:8});}
+
+function toggleLang(){alert('일본어 전환은 웹앱 버전에서 지원됩니다');}
+
+// Init
+document.addEventListener('DOMContentLoaded',function(){
+  go('dash');
+  document.querySelectorAll('.nav-item').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
+  const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
+  const kd=document.getElementById('cK');
+  ks.forEach((k,i)=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>cP(k);const isOp=['+','-','×','÷','='].includes(k);b.style.cssText=`padding:8px 0;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;${k==='0'&&i===16?'grid-column:span 2;':''}background:${isOp?'#2563eb':['C','±','%'].includes(k)?'#f1f3f6':'#f8f9fb'};color:${isOp?'#fff':'#1a2030'}`;kd.appendChild(b);});
+});
+</script>
+</body>
+</html>
