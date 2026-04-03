@@ -166,20 +166,21 @@ function dynamicFS(){
   const ol=0-sgaT-su; // 매출 0
   const interestPay=acctBal('540'); // 지급이자 from journals
   // Dynamic: unrealized P&L from current holdings
-  const evalLoss=acctBal('542'); // journal-based (시가는 유가증권 메뉴 참고) // positive = loss
+  const evalLoss=Math.max(0, c.allC - c.allMv); // 보유종목 시가기준 실시간 // positive = loss
   const noeT=evalLoss+interestPay;
   const oi=ol+noiT-noeT;
   // Use journal tax if exists, otherwise estimate
   const journalCt=acctBal('550');
   const ct=journalCt>0?journalCt:(oi>0?Math.round(oi*0.2422):0);
   const ni=oi-ct;
-  // B/S: 100% journal-based (guaranteed balance by double-entry)
+  // B/S: journal + 시가 조정 (평가손 실시간 반영)
   const deposit=acctBal('110');
   const secDep=acctBal('191');
-  const secBookVal=acctBal('130');
+  const secBookVal=acctBal('130'); // 전표 장부가
   const secMV=c.allMv;
-  const secForBS=secBookVal; // journal book value
-  const evalAdj=0;
+  const journalEvalLoss=acctBal('542'); // 전표상 평가손
+  const evalAdj=evalLoss-journalEvalLoss; // 시가 조정액
+  const secForBS=secBookVal-evalAdj; // 시가 반영 유가증권
   const cashT=deposit+secDep;
   const totA=cashT+secForBS;
   // Liabilities + Equity: all from journals
@@ -974,7 +975,7 @@ function rFS(){
   const noi=['401','402','403','405'].map(code=>{const bal=acctBal(code);return {nm:tAcct(code),a:bal};}).filter(x=>x.a!==0);
   // NOE
   const noe=[
-    {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"전표기준"},
+    {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"보유종목 시가기준 자동반영"},
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
@@ -1331,7 +1332,7 @@ function rBSTab(){
   '<div class="fr"><span>이익잉여금(당기순이익)</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
   '<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">'+fm(d.totE)+'</span></div>'+
   '<div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">'+fm(d.totL+d.totE)+'</span></div></div></div>'+
-  '<div class="ib" style="font-size:10px">💡 전표 기반 100% 자동집계 → 차대 균형 보장. 시가는 참고 표시. 평가손 갱신은 결산전표로 반영</div>';
+  '<div class="ib" style="font-size:10px">💡 전표 기반 자동집계. 유가증권평가손·유가증권은 보유종목 시가 자동반영 → 차대 균형 보장</div>';
 }
 
 function rTxTab(){return `<div class="pn" style="padding:18px;max-width:460px"><div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px">법인세등 추정</div>
