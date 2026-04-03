@@ -171,7 +171,9 @@ function dynamicFS(){
   const oi=ol+noiT-noeT;
   // Use journal tax if exists, otherwise estimate
   const journalCt=acctBal('550');
-  const ct=journalCt>0?journalCt:(oi>0?Math.round(oi*0.2422):0);
+  // Detailed tax: 법인세15%+지방법인세10.3%+사업세7%+특별사업세37%+도민세7%+균등할7만
+  const estTax=oi>0?Math.round(oi*0.15)+Math.round(Math.round(oi*0.15)*0.103)+Math.round(oi*0.07)+Math.round(Math.round(oi*0.07)*0.37)+Math.round(Math.round(oi*0.15)*0.07)+70000:0;
+  const ct=journalCt>0?journalCt:estTax;
   const ni=oi-ct;
   // B/S: journal + 시가 조정 (평가손 실시간 반영)
   const deposit=acctBal('110');
@@ -445,6 +447,39 @@ async function fbInit(){
       console.log('Firebase: local is current');
     }
   }catch(e){console.log('Firebase init error:',e.message);}
+}
+
+
+// ===== 월차 마감 =====
+function saveMonthlyClose(){
+  if(!D.monthlyClosed) D.monthlyClosed={};
+  const now=new Date();
+  const key=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const d=dynamicFS();
+  const c=calc();
+  D.monthlyClosed[key]={
+    date:now.toISOString(),
+    totA:c.totA,bb:c.bb,secDep:c.secDep,allMv:c.allMv,
+    sgaT:d.sgaT,noiT:d.noiT,noeT:d.noeT,oi:d.oi,ni:d.ni,
+    totL:d.totL,totE:d.totE,
+    journals:D.journals.length
+  };
+  saveD();
+  alert('월차 마감 저장 완료!\n'+key+'\n총자산: '+fm(c.totA)+'\n경상이익: '+fm(d.oi));
+}
+
+function rMonthlyTable(){
+  if(!D.monthlyClosed||Object.keys(D.monthlyClosed).length===0) return '<div style="padding:20px;text-align:center;color:#94a3b8">월차 마감 데이터가 없습니다.\n설정에서 월차 마감을 실행하세요.</div>';
+  const keys=Object.keys(D.monthlyClosed).sort();
+  let rows='';
+  keys.forEach((k,i)=>{
+    const m=D.monthlyClosed[k];
+    const prev=i>0?D.monthlyClosed[keys[i-1]]:null;
+    const diff=prev?(m.totA-prev.totA):0;
+    const diffColor=diff>=0?'#059669':'#dc2626';
+    rows+='<tr class="'+(i%2?'a':'')+'"><td class="m">'+k+'</td><td class="r m">'+fm(m.totA)+'</td><td class="r m">'+fm(m.bb)+'</td><td class="r m">'+fm(m.allMv)+'</td><td class="r m">'+fm(m.oi)+'</td><td class="r m">'+fm(m.ni)+'</td><td class="r m" style="color:'+diffColor+'">'+(diff>=0?'+':'')+fm(diff)+'</td><td class="mu">'+m.journals+'건</td></tr>';
+  });
+  return '<table><thead><tr><th>월</th><th class="r">총자산</th><th class="r">은행잔액</th><th class="r">유가증권</th><th class="r">경상이익</th><th class="r">순이익</th><th class="r">전월대비</th><th>전표</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 // ===== UTILS =====
@@ -1013,7 +1048,16 @@ function rJrn(){
     '<option value="all">전체</option>'+
     D.accts.map(a=>'<option value="'+a.c+'">'+a.c+' '+a.k+'</option>').join('')+
     '</select>'+
-    '<span id="jrn_count" style="font-size:11px;color:#64748b;margin-left:auto">'+D.journals.length+'건</span>'+
+    '<span style="font-size:12px;font-weight:600;margin-left:8px">거래처:</span>'+
+    '<select id="jrn_vendor" onchange="filterJrn()" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">'+
+    '<option value="all">전체</option>'+
+    (D.vendors||[]).map(v=>'<option value="'+v.name+'">'+v.name+'</option>').join('')+
+    '</select>'+
+    '</div>'+
+    '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:8px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">'+
+    '<span style="font-size:12px;font-weight:600">🔍 검색:</span>'+
+    '<input id="jrn_search" oninput="filterJrn()" placeholder="적요, 전표번호 검색..." style="flex:1;padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">'+
+    '<span id="jrn_count" style="font-size:11px;color:#64748b">'+D.journals.length+'건</span>'+
     '</div>'+
     '<div class="pn"><div id="jrnBody" style="max-height:600px;overflow-y:auto">'+buildJrnTable(D.journals)+'</div></div>';
 }
@@ -1042,12 +1086,20 @@ function onKiChange(){
 function filterJrn(){
   const mo=document.getElementById('jrn_mo').value;
   const acct=document.getElementById('jrn_acct').value;
+  const vendor=document.getElementById('jrn_vendor')?document.getElementById('jrn_vendor').value:'all';
+  const search=(document.getElementById('jrn_search')?document.getElementById('jrn_search').value:'').toLowerCase();
   let filtered=D.journals;
   if(mo!=='all'){
     filtered=filtered.filter(j=>journalMatchMonth(j,mo));
   }
   if(acct!=='all'){
     filtered=filtered.filter(j=>j.dr===acct||j.cr===acct);
+  }
+  if(vendor!=='all'){
+    filtered=filtered.filter(j=>j.vendor===vendor);
+  }
+  if(search){
+    filtered=filtered.filter(j=>(j.desc||'').toLowerCase().includes(search)||(j.no||'').toLowerCase().includes(search)||(j.vendor||'').toLowerCase().includes(search));
   }
   document.getElementById('jrnBody').innerHTML=buildJrnTable(filtered);
   document.getElementById('jrn_count').textContent=filtered.length+'건';
@@ -1070,11 +1122,49 @@ function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보
     <div style="padding:14px" id="trendChart">\</div>
   </div>`;}
 
+
+// ===== 결산 자동화: 평가손 조정전표 =====
+function autoEvalAdjust(){
+  const c=calc();
+  const marketEvalLoss=Math.max(0, c.allC - c.allMv); // 시가기준 평가손
+  const journalEvalLoss=acctBal('542'); // 전표상 평가손
+  const diff=marketEvalLoss-journalEvalLoss;
+  
+  if(diff===0){
+    alert('조정 불필요\n\n전표 평가손: '+fm(journalEvalLoss)+'\n시가 평가손: '+fm(marketEvalLoss)+'\n\n차이: 0');
+    return;
+  }
+  
+  const info='평가손 조정전표 생성\n\n'+
+    '전표상 평가손: '+fm(journalEvalLoss)+'\n'+
+    '시가기준 평가손: '+fm(marketEvalLoss)+'\n'+
+    '조정액: '+fm(Math.abs(diff))+'\n\n';
+  
+  if(diff>0){
+    // 평가손 증가: DR 유가증권평가손(542) / CR 유가증권(130)
+    if(!confirm(info+'평가손 증가 → 전표 생성:\n차변: 유가증권평가손(542) '+fm(diff)+'\n대변: 유가증권(130) '+fm(diff)+'\n\n생성하시겠습니까?'))return;
+    D.journals.push({id:nid(),dt:todayStr(),no:'ADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 유가증권평가손 추가인식',dr:'542',cr:'130',amt:diff});
+  } else {
+    // 평가손 감소(환입): DR 유가증권(130) / CR 유가증권평가손(542)
+    var absDiff=Math.abs(diff);
+    if(!confirm(info+'평가손 감소(환입) → 전표 생성:\n차변: 유가증권(130) '+fm(absDiff)+'\n대변: 유가증권평가손(542) '+fm(absDiff)+'\n\n생성하시겠습니까?'))return;
+    D.journals.push({id:nid(),dt:todayStr(),no:'ADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 유가증권평가손 환입',dr:'130',cr:'542',amt:absDiff});
+  }
+  saveD();
+  alert('조정전표 생성 완료!\n전표조회에서 확인하세요.');
+  go('sec');
+}
+
+function todayStr(){
+  var d=new Date();
+  return (d.getMonth()+1)+'/'+d.getDate();
+}
+
 function rSec(){const c=calc();const jpT=c.jpMv;
   return `<div class="pt">유가증권</div>
   <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
   <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span><button class="bt" onclick="saveDeposit()" style="font-size:10px;padding:3px 10px">💾 저장</button></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정</button></div>
   <div id="TC">
   <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
     <thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">수수료</th><th class="r">취득원가</th><th class="r">BEP</th><th class="r">현재가</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th><th></th></tr></thead>
@@ -1145,7 +1235,7 @@ function rFS(){
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
-  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button></div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly">월차추이</button></div>'+
   '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
   '<div class="fr"><span>Ⅰ 매출액</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
   '<div class="fr h"><span>Ⅱ 판매비와 일반관리비</span></div>'+
@@ -1341,6 +1431,9 @@ function rSet(){return `<div class="pt">설정</div>
     <button class="bt" onclick="doFbDownload()" style="background:#2563eb">📥 서버에서 다운로드</button>
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 자동 동기화: 전표 저장 시 자동으로 서버에 업로드됩니다</div><button class="bt gh" onclick="showDiag()" style="font-size:9px;margin-top:6px">🔍 데이터 진단</button></div></div>
+  <div class="sc"><h4>📅 월차 마감</h4>
+  <div style="font-size:11px;color:#64748b;margin-bottom:8px">현재 재무상태를 월별로 저장합니다. 매월 말에 실행하세요.</div>
+  <button class="bt" onclick="saveMonthlyClose()" style="background:#7c3aed">📅 이번 달 마감 저장</button></div>
   <div class="sc"><h4>💾 데이터 백업 / 복원</h4>
   <div style="font-size:11px;color:#64748b;margin-bottom:10px">다른 기기로 데이터를 이동하거나 백업할 수 있습니다</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1595,11 +1688,42 @@ function rBSTab(){
   '<div class="ib" style="font-size:10px">💡 전표 기반 자동집계. 유가증권평가손·유가증권은 보유종목 시가 자동반영 → 차대 균형 보장</div>';
 }
 
-function rTxTab(){return `<div class="pn" style="padding:18px;max-width:460px"><div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px">법인세등 추정</div>
-  ${[["과세소득","",4544387,1],["법인세","15%",681600],["지방법인세","10.3%",70200],["도민세(할)","7%",50200],["도민세(균등)","70,000",70000],["사업세","3.5~5.3%",168800],["특별사업세","37%",62400]].map(t=>`<div class="fr" style="${t[3]?'background:#dbeafe;border-radius:4px;font-weight:700':''}"><span>${t[0]}</span><span style="color:#64748b;width:70px;text-align:right">${t[1]}</span><span class="m" style="width:100px;text-align:right;font-weight:600">${fm(t[2])}</span></div>`).join('')}
-  <div class="fr b tl"><span>합계</span><span class="m" style="color:#d97706">${fm(1100700)}</span></div><div style="height:10px"></div>
-  <div class="fr"><span>기납부원천세</span><span class="m">${fm(5097)}</span></div><div class="fr"><span>외국세액공제</span><span class="m">${fm(833)}</span></div>
-  <div class="fr b tl" style="color:#dc2626;font-size:14px"><span>차감납부액</span><span class="m">${fm(1094770)}</span></div></div>`;}
+function rTxTab(){
+  const d=dynamicFS();
+  const oi=d.oi; // 경상이익
+  // Japan corporate tax structure for small company (자본금 1억이하, 소득800만이하)
+  const houjinzei=oi>0?Math.round(oi*0.15):0; // 법인세 15% (800만이하)
+  const chihou_houjin=Math.round(houjinzei*0.103); // 지방법인세 10.3%
+  const jigyouzei=oi>0?Math.round(oi*0.07):0; // 사업세 7% (표준세율)
+  const tokubetsu_jigyou=Math.round(jigyouzei*0.37); // 특별법인사업세 37%
+  const touminzei=Math.round(houjinzei*0.07); // 도민세(법인세할) 7%
+  const kintou=70000; // 균등할 7만엔 (도쿄도 최저)
+  const totalTax=houjinzei+chihou_houjin+jigyouzei+tokubetsu_jigyou+touminzei+kintou;
+  const effectiveRate=oi>0?((totalTax/oi)*100).toFixed(2):'0';
+  
+  return '<div class="pn" style="padding:18px;max-width:520px">'+
+    '<div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:4px">법인세 등 추정 상세</div>'+
+    '<div style="text-align:center;font-size:10px;color:#64748b;margin-bottom:14px">태성주식회사 (자본금1천만엔, 도쿄도, 소규모법인)</div>'+
+    '<div class="fr h"><span>경상이익 (과세소득)</span><span class="m">'+fm(oi)+'</span></div>'+
+    '<div style="height:8px"></div>'+
+    '<div class="fr h" style="color:#1e3a5f"><span>① 국세</span></div>'+
+    '<div class="fr i"><span>법인세 (15%)</span><span class="m">'+fm(houjinzei)+'</span></div>'+
+    '<div class="fr i" style="font-size:10px;color:#64748b"><span>　※자본금1억이하·소득800만이하 경감세율</span></div>'+
+    '<div class="fr i"><span>지방법인세 (법인세×10.3%)</span><span class="m">'+fm(chihou_houjin)+'</span></div>'+
+    '<div style="height:6px"></div>'+
+    '<div class="fr h" style="color:#d97706"><span>② 도도부현세 (도쿄도)</span></div>'+
+    '<div class="fr i"><span>법인사업세 (7%)</span><span class="m">'+fm(jigyouzei)+'</span></div>'+
+    '<div class="fr i"><span>특별법인사업세 (사업세×37%)</span><span class="m">'+fm(tokubetsu_jigyou)+'</span></div>'+
+    '<div class="fr i"><span>법인도민세 (법인세×7%)</span><span class="m">'+fm(touminzei)+'</span></div>'+
+    '<div class="fr i"><span>균등할 (도쿄도 최저)</span><span class="m">'+fm(kintou)+'</span></div>'+
+    '<div style="height:8px"></div>'+
+    '<div class="fr b tl" style="color:#dc2626;font-size:13px"><span>법인세 등 합계</span><span class="m">'+fm(totalTax)+'</span></div>'+
+    '<div class="fr" style="font-size:11px;color:#64748b"><span>실효세율</span><span class="m">'+effectiveRate+'%</span></div>'+
+    '<div style="height:10px"></div>'+
+    '<div class="ib" style="font-size:9px">💡 참고용 추정치입니다. 실제 세액은 세무사 확인이 필요합니다.<br>'+
+    '사업세는 손금산입 가능하나 여기서는 미반영. 결손금 이월공제 미반영.</div>'+
+    '</div>';
+}
 
 // Calculator
 let cS={d:"0",p:null,o:null,f:true};
