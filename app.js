@@ -820,7 +820,7 @@ function rFS(){
     {nm:"지급이자(임원차입 연1%)",a:d.interestPay,n:"1.5억×1%×289일/365일"}
   ];
 
-  return '<div class="pt">재무제표</div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button></div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 Word (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button></div>'+
   '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
   '<div class="fr"><span>Ⅰ 매출고</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
   '<div class="fr h"><span>Ⅱ 판매비및일반관리비</span></div>'+
@@ -971,6 +971,134 @@ function rptAddRow(section){
     if(totalRow)tbody.insertBefore(newRow,totalRow);
     else tbody.appendChild(newRow);
   }
+}
+
+
+// ===== EXPORT: GL to Excel (Japanese) =====
+function exportGLExcel(){
+  const S='border:1px solid #999;padding:3pt 5pt;font-size:9pt;';
+  const HR=S+'text-align:right;';const HB=HR+'font-weight:bold;';
+  const TH='background:#dbeafe;font-weight:bold;font-size:8pt;padding:3pt 5pt;border:1px solid #999;';
+  const THR=TH+'text-align:right;';
+  // Build GL from journals
+  const bal={};
+  D.journals.forEach(j=>{
+    if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
+    if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
+    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true});
+    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push({...j,isDr:false});
+  });
+  let html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>td,th{mso-number-format:"\@"}</style></head><body>';
+  html+='<h2 style="font-size:14pt;color:#1e3a5f">泰成株式会社　総勘定元帳</h2>';
+  html+='<p style="font-size:9pt;color:#666">自 令和7年6月2日 至 令和8年4月2日（暫定）</p><br>';
+  
+  const groups={"자산":"資産","부채":"負債","순자산":"純資産","수익":"収益","비용":"費用"};
+  Object.entries(bal).forEach(([code,v])=>{
+    const ac=D.accts.find(x=>x.c===code);if(!ac)return;
+    const isDb=["자산","비용"].includes(ac.g);
+    const net=isDb?v.dr-v.cr:v.cr-v.dr;
+    const jpName=ac.n||ac.k;const jpGroup=groups[ac.g]||ac.g;
+    html+='<table style="width:100%;border-collapse:collapse;margin-bottom:12pt">';
+    html+='<tr><td colspan="5" style="background:#1e3a5f;color:#fff;font-weight:bold;padding:4pt 8pt;font-size:10pt">【'+jpName+'】 '+code+' ('+jpGroup+') — 残高: '+fm(net)+'円</td></tr>';
+    html+='<tr><td style="'+TH+'">日付</td><td style="'+TH+'">伝票</td><td style="'+TH+'">摘要</td><td style="'+THR+'">借方</td><td style="'+THR+'">貸方</td><td style="'+THR+'">残高</td></tr>';
+    let runBal=0;
+    v.entries.forEach((e,i)=>{
+      const dr=e.isDr?e.amt:0,cr=e.isDr?0:e.amt;
+      runBal+=isDb?(dr-cr):(cr-dr);
+      const bg=i%2?'background:#f5f5f5;':'';
+      html+='<tr><td style="'+S+bg+'">'+e.dt+'</td><td style="'+S+bg+'color:#2563eb">'+e.no+'</td><td style="'+S+bg+'">'+e.desc+'</td><td style="'+HR+bg+'">'+(dr?fm(dr):'')+'</td><td style="'+HR+bg+'">'+(cr?fm(cr):'')+'</td><td style="'+HB+bg+'">'+fm(runBal)+'</td></tr>';
+    });
+    html+='</table>';
+  });
+  html+='</body></html>';
+  const blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  const url=URL.createObjectURL(blob);const a2=document.createElement('a');
+  a2.href=url;a2.download='泰成_総勘定元帳_'+new Date().toISOString().slice(0,10)+'.xls';
+  document.body.appendChild(a2);a2.click();document.body.removeChild(a2);URL.revokeObjectURL(url);
+}
+
+// ===== EXPORT: FS to Word (Japanese) =====
+function exportFSWord(){
+  const d=dynamicFS();
+  const S='border:1px solid #999;padding:4pt 6pt;font-size:10pt;';
+  const HR=S+'text-align:right;';const HB=HR+'font-weight:bold;';
+  const TH='background:#e8e8e8;font-weight:bold;font-size:9pt;padding:4pt 6pt;border:1px solid #999;';
+  const THR=TH+'text-align:right;';
+  const G='color:#059669;';const R='color:#dc2626;';const B='color:#2563eb;';
+  const T='style="width:100%;border-collapse:collapse;margin-bottom:10pt"';
+  
+  let html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>@page{size:A4 portrait;margin:15mm} body{font-family:"Yu Gothic","Malgun Gothic",sans-serif;font-size:10pt;color:#1a2030}</style></head><body>';
+  
+  // P&L
+  html+='<div style="text-align:center;margin-bottom:16pt"><div style="font-size:16pt;font-weight:bold">損 益 計 算 書（暫定）</div><div style="font-size:10pt;color:#666">泰成株式会社</div><div style="font-size:9pt;color:#666">自 令和7年6月2日 至 令和8年4月2日（暫定）（単位：円）</div></div>';
+  
+  const plRows=[
+    ['Ⅰ 売上高','','','0','h'],['','売上総利益','','0','b'],['','','','',''],
+    ['Ⅱ 販売費及び一般管理費','','','','h'],
+    ['','交際接待費','350,036','',''],['','車両費','238,071','',''],['','旅費交通費','138,245','',''],
+    ['','海外渡航費','686,794','',''],['','消耗品費','201,420','',''],['','支払手数料(EB)','6,600','',''],
+    ['','有価証券売買手数料','1,413,093','','n:税抜1,284,632+消費税128,461'],['','雑費','3,700','',''],
+    ['','販管費合計','',fm(d.sgaT),'b'],['','創立費','',fm(d.su),''],
+    ['','営業損失','','',fm(d.ol)+'|r'],['','','','',''],
+    ['Ⅲ 営業外収益','','','','h'],
+    ['','有価証券売却益(総額)','12,599,320','','n:手数料控除前'],['','配当金','6,356','',''],
+    ['','受取利息(税引後)','21,845','',''],['','雑収入','3,349','',''],
+    ['','営業外収益合計','','',fm(d.noiT)],['','','','',''],
+    ['Ⅳ 営業外費用','','','','h'],
+    ['','有価証券評価損(未実現)',fm(d.evalLoss),'','n:時価基準自動反映'],
+    ['','支払利息(役員借入金年1%)',fm(d.interestPay),'','n:1.5億×1%×289日/365日'],
+    ['','営業外費用合計','','',fm(d.noeT)],['','','','',''],
+    ['','経常利益（税引前）','','',fm(d.oi)+'|g'],['','','','',''],
+    ['Ⅴ 法人税等（推定）','','','',fm(d.ct)],['','','','',''],
+    ['','税引後当期純利益','','',fm(d.ni)+'|g|big'],
+  ];
+  
+  html+='<table '+T+'><tr><td style="'+TH+'">区分</td><td style="'+TH+'">科目</td><td style="'+THR+'">内訳</td><td style="'+THR+'">小計</td><td style="'+THR+'">合計</td></tr>';
+  plRows.forEach(r=>{
+    if(!r[0]&&!r[1]&&!r[2]&&!r[3]&&!r[4]){html+='<tr><td colspan="5" style="'+S+'height:6pt"></td></tr>';return;}
+    const isH=r[4]==='h',isB=r[4]==='b';
+    let v4=r[4]||'';let style4=HR;let note='';
+    if(v4.includes('|r'))style4+=R+'font-weight:bold;';
+    if(v4.includes('|g'))style4+=G+'font-weight:bold;';
+    if(v4.includes('|big'))style4+='font-size:12pt;';
+    if(v4.startsWith('n:')){note='<br><span style="font-size:8pt;color:#888">※'+v4.slice(2)+'</span>';v4='';}
+    v4=v4.replace(/\|.*/g,'');
+    html+='<tr'+(isH?' style="background:#dbeafe"':'')+'><td style="'+S+(isH?'font-weight:bold;color:#1e3a5f':'')+'">'+r[0]+'</td><td style="'+S+(isB?'font-weight:bold;':'')+'">'+r[1]+note+'</td><td style="'+HR+'">'+r[2]+'</td><td style="'+HR+(isB?'font-weight:bold;':'')+'">'+r[3]+'</td><td style="'+style4+'">'+v4+'</td></tr>';
+  });
+  html+='</table>';
+  
+  html+='<div style="page-break-before:always"></div>';
+  
+  // BS
+  html+='<div style="text-align:center;margin-bottom:16pt"><div style="font-size:16pt;font-weight:bold">貸 借 対 照 表（暫定）</div><div style="font-size:10pt;color:#666">泰成株式会社　2026年4月2日現在（単位：円）</div></div>';
+  html+='<table '+T+'><tr><td style="'+TH+'">科目</td><td style="'+THR+'">内訳</td><td style="'+THR+'">小計</td><td style="'+THR+'">合計</td></tr>';
+  html+='<tr style="background:#dbeafe"><td colspan="4" style="'+S+'font-weight:bold;color:#1e3a5f">【資産の部】</td></tr>';
+  html+='<tr><td style="'+S+'">普通預金</td><td style="'+HR+'">'+fm(d.deposit)+'</td><td style="'+HR+'"></td><td style="'+HR+'"></td></tr>';
+  html+='<tr><td style="'+S+'">証券預り金</td><td style="'+HR+'">'+fm(d.secDep)+'</td><td style="'+HR+'"></td><td style="'+HR+'"></td></tr>';
+  html+='<tr><td style="'+S+'font-weight:bold">現金・預金計</td><td style="'+HR+'"></td><td style="'+HB+'">'+fm(d.cashT)+'</td><td style="'+HR+'"></td></tr>';
+  html+='<tr><td style="'+S+'font-weight:bold">有価証券(時価)</td><td style="'+HR+'"></td><td style="'+HB+'">'+fm(d.secMV)+'</td><td style="'+HR+'"></td></tr>';
+  html+='<tr style="background:#e8e8e8"><td style="'+S+'font-weight:bold">資産合計</td><td style="'+HR+'"></td><td style="'+HR+'"></td><td style="'+HB+B+'font-size:11pt">'+fm(d.totA)+'</td></tr>';
+  html+='<tr><td colspan="4" style="'+S+'height:6pt"></td></tr>';
+  html+='<tr style="background:#dbeafe"><td colspan="4" style="'+S+'font-weight:bold;color:#d97706">【負債の部】</td></tr>';
+  html+='<tr><td style="'+S+'">役員借入金</td><td style="'+HR+'">'+fm(150000000)+'</td><td></td><td></td></tr>';
+  html+='<tr><td style="'+S+'">未払利息(年1%,289日)</td><td style="'+HR+'">'+fm(d.interestPay)+'</td><td></td><td></td></tr>';
+  html+='<tr><td style="'+S+'">未払金(設立費)</td><td style="'+HR+'">'+fm(371400)+'</td><td></td><td></td></tr>';
+  html+='<tr><td style="'+S+'">未払法人税等</td><td style="'+HR+'">'+fm(d.ct)+'</td><td></td><td></td></tr>';
+  html+='<tr style="background:#e8e8e8"><td style="'+S+'font-weight:bold">負債合計</td><td></td><td></td><td style="'+HB+'color:#d97706">'+fm(d.totL)+'</td></tr>';
+  html+='<tr><td colspan="4" style="'+S+'height:6pt"></td></tr>';
+  html+='<tr style="background:#dbeafe"><td colspan="4" style="'+S+'font-weight:bold;color:#059669">【純資産の部】</td></tr>';
+  html+='<tr><td style="'+S+'">資本金</td><td style="'+HR+'">'+fm(10000000)+'</td><td></td><td></td></tr>';
+  html+='<tr><td style="'+S+'">利益剰余金</td><td style="'+HR+'">'+fm(d.eqNI)+'</td><td></td><td></td></tr>';
+  html+='<tr style="background:#e8e8e8"><td style="'+S+'font-weight:bold">純資産合計</td><td></td><td></td><td style="'+HB+'color:#059669">'+fm(d.totE)+'</td></tr>';
+  html+='<tr style="background:#1e3a5f"><td style="'+S+'font-weight:bold;color:#fff">負債・純資産合計</td><td></td><td></td><td style="'+HB+'color:#fff;font-size:11pt">'+fm(d.totL+d.totE)+'</td></tr>';
+  html+='</table>';
+  
+  html+='<br><p style="color:#999;font-size:8pt;text-align:center">泰成株式会社 財務管理システムより自動出力</p></body></html>';
+  
+  const blob=new Blob([html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);const a2=document.createElement('a');
+  a2.href=url;a2.download='泰成_財務諸表_'+new Date().toISOString().slice(0,10)+'.doc';
+  document.body.appendChild(a2);a2.click();document.body.removeChild(a2);URL.revokeObjectURL(url);
 }
 
 // ===== ROUTING =====
