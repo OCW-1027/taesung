@@ -29,6 +29,23 @@
   <div id="cK" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:2px 3px 3px"></div>
 </div>
 <div id="modal" class="hidden"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyChjWfvQhha3oDhnL7OwsK_IoArC9mpIiw",
+  authDomain: "taesung-finance.firebaseapp.com",
+  projectId: "taesung-finance",
+  storageBucket: "taesung-finance.firebasestorage.app",
+  messagingSenderId: "981953361911",
+  appId: "1:981953361911:web:fa65288dd64d7a74e860f2"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+</script>
+
 <script src="data.js"></script>
 <script src="lang.js"></script>
 <script src="app.js"></script>

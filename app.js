@@ -13,8 +13,8 @@ if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
 if(!D.vendors)D.vendors=INIT_VENDORS;
 // Also migrate any saved holdings/journals group refs
 
-function saveD(){localStorage.setItem(DKEY,JSON.stringify(D));}
-function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));}
+function saveD(){D._lastSaved=new Date().toISOString();localStorage.setItem(DKEY,JSON.stringify(D));fbSave();}
+function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));fbSave();}
 function nid(){return Date.now()+Math.floor(Math.random()*1000);}
 
 
@@ -309,6 +309,74 @@ function renderTrendChart(period){
   bars+='</div>';
   
   return svg+bars;
+}
+
+
+// ===== FIREBASE SYNC =====
+const FB_DOC = 'taesung_main';
+const FB_COL = 'appdata';
+let fbReady = typeof firebase !== 'undefined' && typeof db !== 'undefined';
+
+async function fbSave(){
+  if(!fbReady) return;
+  try{
+    await db.collection(FB_COL).doc(FB_DOC).set({
+      data: JSON.stringify(D),
+      settings: JSON.stringify(SET),
+      updatedAt: new Date().toISOString(),
+      device: navigator.userAgent.slice(0,50)
+    });
+    console.log('Firebase saved');
+  }catch(e){console.log('Firebase save error:',e.message);}
+}
+
+async function fbLoad(){
+  if(!fbReady) return null;
+  try{
+    const doc = await db.collection(FB_COL).doc(FB_DOC).get();
+    if(doc.exists){
+      const fb = doc.data();
+      return {
+        data: JSON.parse(fb.data),
+        settings: JSON.parse(fb.settings),
+        updatedAt: fb.updatedAt
+      };
+    }
+  }catch(e){console.log('Firebase load error:',e.message);}
+  return null;
+}
+
+async function fbInit(){
+  if(!fbReady) return;
+  try{
+    const fb = await fbLoad();
+    if(!fb) {
+      // First time: upload local to Firebase
+      await fbSave();
+      console.log('Firebase: initial upload done');
+      return;
+    }
+    // Compare timestamps
+    const localTime = D._lastSaved || '2000-01-01';
+    const fbTime = fb.updatedAt || '2000-01-01';
+    if(fbTime > localTime){
+      // Firebase is newer: load it
+      const fbData = fb.data;
+      fbData.accts = ACCT_INIT;
+      D = fbData;
+      if(D.secDeposit===undefined) D.secDeposit = SEC_DEP;
+      if(!D.vendors) D.vendors = INIT_VENDORS;
+      localStorage.setItem(DKEY, JSON.stringify(D));
+      if(fb.settings){
+        SET = fb.settings;
+        localStorage.setItem(SKEY, JSON.stringify(SET));
+      }
+      console.log('Firebase: loaded newer data ('+fbTime+')');
+      go('dash');
+    } else {
+      console.log('Firebase: local is current');
+    }
+  }catch(e){console.log('Firebase init error:',e.message);}
 }
 
 // ===== UTILS =====
@@ -1196,6 +1264,13 @@ function rSet(){return `<div class="pt">설정</div>
   <div style="margin-top:12px"><button class="bt" onclick="SET.rates.USDJPY=+document.getElementById('r1').value;SET.rates.JPYKRW=+document.getElementById('r2').value;saveS();alert('저장됨');go('set')">💾 저장</button></div></div>
   <div class="sc"><h4>📄 보고서 기준일</h4><div class="rr"><span>기준일 (비워두면 자동):</span><input id="r3" value="${SET.reportDate}" placeholder="예: 26. 3. 27." style="width:160px"></div>
   <button class="bt" onclick="SET.reportDate=document.getElementById('r3').value;saveS();alert('저장됨')">💾 저장</button></div>
+  <div class="sc"><h4>☁️ Firebase 동기화</h4>
+  <div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 기기에서 동일한 데이터를 공유합니다</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="bt" onclick="fbSave().then(()=>alert('서버에 업로드 완료!'))" style="background:#d97706">📤 서버에 업로드</button>
+    <button class="bt" onclick="fbLoad().then(fb=>{if(fb){D=fb.data;D.accts=ACCT_INIT;if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;if(!D.vendors)D.vendors=INIT_VENDORS;saveD();if(fb.settings){SET=fb.settings;localStorage.setItem(SKEY,JSON.stringify(SET));}alert('서버에서 다운로드 완료!');location.reload();}else{alert('서버에 데이터가 없습니다');}})" style="background:#2563eb">📥 서버에서 다운로드</button>
+  </div>
+  <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 자동 동기화: 전표 저장 시 자동으로 서버에 업로드됩니다</div></div>
   <div class="sc"><h4>💾 데이터 백업 / 복원</h4>
   <div style="font-size:11px;color:#64748b;margin-bottom:10px">다른 기기로 데이터를 이동하거나 백업할 수 있습니다</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1465,6 +1540,7 @@ function cP(v){let{d,p,o,f}=cS;if(v==='C'){d="0";p=null;o=null;f=true;}else if([
 document.addEventListener('DOMContentLoaded',function(){
   initLock();
   go('dash');updateNavLabels();
+  fbInit();
   document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
   const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
   const kd=document.getElementById('cK');
