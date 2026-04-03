@@ -60,6 +60,23 @@ tr.a{background:#f8f9fb}tr.t{background:#f1f3f6;font-weight:700}
 .rr input{width:100px;padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px;text-align:right}
 .hidden{display:none}
 @media(max-width:768px){.nav{width:60px}.nav-item span:last-child{display:none}.main{margin-left:60px;padding:12px}}
+
+@media print {
+  body{background:#fff;font-size:11px}
+  .app{display:block}
+  .nav,.bt,.del,#calc,#modal,.ib,[onclick]{display:none!important}
+  .main{margin-left:0;padding:10px;max-height:none;overflow:visible}
+  .pn{break-inside:avoid;border:1px solid #ccc;margin-bottom:8px}
+  .cd{break-inside:avoid;border:1px solid #ccc}
+  .cards{grid-template-columns:repeat(3,1fr);gap:6px}
+  table{font-size:10px}
+  th{font-size:9px;padding:3px 5px}
+  td{font-size:10px;padding:3px 5px}
+  .pt{font-size:15px}
+  @page{size:A4 landscape;margin:10mm}
+  .print-only{display:block!important}
+}
+.print-only{display:none}
 </style>
 </head>
 <body>
@@ -710,19 +727,89 @@ function rFS(){const d={sga:[{nm:"접대교제비",a:350036},{nm:"차량비",a:2
   </div></div>`;}
 
 function rRpt(){const c=calc();
-  return `<div style="max-width:900px"><div style="text-align:center;margin-bottom:20px"><div style="font-size:20px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:13px;color:#64748b;margin-top:4px">${rptDt()} 기준</div></div>
-  <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:#1e3a5f">1. 총자산내역</div>
-  <div class="pn"><table><thead><tr><th>구분</th><th class="r">내역(엔)</th><th>비고</th></tr></thead><tbody>
-    <tr><td>자본금</td><td class="r m">10,000,000</td><td></td></tr><tr class="a"><td>수입</td><td class="r m">21,845</td><td></td></tr><tr><td>지출</td><td class="r m">(1,624,866)</td><td></td></tr>
-    <tr class="a" style="font-weight:700"><td>법인계좌잔액---(1)</td><td class="r m b">${fm(c.bb)}</td><td class="mu">미츠이스미토모</td></tr>
-    <tr><td>증권예수금</td><td class="r m">${fm(c.secDep)}</td><td></td></tr><tr class="a"><td>유가증권평가액</td><td class="r m">${fm(c.allMv)}</td><td></td></tr>
-    <tr style="font-weight:700"><td>증권계좌잔액---(2)</td><td class="r m b">${fm(c.secBal)}</td><td class="mu">SMBC닛코증권</td></tr>
-    <tr class="t"><td>총보유자산합계</td><td class="r m">${fm(c.totA)}</td><td class="mu">(1)+(2)</td></tr>
-  </tbody></table></div>
-  <div style="font-size:15px;font-weight:700;margin:20px 0 10px;color:#1e3a5f">2. 유가증권 평가 및 손익 현황</div>
-  <div class="pn" style="padding:14px;margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">총괄 요약</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px"><div>총 평가액: <b>${fm(c.allMv)}</b> 엔</div><div>총 평가손익: <b style="color:${c.allPl>=0?'#059669':'#dc2626'}">${fm(c.allPl)}</b> 엔</div><div>예수금: <b>${fm(c.secDep)}</b> 엔</div></div></div>
-  ${document.getElementById('TC')?document.getElementById('TC').innerHTML.replace(/onclick="[^"]*"/g,'').replace(/<button[^>]*class="del"[^>]*>✕<\/button>/g,'').replace(/<button[^>]*>.*?추가<\/button>/g,''):`<div class="ib">유가증권 메뉴에서 상세 내역을 확인하세요</div>`}
-  </div>`;}
+  // Build JP table
+  let jpRows='';
+  D.holdJP.forEach((h,i)=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;
+    jpRows+='<tr class="'+(i%2?'a':'')+'"><td class="b bl">'+h.tk+'</td><td>'+h.nm+'</td><td class="r m">'+fm(h.sh)+'</td><td class="r m">'+fm(h.buyAmt)+'</td><td class="r m mu">'+fm(h.fee)+'</td><td class="r m b">'+fm(h.tc)+'</td><td class="r m">'+fm(h.bep)+'</td><td class="r m">'+(h.cp?fm(h.cp):'-')+'</td><td class="r m b">'+fm(h.mv)+'</td><td class="r">'+bg(pl)+'</td><td class="r m '+(pl>=0?'gn':'rd')+'">'+rr.toFixed(2)+'%</td></tr>';
+  });
+  const jpPl=c.jpMv-c.jpC;
+  // Build US table
+  let usRows='';
+  D.holdUS.forEach(h=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;
+    usRows+='<tr><td class="b bl">'+h.tk+'</td><td>'+h.nm+'</td><td class="r m">'+fm(h.sh)+'</td><td class="r m">'+fm(h.tc)+'</td><td class="r m">'+h.cpUsd+'</td><td class="r m">'+(h.rate||SET.rates.USDJPY)+'</td><td class="r m b">'+fm(h.mv)+'</td><td class="r">'+bg(pl)+'</td><td class="r m '+(pl>=0?'gn':'rd')+'">'+rr.toFixed(2)+'%</td></tr>';
+  });
+  // Build realized table
+  let realRows='';
+  D.real.forEach((r,i)=>{
+    realRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+r.dt+'</td><td class="b bl">'+r.tk+'</td><td>'+r.nm+'</td><td class="r m">'+fm(r.sh)+'</td><td class="r m">'+fm(r.buyAmt)+'</td><td class="r m mu">'+fm(r.bC+r.bT)+'</td><td class="r m b">'+fm(r.tc)+'</td><td class="r m">'+fm(r.sp)+'</td><td class="r m">'+fm(r.sa)+'</td><td class="r m">'+fm(r.gr)+'</td><td class="r m mu">'+fm(r.sC+r.sT)+'</td><td class="r">'+bg(r.net)+'</td><td class="r m gn">'+r.rr.toFixed(2)+'%</td></tr>';
+  });
+  // Bank tables
+  let bkInRows='',cI=0;
+  D.bkIn.forEach((d,i)=>{cI+=d.amt;bkInRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m gn">'+fm(d.amt)+'</td><td class="r m b">'+fm(cI)+'</td></tr>';});
+  let bkOutRows='',cO=0;
+  D.bkOut.forEach((d,i)=>{cO+=d.amt;bkOutRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m rd">'+fm(d.amt)+'</td><td class="r m">'+fm(cO)+'</td></tr>';});
+
+  return '<div style="max-width:1100px">'+
+    '<div style="text-align:center;margin-bottom:20px"><div style="font-size:22px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:13px;color:#64748b;margin-top:4px">'+rptDt()+' 기준</div></div>'+
+    '<button class="bt" onclick="window.print()" style="margin-bottom:12px">🖨 인쇄 (A4)</button>'+
+
+    // 1. 총자산내역
+    '<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#1e3a5f">1. 총자산내역</div>'+
+    '<div class="pn"><table><thead><tr><th>구분</th><th class="r">내역(엔)</th><th>비고</th></tr></thead><tbody>'+
+    '<tr><td>자본금</td><td class="r m">10,000,000</td><td></td></tr>'+
+    '<tr class="a"><td>수입</td><td class="r m">21,845</td><td></td></tr>'+
+    '<tr><td>지출</td><td class="r m">(1,624,866)</td><td></td></tr>'+
+    '<tr class="a" style="font-weight:700"><td>법인계좌잔액---(1)</td><td class="r m b">'+fm(c.bb)+'</td><td class="mu">미츠이스미토모</td></tr>'+
+    '<tr><td>증권예수금</td><td class="r m">'+fm(c.secDep)+'</td><td></td></tr>'+
+    '<tr class="a"><td>유가증권평가액</td><td class="r m">'+fm(c.allMv)+'</td><td></td></tr>'+
+    '<tr style="font-weight:700"><td>증권계좌잔액---(2)</td><td class="r m b">'+fm(c.secBal)+'</td><td class="mu">SMBC닛코증권</td></tr>'+
+    '<tr class="t"><td>총보유자산합계</td><td class="r m">'+fm(c.totA)+'</td><td class="mu">(1)+(2)</td></tr>'+
+    '</tbody></table></div>'+
+
+    // 2. 유가증권 평가 및 손익 현황
+    '<div style="font-size:15px;font-weight:700;margin:20px 0 8px;color:#1e3a5f">2. 유가증권 평가 및 손익 현황</div>'+
+    '<div class="pn" style="padding:12px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:6px">총괄 요약</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px">'+
+    '<div>총 평가액: <b>'+fm(c.allMv)+'</b></div>'+
+    '<div>총 평가손익: <b style="color:'+(c.allPl>=0?'#059669':'#dc2626')+'">'+fm(c.allPl)+'</b></div>'+
+    '<div>예수금: <b>'+fm(c.secDep)+'</b></div>'+
+    '<div>증권계좌잔액: <b>'+fm(c.secBal)+'</b></div></div></div>'+
+
+    // 가) 일본
+    '<div style="font-size:13px;font-weight:700;margin-bottom:6px">가) 일본</div>'+
+    '<div class="pn"><div style="overflow-x:auto"><table style="min-width:900px"><thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">수수료</th><th class="r">취득원가</th><th class="r">BEP</th><th class="r">현재가</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th></tr></thead>'+
+    '<tbody>'+jpRows+'</tbody>'+
+    '<tr class="t"><td colspan="3" class="r">합계</td><td class="r m">'+fm(D.holdJP.reduce((s,h)=>s+h.buyAmt,0))+'</td><td class="r m">'+fm(D.holdJP.reduce((s,h)=>s+h.fee,0))+'</td><td class="r m">'+fm(c.jpC)+'</td><td colspan="2"></td><td class="r m">'+fm(c.jpMv)+'</td><td class="r">'+bg(jpPl)+'</td><td class="r m '+(jpPl>=0?'gn':'rd')+'">'+((jpPl)/c.jpC*100).toFixed(2)+'%</td></tr>'+
+    '</table></div></div>'+
+
+    // 나) 미국
+    '<div style="font-size:13px;font-weight:700;margin-bottom:6px">나) 미국</div>'+
+    '<div class="pn"><table><thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">취득원가</th><th class="r">현재가(USD)</th><th class="r">환율</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th></tr></thead>'+
+    '<tbody>'+usRows+'</tbody></table></div>'+
+
+    // 다) 전체
+    '<div style="font-size:13px;font-weight:700;margin-bottom:6px">다) 전체</div>'+
+    '<div class="pn"><table><thead><tr><th>구분</th><th class="r">취득원가</th><th class="r">평가금액</th><th class="r">비중</th><th class="r">손익</th><th class="r">수익률</th></tr></thead>'+
+    '<tbody><tr><td>일본</td><td class="r m">'+fm(c.jpC)+'</td><td class="r m">'+fm(c.jpMv)+'</td><td class="r">'+(c.allMv?Math.round(c.jpMv/c.allMv*100):0)+'%</td><td class="r">'+bg(jpPl)+'</td><td class="r m '+(jpPl>=0?'gn':'rd')+'">'+(jpPl/c.jpC*100).toFixed(2)+'%</td></tr>'+
+    '<tr class="a"><td>미국</td><td class="r m">'+fm(c.usC)+'</td><td class="r m">'+fm(c.usMv)+'</td><td class="r">'+(c.allMv?Math.round(c.usMv/c.allMv*100):0)+'%</td><td class="r">'+bg(c.usMv-c.usC)+'</td><td class="r m rd">'+((c.usMv-c.usC)/c.usC*100).toFixed(2)+'%</td></tr>'+
+    '<tr class="t"><td>합계</td><td class="r m">'+fm(c.allC)+'</td><td class="r m">'+fm(c.allMv)+'</td><td class="r">100%</td><td class="r">'+bg(c.allPl)+'</td><td class="r m '+(c.allPl>=0?'gn':'rd')+'">'+(c.allPl/c.allC*100).toFixed(2)+'%</td></tr></tbody></table></div>'+
+
+    // 3. 수익실현내역
+    '<div style="font-size:15px;font-weight:700;margin:20px 0 8px;color:#1e3a5f">3. 수익실현내역</div>'+
+    '<div class="pn"><div style="overflow-x:auto"><table style="min-width:1050px"><thead><tr><th>확정일</th><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">매수수수료</th><th class="r">취득원가</th><th class="r">매도가</th><th class="r">매도금액</th><th class="r">실현순익</th><th class="r">매도수수료</th><th class="r">순수익</th><th class="r">수익률</th></tr></thead>'+
+    '<tbody>'+realRows+'</tbody>'+
+    '<tr class="t"><td colspan="4" class="r">합계</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.buyAmt,0))+'</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.bC+r.bT,0))+'</td><td class="r m">'+fm(c.rC)+'</td><td></td><td class="r m">'+fm(c.rS)+'</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.gr,0))+'</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.sC+r.sT,0))+'</td><td class="r">'+bg(c.rpl)+'</td><td class="r m gn">'+(c.rpl/c.rC*100).toFixed(2)+'%</td></tr>'+
+    '</table></div></div>'+
+
+    // 4. 은행 법인 계좌 상세 내역
+    '<div style="font-size:15px;font-weight:700;margin:20px 0 8px;color:#1e3a5f">4. 은행 법인 계좌 상세 내역</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+    '<div class="pn"><div class="ph" style="color:#059669;font-size:12px">입금 상세내역</div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">입금금액(엔)</th><th class="r">누적입금액(엔)</th></tr></thead><tbody>'+bkInRows+'</tbody></table></div>'+
+    '<div class="pn"><div class="ph" style="color:#dc2626;font-size:12px">출금 상세내역</div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">출금금액(엔)</th><th class="r">누적출금액(엔)</th></tr></thead><tbody>'+bkOutRows+'</tbody>'+
+    '<tr class="t"><td colspan="2" class="r">잔액</td><td colspan="2" class="r m" style="font-size:14px;color:#2563eb">'+fm(c.bb)+'</td></tr></table></div>'+
+    '</div>'+
+    '</div>';
+}
 
 function rSet(){return `<div class="pt">설정</div>
   <div class="sc"><h4>💱 환율 설정</h4><div style="font-size:11px;color:#64748b;margin-bottom:10px">환율 변경 시 유가증권 평가 및 전표처리에 반영</div>
