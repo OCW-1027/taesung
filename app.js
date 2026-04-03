@@ -496,7 +496,7 @@ function exportWord(){
   const c=calc();
   const tI2=D.bkIn.reduce((s,d)=>s+d.amt,0);const tO2=D.bkOut.reduce((s,d)=>s+d.amt,0);
   const isSec2=cat=>{const c2=cat.toLowerCase();return c2.includes('증권')||c2.includes('주식')||c2.includes('매수')||c2.includes('매도')||c2.includes('이체')||c2.includes('ipo')||c2.includes('증거금');};
-  const isCap2=cat=>{const c2=cat.toLowerCase();return c2.includes('자본')||c2.includes('출자');};
+  const isCap2=cat=>{const c2=cat.toLowerCase();return c2.includes('자본')||c2.includes('출자')||c2.includes('차입');};
   const opIn2=D.bkIn.reduce((s,d)=>s+(!isSec2(d.cat)&&!isCap2(d.cat)?d.amt:0),0);
   const opOut2=D.bkOut.reduce((s,d)=>s+(!isSec2(d.cat)?d.amt:0),0);
   const S='border:1px solid #999;padding:4pt 6pt;font-size:10pt;';
@@ -1025,7 +1025,7 @@ function rRpt(){const c=calc();
   const tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
   // Operating only (exclude capital + securities transfers)
   const isSec=cat=>{const c2=cat.toLowerCase();return c2.includes('증권')||c2.includes('주식')||c2.includes('매수')||c2.includes('매도')||c2.includes('이체')||c2.includes('ipo')||c2.includes('증거금');};
-  const isCap=cat=>{const c2=cat.toLowerCase();return c2.includes('자본')||c2.includes('출자');};
+  const isCap=cat=>{const c2=cat.toLowerCase();return c2.includes('자본')||c2.includes('출자')||c2.includes('차입');};
   const opIn=D.bkIn.reduce((s,d)=>s+(!isSec(d.cat)&&!isCap(d.cat)?d.amt:0),0);
   const opOut=D.bkOut.reduce((s,d)=>s+(!isSec(d.cat)?d.amt:0),0);
   // Build JP table
