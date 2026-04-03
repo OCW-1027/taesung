@@ -141,6 +141,39 @@ function fetchRate(){
       setTimeout(()=>{if(btn)btn.textContent='🔄 환율 자동 가져오기';},3000);
     });
 }
+
+// ===== Dynamic FS Calculation =====
+function acctBal(code){
+  const ac=D.accts.find(x=>x.c===code);
+  const isDb=ac&&["자산","비용"].includes(ac.g);
+  let dr=0,cr=0;
+  D.journals.forEach(j=>{if(j.dr===code)dr+=j.amt;if(j.cr===code)cr+=j.amt;});
+  return isDb?dr-cr:cr-dr;
+}
+function dynamicFS(){
+  const c=calc();
+  // P&L fixed items (from journals - don't change)
+  const sgaT=3037959, su=371400, ol=-3409359;
+  const noiT=12630870; // realized gains from journals
+  const interestPay=1187671; // fixed
+  // Dynamic: unrealized P&L from current holdings
+  const evalLoss=Math.max(0, c.allC - c.allMv); // positive = loss
+  const noeT=evalLoss+interestPay;
+  const oi=ol+noiT-noeT; // 경상이익
+  const ct=oi>0?Math.round(oi*0.2422):0; // simplified effective tax ~24.2%
+  const ni=oi-ct;
+  // B/S
+  const deposit=acctBal('110'); // 보통예금 from journals
+  const secDep=c.secDep; // 증권예수금
+  const secMV=c.allMv; // 유가증권(시가)
+  const cashT=deposit+secDep;
+  const totA=cashT+secMV;
+  const totL=150000000+interestPay+371400+ct; // liabilities with updated tax
+  const eqNI=ni;
+  const totE=10000000+eqNI;
+  return {sgaT,su,ol,noiT,evalLoss,interestPay,noeT,oi,ct,ni,deposit,secDep,secMV,cashT,totA,totL,eqNI,totE};
+}
+
 // ===== UTILS =====
 const fm=n=>n==null?"-":new Intl.NumberFormat("ja-JP").format(Math.round(n));
 const fy=n=>n==null?"-":"¥"+fm(n);
@@ -755,21 +788,42 @@ function rBank(){const c=calc();let cI=0,cO=0;
   <tbody>${D.bkOut.map((d,i)=>{cO+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m rd">${fm(d.amt)}</td><td class="r m">${fm(cO)}</td><td><button class="del" onclick="delBk('out',${d.id})">✕</button></td></tr>`;}).join('')}</tbody>
   <tr class="t"><td colspan="2" class="r">잔액</td><td colspan="3" class="r m" style="font-size:15px;color:#2563eb">${fm(c.bb)}</td></tr></table></div>`;}
 
-function rFS(){const d={sga:[{nm:"접대교제비",a:350036},{nm:"차량비",a:238071},{nm:"여비교통비",a:138245},{nm:"해외출장비",a:686794},{nm:"소모품비",a:201420},{nm:"지급수수료(EB)",a:6600},{nm:"유가증권매매수수료",a:1413093,n:"세전1,284,632+소비세128,461"},{nm:"잡비",a:3700}],sgaT:3037959,su:371400,ol:-3409359,noi:[{nm:"유가증권매각이익(총액)",a:12599320,n:"수수료공제전"},{nm:"배당금",a:6356},{nm:"이자수입(세후)",a:21845},{nm:"잡수입",a:3349}],noiT:12630870,noe:[{nm:"유가증권평가손(미실현)",a:3489453},{nm:"지급이자(임원차입 연1%)",a:1187671,n:"1.5억×1%×289일/365일"}],noeT:4677124,oi:4544387,ct:1100700,ni:3443687,ast:[{nm:"보통예금",a:8396979},{nm:"증권예수금",a:88436523}],cashT:96833502,secMV:69269956,totA:166103458,lib:[{nm:"임원차입금",a:150000000},{nm:"미지급이자",a:1187671},{nm:"미지급금(설립비)",a:371400},{nm:"미지급법인세등",a:1100700}],totL:152659771,eq:[{nm:"자본금",a:10000000},{nm:"이익잉여금",a:3443687}],totE:13443687};
-  return `<div class="pt">재무제표</div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button></div>
-  <div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>
-  <div class="fr"><span>Ⅰ 매출고</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>
-  <div class="fr h"><span>Ⅱ 판매비및일반관리비</span></div>
-  ${d.sga.map(s=>`<div class="fr i"><span>${s.nm}${s.n?` <span style="font-size:10px;color:#64748b">(${s.n})</span>`:''}</span><span class="m">${fm(s.a)}</span></div>`).join('')}
-  <div class="fr b tl"><span>판관비 합계</span><span class="m">${fm(d.sgaT)}</span></div><div class="fr"><span>창립비</span><span class="m">${fm(d.su)}</span></div>
-  <div class="fr b tl" style="color:#dc2626"><span>영업손실</span><span class="m">${fm(d.ol)}</span></div><div style="height:8px"></div>
-  <div class="fr h"><span>Ⅲ 영업외수익</span></div>${d.noi.map(s=>`<div class="fr i"><span>${s.nm}${s.n?` <span style="font-size:10px;color:#64748b">(${s.n})</span>`:''}</span><span class="m">${fm(s.a)}</span></div>`).join('')}
-  <div class="fr b tl"><span>영업외수익 합계</span><span class="m">${fm(d.noiT)}</span></div><div style="height:6px"></div>
-  <div class="fr h"><span>Ⅳ 영업외비용</span></div>${d.noe.map(s=>`<div class="fr i"><span>${s.nm}${s.n?` <span style="font-size:10px;color:#64748b">(${s.n})</span>`:''}</span><span class="m">${fm(s.a)}</span></div>`).join('')}
-  <div class="fr b tl"><span>영업외비용 합계</span><span class="m">${fm(d.noeT)}</span></div><div style="height:8px"></div>
-  <div class="fr b tl" style="color:#059669"><span>경상이익</span><span class="m">${fm(d.oi)}</span></div><div class="fr"><span>Ⅴ 법인세등</span><span class="m">${fm(d.ct)}</span></div>
-  <div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:16px;font-weight:700;border-top:3px solid #e2e6ed;margin-top:8px;background:#d1fae560;border-radius:0 0 6px 6px"><span>당기순이익</span><span style="color:#059669" class="m">${fy(d.ni)}</span></div>
-  </div></div>`;}
+function rFS(){
+  const d=dynamicFS();const c=calc();
+  const sga=[
+    {nm:"접대교제비",a:350036},{nm:"차량비",a:238071},{nm:"여비교통비",a:138245},
+    {nm:"해외출장비",a:686794},{nm:"소모품비",a:201420},{nm:"지급수수료(EB)",a:6600},
+    {nm:"유가증권매매수수료",a:1413093,n:"세전1,284,632+소비세128,461"},{nm:"잡비",a:3700}
+  ];
+  const noi=[
+    {nm:"유가증권매각이익(총액)",a:12599320,n:"수수료공제전"},
+    {nm:"배당금",a:6356},{nm:"이자수입(세후)",a:21845},{nm:"잡수입",a:3349}
+  ];
+  const noe=[
+    {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"보유종목 시가기준 자동반영"},
+    {nm:"지급이자(임원차입 연1%)",a:d.interestPay,n:"1.5억×1%×289일/365일"}
+  ];
+
+  return '<div class="pt">재무제표</div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button></div>'+
+  '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
+  '<div class="fr"><span>Ⅰ 매출고</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
+  '<div class="fr h"><span>Ⅱ 판매비및일반관리비</span></div>'+
+  sga.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
+  '<div class="fr b tl"><span>판관비 합계</span><span class="m">'+fm(d.sgaT)+'</span></div>'+
+  '<div class="fr"><span>창립비</span><span class="m">'+fm(d.su)+'</span></div>'+
+  '<div class="fr b tl" style="color:#dc2626"><span>영업손실</span><span class="m">'+fm(d.ol)+'</span></div><div style="height:8px"></div>'+
+  '<div class="fr h"><span>Ⅲ 영업외수익</span></div>'+
+  noi.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
+  '<div class="fr b tl"><span>영업외수익 합계</span><span class="m">'+fm(d.noiT)+'</span></div><div style="height:6px"></div>'+
+  '<div class="fr h"><span>Ⅳ 영업외비용</span></div>'+
+  noe.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
+  '<div class="fr b tl"><span>영업외비용 합계</span><span class="m">'+fm(d.noeT)+'</span></div><div style="height:8px"></div>'+
+  '<div class="fr b tl" style="color:#059669"><span>경상이익</span><span class="m">'+fm(d.oi)+'</span></div>'+
+  '<div class="fr"><span>Ⅴ 법인세등</span><span class="m">'+fm(d.ct)+'</span></div>'+
+  '<div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:16px;font-weight:700;border-top:3px solid #e2e6ed;margin-top:8px;background:#d1fae560;border-radius:0 0 6px 6px"><span>당기순이익</span><span style="color:'+(d.ni>=0?'#059669':'#dc2626')+'" class="m">'+fy(d.ni)+'</span></div>'+
+  '<div class="ib" style="margin-top:8px;font-size:10px">💡 유가증권평가손·법인세는 보유종목 시가 기준 자동 반영됩니다</div>'+
+  '</div></div>';
+}
 
 function rRpt(){const c=calc();
   // Build JP table
@@ -910,10 +964,28 @@ function go(p){
   }));
 }
 
-function rBSTab(){const d={ast:[{nm:"보통예금",a:8396979},{nm:"증권예수금",a:88436523}],cashT:96833502,secMV:69269956,totA:166103458,lib:[{nm:"임원차입금",a:150000000},{nm:"미지급이자",a:1187671},{nm:"미지급금",a:371400},{nm:"미지급법인세등",a:1100700}],totL:152659771,eq:[{nm:"자본금",a:10000000},{nm:"이익잉여금",a:3443687}],totE:13443687};
-  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-  <div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#2563eb;margin-bottom:10px">【자산】</div>${d.ast.map(a=>`<div class="fr"><span>${a.nm}</span><span class="m">${fm(a.a)}</span></div>`).join('')}<div class="fr b tl"><span>현금·예금계</span><span class="m">${fm(d.cashT)}</span></div><div class="fr"><span>유가증권(시가)</span><span class="m">${fm(d.secMV)}</span></div><div class="fr b tl" style="color:#2563eb;font-size:14px"><span>자산합계</span><span class="m">${fm(d.totA)}</span></div></div>
-  <div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#d97706;margin-bottom:10px">【부채】</div>${d.lib.map(a=>`<div class="fr"><span>${a.nm}</span><span class="m">${fm(a.a)}</span></div>`).join('')}<div class="fr b tl" style="color:#d97706"><span>부채합계</span><span class="m">${fm(d.totL)}</span></div><div style="text-align:center;font-size:14px;font-weight:700;color:#059669;margin:16px 0 10px">【순자산】</div>${d.eq.map(a=>`<div class="fr"><span>${a.nm}</span><span class="m">${fm(a.a)}</span></div>`).join('')}<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">${fm(d.totE)}</span></div><div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">${fm(d.totA)}</span></div></div></div>`;}
+function rBSTab(){
+  const d=dynamicFS();
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+
+  '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#2563eb;margin-bottom:10px">【자산】</div>'+
+  '<div class="fr"><span>보통예금</span><span class="m">'+fm(d.deposit)+'</span></div>'+
+  '<div class="fr"><span>증권예수금</span><span class="m">'+fm(d.secDep)+'</span></div>'+
+  '<div class="fr b tl"><span>현금·예금계</span><span class="m">'+fm(d.cashT)+'</span></div>'+
+  '<div class="fr"><span>유가증권(시가)</span><span class="m">'+fm(d.secMV)+'</span></div>'+
+  '<div class="fr b tl" style="color:#2563eb;font-size:14px"><span>자산합계</span><span class="m">'+fm(d.totA)+'</span></div></div>'+
+  '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#d97706;margin-bottom:10px">【부채】</div>'+
+  '<div class="fr"><span>임원차입금</span><span class="m">'+fm(150000000)+'</span></div>'+
+  '<div class="fr"><span>미지급이자</span><span class="m">'+fm(d.interestPay)+'</span></div>'+
+  '<div class="fr"><span>미지급금(설립비)</span><span class="m">'+fm(371400)+'</span></div>'+
+  '<div class="fr"><span>미지급법인세등</span><span class="m">'+fm(d.ct)+'</span></div>'+
+  '<div class="fr b tl" style="color:#d97706"><span>부채합계</span><span class="m">'+fm(d.totL)+'</span></div>'+
+  '<div style="text-align:center;font-size:14px;font-weight:700;color:#059669;margin:16px 0 10px">【순자산】</div>'+
+  '<div class="fr"><span>자본금</span><span class="m">'+fm(10000000)+'</span></div>'+
+  '<div class="fr"><span>이익잉여금</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
+  '<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">'+fm(d.totE)+'</span></div>'+
+  '<div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">'+fm(d.totL+d.totE)+'</span></div></div></div>'+
+  '<div class="ib" style="font-size:10px">💡 보통예금=전표기준, 증권예수금·유가증권(시가)=보유종목 자동반영, 법인세=경상이익 기준 자동추정</div>';
+}
 
 function rTxTab(){return `<div class="pn" style="padding:18px;max-width:460px"><div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px">법인세등 추정</div>
   ${[["과세소득","",4544387,1],["법인세","15%",681600],["지방법인세","10.3%",70200],["도민세(할)","7%",50200],["도민세(균등)","70,000",70000],["사업세","3.5~5.3%",168800],["특별사업세","37%",62400]].map(t=>`<div class="fr" style="${t[3]?'background:#dbeafe;border-radius:4px;font-weight:700':''}"><span>${t[0]}</span><span style="color:#64748b;width:70px;text-align:right">${t[1]}</span><span class="m" style="width:100px;text-align:right;font-weight:600">${fm(t[2])}</span></div>`).join('')}
