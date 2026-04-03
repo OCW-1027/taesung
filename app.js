@@ -29,7 +29,7 @@ function calc(){
 function showModal(title,html){document.getElementById('modal').innerHTML='<div class="mo" onclick="closeModal()"><div class="mc" onclick="event.stopPropagation()"><h3>'+title+'</h3>'+html+'</div></div>';document.getElementById('modal').classList.remove('hidden');}
 function closeModal(){document.getElementById('modal').classList.add('hidden');}
 function acctNm(c){return tAcct(c);}
-function acctOptions(){return '<option value="">--</option>'+["資産","負債","純資産","収益","費用"].map(g=>'<optgroup label="'+g+'">'+D.accts.filter(a=>a.g===g).map(a=>'<option value="'+a.c+'">'+a.c+' '+(LANG==='ja'?a.n:a.k)+'</option>').join('')+'</optgroup>').join('');}
+function acctOptions(){return '<option value="">--</option>'+["자산","부채","순자산","수익","비용"].map(g=>'<optgroup label="'+g+'">'+D.accts.filter(a=>a.g===g).map(a=>'<option value="'+a.c+'">'+a.c+' '+(LANG==='ja'?a.n:a.k)+'</option>').join('')+'</optgroup>').join('');}
 function catLabel(d){return LANG==='ja'?(d.catJa||d.cat):d.cat;}
 function holdNm(h){return LANG==='ja'?(h.ja||h.nm):h.nm;}
 function realNm(r){return LANG==='ja'?(r.ja||r.nm):r.nm;}
@@ -342,11 +342,11 @@ function applyPrices(){
 }
 
 // ===== SLIP (전표처리) =====
-function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend','<tr id="sr_'+id+'"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td><td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td><select class="sl_taxr" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px" onchange="calcSlipTax(this)"><option value="0">비과세</option><option value="10">🇯🇵 10%</option><option value="8">🇯🇵 8%(경감)</option><option value="10k">🇰🇷 10%</option></select></td><td class="r"><span class="sl_taxamt" style="font-size:11px;color:#dc2626">0</span></td><td><button class="del" onclick="document.getElementById(\'sr_'+id+'\').remove();updSlipBal()">✕</button></td></tr>');}
-function acctOptions(){return '<option value="">--</option>'+["資産","負債","純資産","収益","費用"].map(g=>`<optgroup label="${g}">${D.accts.filter(a=>a.g===g).map(a=>`<option value="${a.c}">${a.c} ${a.k}</option>`).join('')}</optgroup>`).join('');}
+function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend','<tr id="sr_'+id+'"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td><td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td><button class="del" onclick="document.getElementById(\'sr_'+id+'\').remove();updSlipBal()">✕</button></td></tr>');}
+function acctOptions(){return '<option value="">--</option>'+["자산","부채","순자산","수익","비용"].map(g=>`<optgroup label="${g}">${D.accts.filter(a=>a.g===g).map(a=>`<option value="${a.c}">${a.c} ${a.k}</option>`).join('')}</optgroup>`).join('');}
 function updSlipBal(){let dr=0,cr=0;document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,a=+(r.querySelector('.sl_amt').value)||0;if(s==='dr')dr+=a;else cr+=a;});const ok=dr===cr&&dr>0;document.getElementById('slipBal').innerHTML='<span>차변: <b>'+fm(dr)+'</b></span><span>대변: <b>'+fm(cr)+'</b></span><span style="font-weight:700;color:'+(ok?'#059669':'#dc2626')+'">'+(ok?'✓ 차대일치':'✗ 불일치')+'</span>';document.getElementById('slipSubmit').style.background=ok?'#059669':'#94a3b8';}
 function submitSlip(){let dr=0,cr=0;const rows=[];document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,ac=r.querySelector('.sl_acct').value,a=+(r.querySelector('.sl_amt').value)||0,exp=r.querySelector('.sl_exp')?.value||'',taxr=r.querySelector('.sl_taxr')?.value||'0';if(ac&&a>0){rows.push({side:s,ac,amt:a,exp,taxr});if(s==='dr')dr+=a;else cr+=a;}});if(dr!==cr||dr===0)return alert('차대가 일치하지 않습니다');const edt=document.getElementById('sl_edt').value,pdt=document.getElementById('sl_pdt').value,desc=document.getElementById('sl_desc').value,cur=document.getElementById('sl_cur').value;const mo=edt.split('-')[1]||'01';const dt=mo+'/'+edt.split('-')[2];const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,edt,pdt,cur,exp:d.exp||c.exp,taxr:d.taxr||c.taxr});});});saveD();go('slip');}
-function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="資産">자산</option><option value="負債">부채</option><option value="純資産">순자산</option><option value="収益">수익</option><option value="費用">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
+function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="자산">자산</option><option value="부채">부채</option><option value="순자산">순자산</option><option value="수익">수익</option><option value="비용">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
 function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');D.accts.push({c,n,k,g});saveD();closeModal();go('slip');}
 
 function rSlip(){
@@ -397,21 +397,19 @@ function rSlip(){
       '<div class="fg"><div><label>적요</label><input id="sl_desc" placeholder="거래 내용"></div></div>'+
       '<div class="fg"><div><label>통화</label><select id="sl_cur"><option value="JPY">🇯🇵 JPY</option><option value="KRW">🇰🇷 KRW</option><option value="USD">🇺🇸 USD</option></select></div></div>'+
     '</div>'+
-    '<table><thead><tr><th>차/대</th><th>계정과목</th><th>원가구분</th><th class="r">금액</th><th>소비세</th><th class="r">세액</th><th></th></tr></thead>'+
+    '<table><thead><tr><th>차/대</th><th>계정과목</th><th>원가구분</th><th class="r">금액</th><th></th></tr></thead>'+
     '<tbody id="slipRows">'+
       '<tr id="sr_1"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#dbeafe"><option value="dr">차변</option><option value="cr">대변</option></select></td>'+
       '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td>'+
       '<td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td>'+
       '<td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td>'+
-      '<td><select class="sl_taxr" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px" onchange="calcSlipTax(this)"><option value="0">비과세</option><option value="10">🇯🇵 10%</option><option value="8">🇯🇵 8%(경감)</option><option value="10k">🇰🇷 10%</option></select></td>'+
-      '<td class="r"><span class="sl_taxamt" style="font-size:11px;color:#dc2626">0</span></td>'+
+      
       '<td></td></tr>'+
       '<tr id="sr_2"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#fee2e2"><option value="cr">대변</option><option value="dr">차변</option></select></td>'+
       '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td>'+
       '<td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td>'+
       '<td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td>'+
-      '<td><select class="sl_taxr" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px" onchange="calcSlipTax(this)"><option value="0">비과세</option><option value="10">🇯🇵 10%</option><option value="8">🇯🇵 8%(경감)</option><option value="10k">🇰🇷 10%</option></select></td>'+
-      '<td class="r"><span class="sl_taxamt" style="font-size:11px;color:#dc2626">0</span></td>'+
+      
       '<td></td></tr>'+
     '</tbody></table>'+
     '<div style="margin-top:8px;display:flex;gap:6px"><button class="bt gh" style="font-size:10px" onclick="addSlipRow()">+ 행추가</button><button class="bt gh" style="font-size:10px" onclick="addAcct()">+ 과목추가</button></div>'+
@@ -462,7 +460,7 @@ function rGL(){
   const groups={};
   Object.entries(bal).forEach(([code,v])=>{
     const a=D.accts.find(x=>x.c===code);if(!a)return;
-    const isDb=["資産","費用"].includes(a.g);
+    const isDb=["자산","비용"].includes(a.g);
     v.net=isDb?v.dr-v.cr:v.cr-v.dr;
     if(!groups[a.g])groups[a.g]=[];
     groups[a.g].push({code,name:a.k,...v});
@@ -475,7 +473,7 @@ function rGL(){
 
   return `<div class="pt">총계정원장</div>
   <div class="ib">💡 전표 ${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
-  ${["資産","負債","純資産","収益","費用"].filter(g=>groups[g]).map(g=>`
+  ${["자산","부채","순자산","수익","비용"].filter(g=>groups[g]).map(g=>`
     <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:6px;padding:3px 8px;background:#dbeafe;border-radius:5px;display:inline-block">${g}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px">
     ${groups[g].map(a=>`<div onclick="showGLDetail('${a.code}')" style="background:#fff;border:1px solid #e2e6ed;border-radius:7px;padding:8px 12px;cursor:pointer" onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e6ed'"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">${a.name}</div><div style="font-size:9px;color:#64748b">${a.code} · ${a.entries.length}건</div></div><div style="font-size:13px;font-weight:700;font-feature-settings:'tnum'">${fy(a.net)}</div></div></div>`).join('')}
@@ -483,7 +481,7 @@ function rGL(){
 
 function showGLDetail(code){
   const a=D.accts.find(x=>x.c===code);if(!a)return;
-  const isDb=["資産","費用"].includes(a.g);
+  const isDb=["자산","비용"].includes(a.g);
   const entries=[];let bal=0;
   D.journals.filter(j=>j.dr===code||j.cr===code).forEach(j=>{
     const isDr=j.dr===code;const dr=isDr?j.amt:0;const cr=isDr?0:j.amt;
@@ -741,19 +739,6 @@ function rSet(){return `<div class="pt">설정</div>
 
 // ===== Report row-add functions =====
 function rptAddRow(section){
-  showModal(section+' 항목추가',
-  '<div class="fg">'+
-  '<div><label>구분</label><input id="ra_cat" placeholder="항목명"></div>'+
-  '<div><label>내역(금액)</label><input id="ra_val" placeholder="금액 또는 텍스트"></div>'+
-  '<div><label>비고</label><input id="ra_note" placeholder="비고(선택)"></div>'+
-  '<div style="display:flex;gap:8px;justify-content:flex-end;align-items:end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt gn" onclick="doRptAddRow(\''+section+'\')">추가</button></div></div>');
-}
-function doRptAddRow(section){
-  const cat=document.getElementById('ra_cat').value;
-  const val=document.getElementById('ra_val').value;
-  const note=document.getElementById('ra_note').value;
-  if(!cat)return alert('항목명을 입력하세요');
-  // Find the section table and append a row
   const tables=document.querySelectorAll('#rptContent table');
   let targetIdx=0;
   if(section==='총자산') targetIdx=0;
@@ -765,14 +750,14 @@ function doRptAddRow(section){
   else if(section==='출금') targetIdx=6;
   if(tables[targetIdx]){
     const tbody=tables[targetIdx].querySelector('tbody')||tables[targetIdx];
-    const lastRow=tbody.querySelector('tr.t')||tbody.lastElementChild;
+    const totalRow=tbody.querySelector('tr.t');
     const newRow=document.createElement('tr');
     newRow.style.background='#fffbeb';
-    newRow.innerHTML='<td contenteditable="true" style="border:1px dashed #fde68a">'+cat+'</td><td class="r m" contenteditable="true" style="border:1px dashed #fde68a">'+val+'</td>'+(note?'<td contenteditable="true" style="border:1px dashed #fde68a">'+note+'</td>':'');
-    if(lastRow)tbody.insertBefore(newRow,lastRow);
+    const colCount=tbody.querySelector('tr')?.cells.length||3;
+    newRow.innerHTML='<td colspan="'+(colCount-1)+'" contenteditable="true" style="border:1px dashed #fde68a;padding:6px 8px;outline:none">(내용을 입력하세요)</td><td style="text-align:center"><button onclick="this.closest(\'tr\').remove()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px">✕</button></td>';
+    if(totalRow)tbody.insertBefore(newRow,totalRow);
     else tbody.appendChild(newRow);
   }
-  closeModal();
 }
 
 // ===== ROUTING =====
