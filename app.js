@@ -426,6 +426,8 @@ async function fbInit(){
         localStorage.setItem(SKEY, JSON.stringify(SET));
       }
       console.log('Firebase: loaded newer data ('+fbTime+')');
+      // Save locally only (don't re-upload to Firebase)
+      localStorage.setItem(DKEY,JSON.stringify(D));
       go('dash');
       console.log('Firebase auto-sync applied');
     } else {
