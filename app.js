@@ -9,6 +9,8 @@ const DEF_DATA={holdJP:INIT_HOLD_JP,holdUS:INIT_HOLD_US,real:INIT_REAL,bkIn:INIT
 let D=loadJ(DKEY,DEF_DATA);
 // Migrate: always use fresh accts from ACCT_INIT (fixes JP->KR group name change)
 D.accts=ACCT_INIT;
+if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
+if(!D.vendors)D.vendors=INIT_VENDORS;
 // Also migrate any saved holdings/journals group refs
 
 function saveD(){localStorage.setItem(DKEY,JSON.stringify(D));}
@@ -164,24 +166,25 @@ function dynamicFS(){
   const ol=0-sgaT-su; // 매출 0
   const interestPay=acctBal('540'); // 지급이자 from journals
   // Dynamic: unrealized P&L from current holdings
-  const evalLoss=Math.max(0, c.allC - c.allMv); // positive = loss
+  const evalLoss=acctBal('542'); // journal-based (시가는 유가증권 메뉴 참고) // positive = loss
   const noeT=evalLoss+interestPay;
-  const oi=ol+noiT-noeT; // 경상이익
-  const ct=oi>0?Math.round(oi*0.2422):0; // simplified effective tax ~24.2%
+  const oi=ol+noiT-noeT;
+  // Use journal tax if exists, otherwise estimate
+  const journalCt=acctBal('550');
+  const ct=journalCt>0?journalCt:(oi>0?Math.round(oi*0.2422):0);
   const ni=oi-ct;
-  // B/S: ALL from journals (guaranteed balance)
-  const deposit=acctBal('110'); // 보통예금
-  const secDep=acctBal('191'); // 증권예수금 from journals
-  const secBookVal=acctBal('130'); // 유가증권 장부가
-  const secMV=c.allMv; // 유가증권 시가 (참고용)
+  // B/S: 100% journal-based (guaranteed balance by double-entry)
+  const deposit=acctBal('110');
+  const secDep=acctBal('191');
+  const secBookVal=acctBal('130');
+  const secMV=c.allMv;
+  const secForBS=secBookVal; // journal book value
+  const evalAdj=0;
   const cashT=deposit+secDep;
-  const totA=cashT+secBookVal;
-  // Liabilities: all from journals
+  const totA=cashT+secForBS;
+  // Liabilities + Equity: all from journals
   const liabCodes=['200','201','202','203','204','205','206','207','208','209','210','211','212','213','214','215','216','217','220','221','222','223','224','225','226','227','228'];
   let totL=0;liabCodes.forEach(c2=>{totL+=acctBal(c2);});
-  // Add estimated tax if not already in journals
-  const journalTax=acctBal('205');
-  if(ct>journalTax)totL+=(ct-journalTax);
   // Equity: from journals
   const capitalBal=acctBal('300')+acctBal('301')+acctBal('302');
   const retainedBal=acctBal('310')+acctBal('311')+acctBal('312');
@@ -958,7 +961,7 @@ function rFS(){
   const noi=['401','402','403','405'].map(code=>{const bal=acctBal(code);return {nm:tAcct(code),a:bal};}).filter(x=>x.a!==0);
   // NOE
   const noe=[
-    {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"보유종목 시가기준 자동반영"},
+    {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"전표기준"},
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
@@ -1315,7 +1318,7 @@ function rBSTab(){
   '<div class="fr"><span>이익잉여금(당기순이익)</span><span class="m">'+fm(d.eqNI)+'</span></div>'+
   '<div class="fr b tl" style="color:#059669"><span>순자산합계</span><span class="m">'+fm(d.totE)+'</span></div>'+
   '<div class="fr b tl" style="font-size:14px"><span>부채·순자산합계</span><span class="m">'+fm(d.totL+d.totE)+'</span></div></div></div>'+
-  '<div class="ib" style="font-size:10px">💡 전표 기반 자동집계 + 시가 조정. 유가증권평가손(P/L)과 유가증권(B/S) 동시 시가반영 → 차대 균형 보장</div>';
+  '<div class="ib" style="font-size:10px">💡 전표 기반 100% 자동집계 → 차대 균형 보장. 시가는 참고 표시. 평가손 갱신은 결산전표로 반영</div>';
 }
 
 function rTxTab(){return `<div class="pn" style="padding:18px;max-width:460px"><div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px">법인세등 추정</div>
