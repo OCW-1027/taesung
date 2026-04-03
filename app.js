@@ -174,6 +174,122 @@ function dynamicFS(){
   return {sgaT,su,ol,noiT,evalLoss,interestPay,noeT,oi,ct,ni,deposit,secDep,secMV,cashT,totA,totL,eqNI,totE};
 }
 
+
+// ===== ASSET TREND (자산추이) =====
+function saveSnapshot(){
+  if(!D.snapshots)D.snapshots=[];
+  const c=calc();
+  const today=new Date().toISOString().slice(0,10);
+  // Max 1 snapshot per day (update if exists)
+  const idx=D.snapshots.findIndex(s=>s.dt===today);
+  const snap={dt:today,totA:c.totA,bb:c.bb,secBal:c.secBal,secDep:c.secDep,allMv:c.allMv,allPl:c.allPl,rpl:c.rpl};
+  if(idx>=0)D.snapshots[idx]=snap;
+  else D.snapshots.push(snap);
+  // Keep max 365 days
+  if(D.snapshots.length>365)D.snapshots=D.snapshots.slice(-365);
+  saveD();
+}
+
+function renderTrendChart(period){
+  if(!D.snapshots||D.snapshots.length===0)return '<div style="text-align:center;padding:30px;color:#94a3b8">데이터 수집 중... 매일 대시보드 방문 시 자동 기록됩니다</div>';
+  
+  let data=[...D.snapshots].sort((a,b)=>a.dt.localeCompare(b.dt));
+  // Filter by period
+  const now=new Date();
+  let cutoff=new Date();
+  if(period==='week')cutoff.setDate(now.getDate()-7);
+  else if(period==='month')cutoff.setMonth(now.getMonth()-1);
+  else if(period==='quarter')cutoff.setMonth(now.getMonth()-3);
+  else if(period==='half')cutoff.setMonth(now.getMonth()-6);
+  else cutoff.setFullYear(now.getFullYear()-1);
+  const cutStr=cutoff.toISOString().slice(0,10);
+  data=data.filter(s=>s.dt>=cutStr);
+  
+  if(data.length===0)return '<div style="text-align:center;padding:20px;color:#94a3b8">해당 기간 데이터 없음</div>';
+  
+  // Chart dimensions
+  const W=800,H=200,PL=70,PR=20,PT=20,PB=40;
+  const cW=W-PL-PR,cH=H-PT-PB;
+  
+  // Y axis: totA
+  const vals=data.map(d=>d.totA);
+  const minV=Math.min(...vals)*0.98;
+  const maxV=Math.max(...vals)*1.02;
+  const range=maxV-minV||1;
+  
+  // Build SVG
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-height:220px;font-family:sans-serif">';
+  
+  // Grid lines + Y labels
+  for(let i=0;i<=4;i++){
+    const y=PT+cH*(1-i/4);
+    const val=minV+range*i/4;
+    svg+='<line x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'" stroke="#e2e6ed" stroke-width="0.5"/>';
+    svg+='<text x="'+(PL-6)+'" y="'+(y+3)+'" text-anchor="end" fill="#94a3b8" font-size="9">'+(val>=100000000?(val/100000000).toFixed(1)+'億':(val/10000).toFixed(0)+'万')+'</text>';
+  }
+  
+  // Data points + line
+  const points=data.map((d,i)=>{
+    const x=PL+(data.length>1?i/(data.length-1):0.5)*cW;
+    const y=PT+cH*(1-(d.totA-minV)/range);
+    return {x,y,d};
+  });
+  
+  // Area fill
+  if(points.length>1){
+    let area='M'+points[0].x+','+(PT+cH);
+    points.forEach(p=>{area+='L'+p.x+','+p.y;});
+    area+='L'+points[points.length-1].x+','+(PT+cH)+'Z';
+    svg+='<path d="'+area+'" fill="url(#grad)" opacity="0.3"/>';
+    svg+='<defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#2563eb" stop-opacity="0"/></linearGradient></defs>';
+  }
+  
+  // Line
+  if(points.length>1){
+    let line='M'+points.map(p=>p.x+','+p.y).join('L');
+    svg+='<path d="'+line+'" fill="none" stroke="#2563eb" stroke-width="2"/>';
+  }
+  
+  // Dots + X labels
+  points.forEach((p,i)=>{
+    svg+='<circle cx="'+p.x+'" cy="'+p.y+'" r="3.5" fill="#2563eb" stroke="#fff" stroke-width="1.5"/>';
+    // X label (show every few)
+    const step=Math.max(1,Math.floor(points.length/8));
+    if(i%step===0||i===points.length-1){
+      const label=p.d.dt.slice(5);// MM-DD
+      svg+='<text x="'+p.x+'" y="'+(H-8)+'" text-anchor="middle" fill="#94a3b8" font-size="8">'+label+'</text>';
+    }
+  });
+  
+  // Latest value label
+  if(points.length>0){
+    const last=points[points.length-1];
+    svg+='<text x="'+last.x+'" y="'+(last.y-10)+'" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="bold">¥'+fm(last.d.totA)+'</text>';
+  }
+  
+  svg+='</svg>';
+  
+  // Sub-chart: breakdown bars
+  const last=data[data.length-1];
+  const parts=[
+    {label:'법인계좌',val:last.bb,color:'#d97706'},
+    {label:'증권예수금',val:last.secDep,color:'#7c3aed'},
+    {label:'유가증권',val:last.allMv,color:'#2563eb'}
+  ];
+  const barTotal=parts.reduce((s,p)=>s+p.val,0)||1;
+  let bars='<div style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin-top:8px">';
+  parts.forEach(p=>{
+    const pct=Math.max(1,p.val/barTotal*100);
+    bars+='<div style="width:'+pct+'%;background:'+p.color+';display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:600;min-width:30px" title="'+p.label+': ¥'+fm(p.val)+'">'+(pct>15?p.label:'')+'</div>';
+  });
+  bars+='</div>';
+  bars+='<div style="display:flex;gap:12px;margin-top:6px;font-size:10px">';
+  parts.forEach(p=>{bars+='<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+p.color+';margin-right:3px"></span>'+p.label+' '+fm(p.val)+'</span>';});
+  bars+='</div>';
+  
+  return svg+bars;
+}
+
 // ===== UTILS =====
 const fm=n=>n==null?"-":new Intl.NumberFormat("ja-JP").format(Math.round(n));
 const fy=n=>n==null?"-":"¥"+fm(n);
@@ -763,9 +879,21 @@ function filterJrn(){
 }
 
 
-function rDash(){const c=calc();return `<div class="pt">대시보드</div>
+function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보드</div>
   <div class="cards"><div class="cd bl"><div class="l">총 보유 자산</div><div class="v">${fy(c.totA)}</div></div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
-  <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>`;}
+  <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>
+  <div class="pn" style="margin-top:14px">
+    <div class="ph"><span>📈 자산추이</span>
+      <div style="display:flex;gap:4px">
+        <button class="bt gh" style="font-size:10px;padding:2px 8px" onclick="document.getElementById('trendChart').innerHTML=renderTrendChart('week')">주</button>
+        <button class="bt gh" style="font-size:10px;padding:2px 8px" onclick="document.getElementById('trendChart').innerHTML=renderTrendChart('month')">월</button>
+        <button class="bt gh" style="font-size:10px;padding:2px 8px" onclick="document.getElementById('trendChart').innerHTML=renderTrendChart('quarter')">분기</button>
+        <button class="bt gh" style="font-size:10px;padding:2px 8px" onclick="document.getElementById('trendChart').innerHTML=renderTrendChart('half')">반기</button>
+        <button class="bt gh" style="font-size:10px;padding:2px 8px" onclick="document.getElementById('trendChart').innerHTML=renderTrendChart('year')">년</button>
+      </div>
+    </div>
+    <div style="padding:14px" id="trendChart">\${renderTrendChart('month')}</div>
+  </div>`;}
 
 function rSec(){const c=calc();const jpT=c.jpMv;
   return `<div class="pt">유가증권</div>
