@@ -892,7 +892,7 @@ function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보
         <button class="bt gh" style="font-size:10px;padding:2px 8px" onclick="document.getElementById('trendChart').innerHTML=renderTrendChart('year')">년</button>
       </div>
     </div>
-    <div style="padding:14px" id="trendChart">\${renderTrendChart('month')}</div>
+    <div style="padding:14px" id="trendChart">\</div>
   </div>`;}
 
 function rSec(){const c=calc();const jpT=c.jpMv;
@@ -1281,6 +1281,7 @@ let cur='dash';
 function go(p){
   cur=p;
   document.getElementById('M').innerHTML=pages[p]();
+  if(p==='dash'){var tc=document.getElementById('trendChart');if(tc)tc.innerHTML=renderTrendChart('month');}
   document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('on',el.dataset.page===p));
   // Tab events
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',function(){
