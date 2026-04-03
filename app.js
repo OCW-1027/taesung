@@ -646,11 +646,11 @@ function rGL(){
   });
 
   if(D.journals.length===0){
-    return `<div class="pt">총계정원장</div>
+    return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div><button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 Excel (日本語)</button></div>
     <div class="ib">💡 전표를 기표하면 여기에 계정별로 자동 집계됩니다</div>
     <div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:40px;margin-bottom:12px">📒</div><div>아직 기표된 전표가 없습니다.<br>[전표처리] 메뉴에서 전표를 입력하세요.</div></div>`;}
 
-  return `<div class="pt">총계정원장</div>
+  return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div><button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 Excel (日本語)</button></div>
   <div class="ib">💡 전표 ${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
   ${["자산","부채","순자산","수익","비용"].filter(g=>groups[g]).map(g=>`
     <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:6px;padding:3px 8px;background:#dbeafe;border-radius:5px;display:inline-block">${g}</div>
