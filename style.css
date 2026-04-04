@@ -110,3 +110,9 @@ tr.a{background:#f8f9fb}tr.t{background:#f1f3f6;font-weight:700}
 .pin-key.fn{font-size:14px;color:#94a3b8}
 
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+/* Mobile tooltip on hover */
+@media(max-width:768px){
+  .ni{position:relative}
+  .ni:active::after{content:attr(title);position:absolute;left:52px;top:50%;transform:translateY(-50%);background:#1e293b;color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;white-space:nowrap;z-index:100}
+}
