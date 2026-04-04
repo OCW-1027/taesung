@@ -176,6 +176,7 @@ function dynamicFS(){
   // Detailed tax: 법인세15%+지방법인세10.3%+사업세7%+특별사업세37%+도민세7%+균등할7만
   const estTax=oi>0?Math.round(oi*0.15)+Math.round(Math.round(oi*0.15)*0.103)+Math.round(oi*0.07)+Math.round(Math.round(oi*0.07)*0.37)+Math.round(Math.round(oi*0.15)*0.07)+70000:0;
   const ct=journalCt>0?journalCt:estTax;
+  const estTaxVal=estTax;
   const ni=oi-ct;
   // B/S: journal + 시가 조정 (평가손 실시간 반영)
   const deposit=acctBal('110');
@@ -1186,7 +1187,7 @@ function rSlip(){
       const drNm=acctNm(e.dr),crNm=acctNm(e.cr);
       allSlips+='<div onclick="viewSlip('+e.id+')" style="padding:6px 14px;border-bottom:1px solid #f1f3f6;font-size:11px;display:flex;gap:8px;align-items:center;cursor:pointer" onmouseenter="this.style.background=\'#f0f9ff\'" onmouseleave="this.style.background=\'\'">'+
         '<span class="mu" style="width:50px">'+e.dt+'</span>'+
-        '<span style="color:#2563eb;width:55px;font-size:10px">'+e.no+'</span>'+
+        '<span style="color:#2563eb;width:95px;font-size:10px">'+e.no+'</span>'+
         '<span style="width:180px;overflow:hidden;text-overflow:ellipsis">'+e.desc+'</span>'+
         '<span style="color:#2563eb;width:120px">차 '+drNm+'</span>'+
         '<span style="color:#dc2626;width:120px">대 '+crNm+'</span>'+
@@ -1368,7 +1369,7 @@ function rJrn(){
   // Build year-month selector
   const ymOpts=sortedYMs.map(ym=>'<option value="'+ym+'">'+ym+'</option>').join('');
 
-  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">전표조회</div><button class="bt gh" onclick="document.getElementById(\'vendorSummary\').classList.toggle(\'hidden\')" style="font-size:11px">👤 거래처별 집계</button></div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">전표조회</div><div style="display:flex;gap:6px"><button class="bt gh" onclick="doUndo()" style="font-size:11px">↩ 되돌리기</button></div><button class="bt gh" onclick="document.getElementById(\'vendorSummary\').classList.toggle(\'hidden\')" style="font-size:11px">👤 거래처별 집계</button></div>'+
     '<div id="vendorSummary" class="hidden"><div class="pn" style="margin-bottom:10px;padding:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">👤 거래처별 집계</div>'+rVendorSummary()+'</div></div>'+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">'+
     '<span style="font-size:12px;font-weight:600">회기:</span>'+
@@ -1406,7 +1407,7 @@ function buildJrnTable(list){
     totalDr+=e.amt;
     rows+='<tr class="'+(i%2?'a':'')+'" onclick="viewSlip('+e.id+')" style="cursor:pointer" onmouseenter="this.style.background=\'#f0f9ff\'" onmouseleave="this.style.background=\''+( i%2?'#f8f9fb':'')+'\'">';
     rows+='<td class="mu m" style="width:50px">'+e.dt+'</td>';
-    rows+='<td style="width:55px;color:#2563eb;font-size:10px">'+e.no+'</td>';
+    rows+='<td style="width:95px;color:#2563eb;font-size:10px;white-space:nowrap">'+e.no+'</td>';
     rows+='<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+(e.receipts&&e.receipts.length>0?'📎 ':'')+e.desc+(e.vendor?' <span style="color:#d97706;font-size:9px">['+e.vendor+']</span>':'')+'</td>';
     rows+='<td style="color:#2563eb">'+acctNm(e.dr)+'</td>';
     rows+='<td style="color:#dc2626">'+acctNm(e.cr)+'</td>';
@@ -1588,6 +1589,7 @@ function rFS(){
   '<div class="fr b tl"><span>영업외비용 합계</span><span class="m">'+fm(d.noeT)+'</span></div><div style="height:8px"></div>'+
   '<div class="fr b tl" style="color:#059669"><span>경상이익</span><span class="m">'+fm(d.oi)+'</span></div>'+
   '<div class="fr"><span>Ⅴ 법인세 등</span><span class="m">'+fm(d.ct)+'</span></div>'+
+    (d.ct!==d.estTax?'<div style="font-size:9px;color:#d97706;padding:2px 16px">※ 추정세액 '+fm(d.estTax)+' (법인세추정탭에서 전표 갱신 가능)</div>':'')+
   '<div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:16px;font-weight:700;border-top:3px solid #e2e6ed;margin-top:8px;background:#d1fae560;border-radius:0 0 6px 6px"><span>당기순이익</span><span style="color:'+(d.ni>=0?'#059669':'#dc2626')+'" class="m">'+fy(d.ni)+'</span></div>'+
   '<div class="ib" style="margin-top:8px;font-size:10px">💡 유가증권평가손·법인세는 보유종목 시가 기준 자동 반영됩니다</div>'+
   '</div></div>';
@@ -1993,7 +1995,7 @@ function go(p){
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));this.classList.add('on');
     const tc=document.getElementById('TC'),id=this.dataset.tab;if(!tc)return;
     if(cur==='sec'){if(id==='real')tc.innerHTML=rRealTab();else go('sec');}
-    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else go('fs');}
+    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📊 월별 비용분석</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else go('fs');}
   }));
 }
 
