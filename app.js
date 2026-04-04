@@ -375,6 +375,19 @@ function showDiag(){
   alert(info);
 }
 
+
+function showSyncModal(){
+  showModal('☁️ Firebase 동기화',
+    '<div style="text-align:center;padding:10px">'+
+    '<div style="font-size:12px;color:#64748b;margin-bottom:16px">'+(fbReady?'<span style="color:#059669">✅ Firebase 연결됨</span>':'<span style="color:#dc2626">❌ Firebase 미연결</span>')+'</div>'+
+    '<div style="display:flex;gap:12px;justify-content:center">'+
+    '<button class="bt" onclick="doFbUpload().then(()=>{closeModal();})" style="background:#d97706;padding:12px 24px;font-size:14px">📤 업로드<br><span style="font-size:10px">PC → 서버</span></button>'+
+    '<button class="bt" onclick="doFbDownload().then(()=>{closeModal();})" style="background:#2563eb;padding:12px 24px;font-size:14px">📥 다운로드<br><span style="font-size:10px">서버 → 이 기기</span></button>'+
+    '</div>'+
+    '<div style="font-size:10px;color:#94a3b8;margin-top:12px">마지막 저장: '+(D._lastSaved?D._lastSaved.slice(0,16):'없음')+'</div>'+
+    '</div>');
+}
+
 async function doFbUpload(){
   if(!fbReady){alert('Firebase가 연결되지 않았습니다.\n페이지를 새로고침하세요.');return;}
   try{
@@ -1527,8 +1540,7 @@ function rSet(){return `<div class="pt">설정</div>
     <button class="bt" onclick="importBackup()" style="background:#2563eb">📥 백업 가져오기</button>
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 PC에서 내보내기 → 휴대폰에서 가져오기로 동기화 가능</div></div>
-  <div class="sc"><h4>🔐 PIN 변경</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">앱 접근 시 사용하는 4자리 PIN을 변경합니다</div>
-  <button class="bt" onclick="changePin()">🔐 PIN 변경</button></div>
+  
   <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다</div>
   <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
 
