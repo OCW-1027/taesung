@@ -320,6 +320,7 @@ function renderTrendChart(period){
 const FB_DOC = 'taesung_main';
 const FB_COL = 'appdata';
 let fbReady = false;
+
 try{fbReady = typeof firebase !== 'undefined' && typeof db !== 'undefined' && db !== null;}catch(e){fbReady=false;}
 
 async function fbSave(){
@@ -388,6 +389,89 @@ function showSyncModal(){
     '</div>'+
     '<div style="font-size:10px;color:#94a3b8;margin-top:12px">마지막 저장: '+(D._lastSaved?D._lastSaved.slice(0,16):'없음')+'</div>'+
     '</div>');
+}
+
+
+// ===== 증빙 첨부 (base64) =====
+function compressImage(file,maxW,cb){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    if(file.type==='application/pdf'){
+      cb({data:e.target.result,name:file.name,type:file.type,size:file.size});return;
+    }
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      var canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      var ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      var data=canvas.toDataURL('image/jpeg',0.7);
+      cb({data:data,name:file.name,type:'image/jpeg',size:data.length});
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function attachReceipt(slipId){
+  var input=document.createElement('input');
+  input.type='file';
+  input.accept='image/*,.pdf';
+  input.capture='environment';
+  input.onchange=function(e){
+    var file=e.target.files[0];
+    if(!file)return;
+    if(file.size>10*1024*1024){alert('파일 크기는 10MB 이하만 가능합니다');return;}
+    toast('처리 중...','info');
+    compressImage(file,800,function(result){
+      if(result.size>500000&&result.type!=='application/pdf'){
+        // Re-compress smaller
+        compressImage(file,500,function(r2){doAttach(slipId,r2);});
+      }else{
+        doAttach(slipId,result);
+      }
+    });
+  };
+  input.click();
+}
+
+function doAttach(slipId,result){
+  var j=D.journals.find(function(x){return x.id===slipId;});
+  if(j){
+    if(!j.receipts)j.receipts=[];
+    j.receipts.push({name:result.name,data:result.data,type:result.type});
+    saveD();
+    toast('증빙 첨부 완료: '+result.name);
+    viewSlip(slipId);
+  }
+}
+
+function removeReceipt(slipId,idx){
+  if(!confirm('증빙을 삭제하시겠습니까?'))return;
+  var j=D.journals.find(function(x){return x.id===slipId;});
+  if(j&&j.receipts){
+    j.receipts.splice(idx,1);
+    saveD();
+    toast('증빙 삭제 완료');
+    viewSlip(slipId);
+  }
+}
+
+function viewReceipt(slipId,idx){
+  var j=D.journals.find(function(x){return x.id===slipId;});
+  if(!j||!j.receipts||!j.receipts[idx])return;
+  var r=j.receipts[idx];
+  if(r.data.startsWith('data:image')){
+    showModal('📎 '+r.name,'<div style="text-align:center"><img src="'+r.data+'" style="max-width:100%;max-height:70vh;border-radius:6px"></div>');
+  }else if(r.url){
+    window.open(r.url,'_blank');
+  }else{
+    // base64 PDF - open in new tab
+    var win=window.open();
+    win.document.write('<iframe src="'+r.data+'" style="width:100%;height:100%;border:none"></iframe>');
+  }
 }
 
 async function doFbUpload(){
@@ -1188,7 +1272,7 @@ function buildJrnTable(list){
     rows+='<tr class="'+(i%2?'a':'')+'" onclick="viewSlip('+e.id+')" style="cursor:pointer" onmouseenter="this.style.background=\'#f0f9ff\'" onmouseleave="this.style.background=\''+( i%2?'#f8f9fb':'')+'\'">';
     rows+='<td class="mu m" style="width:50px">'+e.dt+'</td>';
     rows+='<td style="width:55px;color:#2563eb;font-size:10px">'+e.no+'</td>';
-    rows+='<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+e.desc+(e.vendor?' <span style="color:#d97706;font-size:9px">['+e.vendor+']</span>':'')+'</td>';
+    rows+='<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+(e.receipts&&e.receipts.length>0?'📎 ':'')+e.desc+(e.vendor?' <span style="color:#d97706;font-size:9px">['+e.vendor+']</span>':'')+'</td>';
     rows+='<td style="color:#2563eb">'+acctNm(e.dr)+'</td>';
     rows+='<td style="color:#dc2626">'+acctNm(e.cr)+'</td>';
     rows+='<td class="r m b">'+fm(e.amt)+'</td></tr>';
