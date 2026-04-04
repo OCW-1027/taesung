@@ -845,7 +845,11 @@ function viewSlip(id){
     '</tbody></table>'+
     (j.vendor?'<div style="margin-top:8px;font-size:11px;color:#64748b">거래처: <b style="color:#d97706">'+j.vendor+'</b></div>':'')+(j.cur?'<div style="font-size:11px;color:#64748b">통화: '+j.cur+'</div>':'')+(j.taxCls?'<div style="font-size:11px;color:#64748b">소비세: '+j.taxCls+'</div>':'')+
     (j.exp?'<div style="font-size:11px;color:#64748b">원가구분: '+(j.exp==="s"?"판관비":j.exp==="c"?"매출원가":j.exp==="o"?"영업외":"특별")+'</div>':'')+
-    '<div style="margin-top:16px;display:flex;gap:8px;justify-content:space-between">'+
+    '<div style="margin-top:12px;border-top:1px solid #e2e6ed;padding-top:10px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:600">📎 증빙</span><button class="bt gh" style="font-size:10px" onclick="attachReceipt('+id+')">+ 첨부</button></div>'+
+    (j.receipts&&j.receipts.length>0?j.receipts.map(function(r,i){return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px"><span onclick="viewReceipt('+id+','+i+')" style="color:#2563eb;cursor:pointer">📄 '+r.name+'</span><button onclick="removeReceipt('+id+','+i+')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:10px">✕</button></div>';}).join(''):'<div style="font-size:10px;color:#94a3b8;padding:4px 0">첨부된 증빙 없음</div>')+
+    '</div>'+
+    '<div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between">'+
     '<button class="bt" style="background:#dc2626" onclick="delSlip('+id+')">🗑</button>'+
     '<div style="display:flex;gap:6px"><button class="bt" style="background:#d97706" onclick="copySlip('+id+')">📋 복사</button><button class="bt" onclick="editSlip('+id+')">✏️ 수정</button><button class="bt gh" onclick="closeModal()">닫기</button></div>'+
     '</div>');
@@ -1094,7 +1098,7 @@ function rSlip(){
     '</tbody></table>'+
     '<div style="margin-top:8px;display:flex;gap:6px"><button class="bt gh" style="font-size:10px" onclick="addSlipRow()">+ 행추가</button><button class="bt gh" style="font-size:10px" onclick="addAcct()">+ 과목추가</button><button class="bt gh" style="font-size:10px" onclick="manageVendors()">👤 거래처</button></div>'+
     '<div id="slipBal" style="margin-top:10px;padding:6px 10px;background:#fee2e2;border-radius:6px;font-size:11px;display:flex;justify-content:space-between"><span>차변: <b>0</b></span><span>대변: <b>0</b></span><span style="font-weight:700;color:#dc2626">✗ 불일치</span></div>'+
-    '<div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="bt" id="slipSubmit" style="background:#94a3b8" onclick="submitSlip()">승인·기표</button></div>'+
+    '<div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="bt" id="slipSubmit" style="background:#94a3b8" onclick="submitSlip()">전표생성</button></div>'+
   '</div>'+
   '<div class="pn" style="margin-top:16px"><div class="ph"><span>전표일람 ('+D.journals.length+'건)</span></div>'+
   '<div style="padding:8px 12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #e2e6ed">'+
