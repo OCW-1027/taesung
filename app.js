@@ -654,6 +654,32 @@ function filterByVendor(name){
   },200);
 }
 
+
+// ===== Expense Drill-down =====
+function expDrill(acctCode,mo){
+  var acct=D.accts.find(function(x){return x.c===acctCode;});
+  var acctName=acct?acct.k:acctCode;
+  var moNum=parseInt(mo);
+  var monthLabel=moNum+'월';
+  var matched=D.journals.filter(function(j){
+    var m=j.dt.match(/(\d+)\//);if(!m)return false;
+    var jmo=String(parseInt(m[1])).padStart(2,'0');
+    return jmo===mo&&(j.dr===acctCode||j.cr===acctCode);
+  });
+  var rows='';var total=0;
+  matched.forEach(function(j,i){
+    var amt=j.dr===acctCode?j.amt:-j.amt;
+    total+=amt;
+    rows+='<tr class="'+(i%2?'a':'')+'" onclick="closeModal();viewSlip('+j.id+')" style="cursor:pointer"><td class="mu">'+j.dt+'</td><td style="font-size:10px;color:#2563eb">'+j.no+'</td><td>'+j.desc+'</td><td class="r m">'+(amt>=0?'':'-')+fm(Math.abs(amt))+'</td></tr>';
+  });
+  if(matched.length===0) rows='<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">해당 내역 없음</td></tr>';
+  showModal('📊 '+acctName+' — '+monthLabel+' 상세',
+    '<div style="font-size:11px;color:#64748b;margin-bottom:8px">'+matched.length+'건 | 합계: '+fm(total)+'</div>'+
+    '<div style="max-height:400px;overflow-y:auto"><table><thead><tr><th>일자</th><th>전표</th><th>적요</th><th class="r">금액</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div style="font-size:9px;color:#94a3b8;margin-top:8px">전표를 클릭하면 상세보기로 이동합니다</div>'
+  );
+}
+
 function showExpenseTab(btn){
   document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on');});
   btn.classList.add('on');
@@ -788,7 +814,7 @@ function rExpenseAnalysis(){
     tableHtml+='<tr class="'+(i%2?'a':'')+'"><td style="white-space:nowrap">'+ac.k+'</td>';
     months.forEach(function(m){
       var v=acctMonthly[ac.c][m];
-      tableHtml+='<td class="r m">'+(v?fm(v):'')+'</td>';
+      tableHtml+='<td class="r m" '+(v?'style="cursor:pointer;color:#2563eb" onclick="expDrill(\''+ac.c+'\',\''+m+'\')">'+fm(v):'>')+' </td>';
     });
     tableHtml+='<td class="r m b">'+fm(ac.total)+'</td></tr>';
   });
