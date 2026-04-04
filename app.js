@@ -468,6 +468,85 @@ function saveMonthlyClose(){
   alert('월차 마감 저장 완료!\n'+key+'\n총자산: '+fm(c.totA)+'\n경상이익: '+fm(d.oi));
 }
 
+
+function updateTaxJournal(){
+  const d=dynamicFS();
+  const oi=d.oi;
+  // Same formula as rTxTab
+  const houjinzei=oi>0?Math.round(oi*0.15):0;
+  const chihou=Math.round(houjinzei*0.103);
+  const jigyou=oi>0?Math.round(oi*0.07):0;
+  const tokubetsu=Math.round(jigyou*0.37);
+  const tomin=Math.round(houjinzei*0.07);
+  const kintou=70000;
+  const newTax=houjinzei+chihou+jigyou+tokubetsu+tomin+kintou;
+  const currentTax=acctBal('550');
+  
+  const info='법인세 전표 갱신\n\n'+
+    '현재 전표: '+fm(currentTax)+'\n'+
+    '추정 세액: '+fm(newTax)+'\n'+
+    '차이: '+fm(newTax-currentTax)+'\n\n';
+  
+  if(newTax===currentTax){alert('조정 불필요 (동일 금액)');return;}
+  
+  // Find existing 550 journal
+  const existing=D.journals.find(j=>j.dr==='550'||j.cr==='550');
+  
+  if(existing && confirm(info+'기존 법인세 전표('+existing.no+')를 갱신하시겠습니까?')){
+    existing.amt=newTax;
+    existing.desc='법인세등 (추정갱신 '+new Date().toISOString().slice(0,10)+')';
+    saveD();
+    alert('✅ 법인세 전표 갱신 완료: '+fm(newTax));
+    go('fs');
+  } else if(!existing && confirm(info+'법인세 전표가 없습니다. 새로 생성하시겠습니까?')){
+    D.journals.push({id:nid(),dt:todayStr(),no:'TAX'+String(D.journals.length+1).padStart(2,'0'),desc:'법인세등 (추정)',dr:'550',cr:'205',amt:newTax});
+    saveD();
+    alert('✅ 법인세 전표 생성 완료: '+fm(newTax));
+    go('fs');
+  }
+}
+
+
+function rVendorSummary(){
+  const summary={};
+  D.journals.forEach(j=>{
+    const v=j.vendor||'(미지정)';
+    if(!summary[v])summary[v]={count:0,drTotal:0,crTotal:0,accounts:new Set()};
+    summary[v].count++;
+    summary[v].drTotal+=j.amt;
+    summary[v].accounts.add(j.dr);
+    summary[v].accounts.add(j.cr);
+  });
+  const sorted=Object.entries(summary).sort((a,b)=>b[1].drTotal-a[1].drTotal);
+  let rows='';
+  sorted.forEach(([name,s],i)=>{
+    rows+='<tr class="'+(i%2?'a':'')+'" style="cursor:pointer" onclick="filterByVendor(\''+name.replace(/'/g,"\\'")+'\')">';
+    rows+='<td><b>'+name+'</b></td>';
+    rows+='<td class="r m">'+s.count+'건</td>';
+    rows+='<td class="r m">'+fm(s.drTotal)+'</td>';
+    rows+='<td class="mu" style="font-size:10px">'+ [...s.accounts].filter(a=>a).slice(0,4).map(a=>{const ac=D.accts.find(x=>x.c===a);return ac?ac.k:a;}).join(', ')+'</td>';
+    rows+='</tr>';
+  });
+  return '<table><thead><tr><th>거래처</th><th class="r">전표수</th><th class="r">거래총액</th><th>관련 계정</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function filterByVendor(name){
+  go('jrn');
+  setTimeout(function(){
+    var sel=document.getElementById('jrn_vendor');
+    if(sel){
+      // Find matching option
+      for(var i=0;i<sel.options.length;i++){
+        if(sel.options[i].value===name){sel.selectedIndex=i;break;}
+      }
+      // Also try search
+      var search=document.getElementById('jrn_search');
+      if(search&&name!=='(미지정)') search.value=name;
+      filterJrn();
+    }
+  },200);
+}
+
 function showMonthlyTab(btn){
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
   btn.classList.add('on');
@@ -514,9 +593,9 @@ function realNm(r){return LANG==='ja'?(r.ja||r.nm):r.nm;}
 
 // ===== CRUD & PAGES =====
 function addBkIn(){showModal('입금 내역추가',`<div class="fg"><div><label>날짜</label><input type="date" id="f_dt"></div><div><label>구분</label><input id="f_cat" placeholder="구분(내역)"></div><div><label>분류</label><select id="f_type"><option value="income">수익</option><option value="capital">자본금</option><option value="loan">차입금 (부채)</option><option value="sec">증권이체</option></select></div><div><label>금액 (엔)</label><input type="number" id="f_amt" placeholder="0"></div><div style="display:flex;gap:8px;justify-content:flex-end;align-items:end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt gn" onclick="doAddBkIn()">추가</button></div></div>`);}
-function doAddBkIn(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value),type=document.getElementById('f_type').value;if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkIn.push({id:nid(),dt,cat,amt,type});saveD();closeModal();go('bank');}
+function doAddBkIn(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value),type=document.getElementById('f_type').value;if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkIn.push({id:nid(),dt,cat,amt,type});saveD();closeModal();alert('✅ 입금 내역 추가 완료');go('bank');}
 function addBkOut(){showModal('출금 내역추가',`<div class="fg"><div><label>날짜</label><input type="date" id="f_dt"></div><div><label>구분</label><input id="f_cat" placeholder="구분(내역)"></div><div><label>분류</label><select id="f_type"><option value="expense">경비</option><option value="sec">증권이체</option><option value="loan">차입금상환 (부채)</option><option value="other">기타</option></select></div><div><label>금액 (엔)</label><input type="number" id="f_amt" placeholder="0"></div><div style="display:flex;gap:8px;justify-content:flex-end;align-items:end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt rd" onclick="doAddBkOut()">추가</button></div></div>`);}
-function doAddBkOut(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value),type=document.getElementById('f_type').value;if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkOut.push({id:nid(),dt,cat,amt,type});saveD();closeModal();go('bank');}
+function doAddBkOut(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value),type=document.getElementById('f_type').value;if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkOut.push({id:nid(),dt,cat,amt,type});saveD();closeModal();alert('✅ 출금 내역 추가 완료');go('bank');}
 function delBk(type,id){if(!confirm('삭제하시겠습니까?'))return;if(type==='in')D.bkIn=D.bkIn.filter(x=>x.id!==id);else D.bkOut=D.bkOut.filter(x=>x.id!==id);saveD();go('bank');}
 
 // ===== CRUD: Securities Holdings =====
@@ -591,7 +670,7 @@ function doEditHoldJP(id){
   h.manual=document.getElementById('f_man').checked;
   if(h.manual){h.mv=+document.getElementById('f_mv').value;}
   else{h.mv=h.sh*h.cp;}
-  saveD();closeModal();go('sec');
+  saveD();closeModal();alert('✅ 종목 수정 완료');go('sec');
 }
 function editHoldUS(id){
   const h=D.holdUS.find(x=>x.id===id);if(!h)return;
@@ -626,7 +705,7 @@ function doEditHoldUS(id){
   h.manual=document.getElementById('f_man').checked;
   if(h.manual){h.mv=+document.getElementById('f_mv').value;}
   else{h.mv=Math.round(h.sh*h.cpUsd*h.rate);}
-  saveD();closeModal();go('sec');
+  saveD();closeModal();alert('✅ 종목 수정 완료');go('sec');
 }
 function editReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;showModal('수익실현 수정 ('+r.tk+')',
   '<div class="fg">'+
@@ -827,7 +906,7 @@ function applyPrices(){
 function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend','<tr id="sr_'+id+'"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%">'+acctOptions()+'</select></td><td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td><td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="과세10%">과세10%</option><option value="경감8%">경감8%</option><option value="비과세">비과세</option><option value="불과세">불과세</option></select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td><button class="del" onclick="document.getElementById(\'sr_'+id+'\').remove();updSlipBal()">✕</button></td></tr>');}
 function acctOptions(){return '<option value="">--</option>'+["자산","부채","순자산","수익","비용"].map(g=>`<optgroup label="${g}">${D.accts.filter(a=>a.g===g).map(a=>`<option value="${a.c}">${a.c} ${a.k}</option>`).join('')}</optgroup>`).join('');}
 function updSlipBal(){let dr=0,cr=0;document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,a=+(r.querySelector('.sl_amt').value)||0;if(s==='dr')dr+=a;else cr+=a;});const ok=dr===cr&&dr>0;document.getElementById('slipBal').innerHTML='<span>차변: <b>'+fm(dr)+'</b></span><span>대변: <b>'+fm(cr)+'</b></span><span style="font-weight:700;color:'+(ok?'#059669':'#dc2626')+'">'+(ok?'✓ 차대일치':'✗ 불일치')+'</span>';document.getElementById('slipSubmit').style.background=ok?'#059669':'#94a3b8';}
-function submitSlip(){var vsel=document.getElementById("sl_vendor_sel"),vinp=document.getElementById("sl_vendor_inp");var vendor=(vsel&&vsel.value)?vsel.value:(vinp?vinp.value:"");if(vendor)addVendor(vendor);let dr=0,cr=0;const rows=[];document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,ac=r.querySelector('.sl_acct').value,a=+(r.querySelector('.sl_amt').value)||0,exp=r.querySelector('.sl_exp')?.value||'',taxr=r.querySelector('.sl_taxr')?.value||'0';var txC=r.querySelector('.sl_taxcls');var taxCls=txC?txC.value:'';if(ac&&a>0){rows.push({side:s,ac,amt:a,exp,taxr,taxCls});if(s==='dr')dr+=a;else cr+=a;}});if(dr!==cr||dr===0)return alert('차대가 일치하지 않습니다');const edt=document.getElementById('sl_edt').value,pdt=document.getElementById('sl_pdt').value,desc=document.getElementById('sl_desc').value,cur=document.getElementById('sl_cur').value;const mo=edt.split('-')[1]||'01';const dt=mo+'/'+edt.split('-')[2];const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);var tC=d.taxCls||c.taxCls||'';if(window._editSlipId){var ej=D.journals.find(x=>x.id===window._editSlipId);if(ej){ej.dt=dt;ej.desc=desc;ej.dr=d.ac;ej.cr=c.ac;ej.amt=amt;ej.edt=edt;ej.pdt=pdt;ej.cur=cur;ej.exp=d.exp||c.exp;ej.vendor=vendor;ej.taxCls=tC;}window._editSlipId=null;}else{D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,edt,pdt,cur,exp:d.exp||c.exp,vendor:vendor,taxCls:tC});}});});saveD();go('slip');}
+function submitSlip(){var vsel=document.getElementById("sl_vendor_sel"),vinp=document.getElementById("sl_vendor_inp");var vendor=(vsel&&vsel.value)?vsel.value:(vinp?vinp.value:"");if(vendor)addVendor(vendor);let dr=0,cr=0;const rows=[];document.querySelectorAll('#slipRows tr').forEach(r=>{const s=r.querySelector('.sl_side').value,ac=r.querySelector('.sl_acct').value,a=+(r.querySelector('.sl_amt').value)||0,exp=r.querySelector('.sl_exp')?.value||'',taxr=r.querySelector('.sl_taxr')?.value||'0';var txC=r.querySelector('.sl_taxcls');var taxCls=txC?txC.value:'';if(ac&&a>0){rows.push({side:s,ac,amt:a,exp,taxr,taxCls});if(s==='dr')dr+=a;else cr+=a;}});if(dr!==cr||dr===0)return alert('차대가 일치하지 않습니다');const edt=document.getElementById('sl_edt').value,pdt=document.getElementById('sl_pdt').value,desc=document.getElementById('sl_desc').value,cur=document.getElementById('sl_cur').value;const mo=edt.split('-')[1]||'01';const dt=mo+'/'+edt.split('-')[2];const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);var tC=d.taxCls||c.taxCls||'';if(window._editSlipId){var ej=D.journals.find(x=>x.id===window._editSlipId);if(ej){ej.dt=dt;ej.desc=desc;ej.dr=d.ac;ej.cr=c.ac;ej.amt=amt;ej.edt=edt;ej.pdt=pdt;ej.cur=cur;ej.exp=d.exp||c.exp;ej.vendor=vendor;ej.taxCls=tC;}window._editSlipId=null;}else{D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,edt,pdt,cur,exp:d.exp||c.exp,vendor:vendor,taxCls:tC});}});});saveD();alert('✅ 전표 기표 완료 ('+desc+')');go('slip');}
 function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="자산">자산</option><option value="부채">부채</option><option value="순자산">순자산</option><option value="수익">수익</option><option value="비용">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
 function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');D.accts.push({c,n,k,g});saveD();closeModal();go('slip');}
 
@@ -1038,7 +1117,8 @@ function rJrn(){
   // Build year-month selector
   const ymOpts=sortedYMs.map(ym=>'<option value="'+ym+'">'+ym+'</option>').join('');
 
-  return '<div class="pt">전표조회</div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">전표조회</div><button class="bt gh" onclick="document.getElementById(\'vendorSummary\').classList.toggle(\'hidden\')" style="font-size:11px">👤 거래처별 집계</button></div>'+
+    '<div id="vendorSummary" class="hidden"><div class="pn" style="margin-bottom:10px;padding:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">👤 거래처별 집계</div>'+rVendorSummary()+'</div></div>'+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">'+
     '<span style="font-size:12px;font-weight:600">회기:</span>'+
     '<select id="jrn_ki" onchange="onKiChange()" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">'+
@@ -1728,6 +1808,7 @@ function rTxTab(){
     '<div style="height:10px"></div>'+
     '<div class="ib" style="font-size:9px">💡 참고용 추정치입니다. 실제 세액은 세무사 확인이 필요합니다.<br>'+
     '사업세는 손금산입 가능하나 여기서는 미반영. 결손금 이월공제 미반영.</div>'+
+    '<div style="margin-top:12px"><button class="bt" onclick="updateTaxJournal()" style="background:#dc2626">📋 이 금액으로 법인세 전표 갱신</button></div>'+
     '</div>';
 }
 
