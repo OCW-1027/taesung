@@ -463,14 +463,19 @@ function viewReceipt(slipId,idx){
   var j=D.journals.find(function(x){return x.id===slipId;});
   if(!j||!j.receipts||!j.receipts[idx])return;
   var r=j.receipts[idx];
-  if(r.data.startsWith('data:image')){
-    showModal('📎 '+r.name,'<div style="text-align:center"><img src="'+r.data+'" style="max-width:100%;max-height:70vh;border-radius:6px"></div>');
-  }else if(r.url){
-    window.open(r.url,'_blank');
-  }else{
-    // base64 PDF - open in new tab
+  if(r.data&&r.data.startsWith('data:image')){
+    // Show overlay on top of modal (not replacing it)
+    var ov=document.createElement('div');
+    ov.id='receiptOverlay';
+    ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:11000;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer';
+    ov.innerHTML='<div style="color:#fff;font-size:12px;margin-bottom:8px">📎 '+r.name+' <span style="font-size:10px;color:#94a3b8">(탭하여 닫기)</span></div><img src="'+r.data+'" style="max-width:90%;max-height:80vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.3)">';
+    ov.onclick=function(){ov.remove();};
+    document.body.appendChild(ov);
+  }else if(r.data&&r.data.startsWith('data:application/pdf')){
     var win=window.open();
     win.document.write('<iframe src="'+r.data+'" style="width:100%;height:100%;border:none"></iframe>');
+  }else if(r.url){
+    window.open(r.url,'_blank');
   }
 }
 
@@ -1026,7 +1031,7 @@ const edt=document.getElementById('sl_edt').value,pdt=document.getElementById('s
   if(!vendor.trim())return alert('거래처를 입력하세요');
   // Check all rows have 원가구분
   var missingExp=rows.some(r=>!r.exp);
-  if(missingExp)return alert('모든 행에 원가구분을 선택하세요');const mo=edt.split('-')[1]||'01';const dt=mo+'/'+edt.split('-')[2];const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);var tC=d.taxCls||c.taxCls||'';if(window._editSlipId){var ej=D.journals.find(x=>x.id===window._editSlipId);if(ej){ej.dt=dt;ej.desc=desc;ej.dr=d.ac;ej.cr=c.ac;ej.amt=amt;ej.edt=edt;ej.pdt=pdt;ej.cur=cur;ej.exp=d.exp||c.exp;ej.vendor=vendor;ej.taxCls=tC;}window._editSlipId=null;}else{D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,edt,pdt,cur,exp:d.exp||c.exp,vendor:vendor,taxCls:tC});}});});saveD();toast('전표 기표 완료: '+desc);go('slip');window.scrollTo(0,0);}
+  if(missingExp)return alert('모든 행에 원가구분을 선택하세요');const mo=edt.split('-')[1]||'01';const dt=mo+'/'+edt.split('-')[2];const no='S'+String(D.journals.length+1).padStart(4,'0');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);var tC=d.taxCls||c.taxCls||'';if(window._editSlipId){var ej=D.journals.find(x=>x.id===window._editSlipId);if(ej){ej.dt=dt;ej.desc=desc;ej.dr=d.ac;ej.cr=c.ac;ej.amt=amt;ej.edt=edt;ej.pdt=pdt;ej.cur=cur;ej.exp=d.exp||c.exp;ej.vendor=vendor;ej.taxCls=tC;}window._editSlipId=null;}else{D.journals.push({id:nid(),dt,no,desc,dr:d.ac,cr:c.ac,amt,edt,pdt,cur,exp:d.exp||c.exp,vendor:vendor,taxCls:tC});}});});if(!confirm('전표를 생성하시겠습니까?\n\n적요: '+desc+'\n금액: '+fm(dr)))return;saveD();toast('전표 생성 완료: '+desc);go('slip');window.scrollTo(0,0);}
 function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="자산">자산</option><option value="부채">부채</option><option value="순자산">순자산</option><option value="수익">수익</option><option value="비용">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
 function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');if(D.accts.find(x=>x.c===c))return alert('이미 존재하는 코드입니다');var newAcct={c,n,k,g};D.accts.push(newAcct);if(!D.customAccts)D.customAccts=[];D.customAccts.push(newAcct);saveD();closeModal();toast('계정과목 추가: '+c+' '+k);go('slip');}
 
