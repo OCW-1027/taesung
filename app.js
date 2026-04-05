@@ -582,10 +582,15 @@ function saveMonthlyClose(){
 function updateTaxJournal(){
   const d=dynamicFS();
   const oi=d.oi;
-  // Same formula as rTxTab
+  // Progressive business tax (same as rTxTab)
   const houjinzei=oi>0?Math.round(oi*0.15):0;
   const chihou=Math.round(houjinzei*0.103);
-  const jigyou=oi>0?Math.round(oi*0.07):0;
+  var jigyou=0;
+  if(oi>0){
+    if(oi<=4000000) jigyou=Math.round(oi*0.035);
+    else if(oi<=8000000) jigyou=Math.round(4000000*0.035+(oi-4000000)*0.053);
+    else jigyou=Math.round(4000000*0.035+4000000*0.053+(oi-8000000)*0.07);
+  }
   const tokubetsu=Math.round(jigyou*0.37);
   const tomin=Math.round(houjinzei*0.07);
   const kintou=70000;
@@ -599,19 +604,19 @@ function updateTaxJournal(){
   
   if(newTax===currentTax){alert('조정 불필요 (동일 금액)');return;}
   
-  // Find existing 550 journal
-  const existing=D.journals.find(j=>j.dr==='550'||j.cr==='550');
+  // Find existing 550 journal (dr=550)
+  const existing=D.journals.find(j=>j.dr==='550');
   
   if(existing && confirm(info+'기존 법인세 전표('+existing.no+')를 갱신하시겠습니까?')){
     existing.amt=newTax;
     existing.desc='법인세등 (추정갱신 '+new Date().toISOString().slice(0,10)+')';
     saveD();
-    alert('✅ 법인세 전표 갱신 완료: '+fm(newTax));
+    toast('법인세 전표 갱신 완료: '+fm(newTax));
     go('fs');
   } else if(!existing && confirm(info+'법인세 전표가 없습니다. 새로 생성하시겠습니까?')){
-    D.journals.push({id:nid(),dt:todayStr(),no:'TAX'+String(D.journals.length+1).padStart(2,'0'),desc:'법인세등 (추정)',dr:'550',cr:'205',amt:newTax});
+    D.journals.push({id:nid(),dt:todayStr(),no:'TAX01',desc:'법인세등 (추정)',dr:'550',cr:'205',amt:newTax});
     saveD();
-    alert('✅ 법인세 전표 생성 완료: '+fm(newTax));
+    toast('법인세 전표 생성 완료: '+fm(newTax));
     go('fs');
   }
 }
