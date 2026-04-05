@@ -174,7 +174,10 @@ function dynamicFS(){
   // Use journal tax if exists, otherwise estimate
   const journalCt=acctBal('550');
   // Detailed tax: 법인세15%+지방법인세10.3%+사업세7%+특별사업세37%+도민세7%+균등할7만
-  const estTax=oi>0?Math.round(oi*0.15)+Math.round(Math.round(oi*0.15)*0.103)+Math.round(oi*0.07)+Math.round(Math.round(oi*0.07)*0.37)+Math.round(Math.round(oi*0.15)*0.07)+70000:0;
+  // Progressive business tax
+  var estJigyou=0;
+  if(oi>0){if(oi<=4000000)estJigyou=Math.round(oi*0.035);else if(oi<=8000000)estJigyou=Math.round(4000000*0.035+(oi-4000000)*0.053);else estJigyou=Math.round(4000000*0.035+4000000*0.053+(oi-8000000)*0.07);}
+  const estTax=oi>0?Math.round(oi*0.15)+Math.round(Math.round(oi*0.15)*0.103)+estJigyou+Math.round(estJigyou*0.37)+Math.round(Math.round(oi*0.15)*0.07)+70000:0;
   const ct=journalCt>0?journalCt:estTax;
   const estTaxVal=estTax;
   const ni=oi-ct;
@@ -2060,7 +2063,13 @@ function rTxTab(){
   // Japan corporate tax structure for small company (자본금 1억이하, 소득800만이하)
   const houjinzei=oi>0?Math.round(oi*0.15):0; // 법인세 15% (800만이하)
   const chihou_houjin=Math.round(houjinzei*0.103); // 지방법인세 10.3%
-  const jigyouzei=oi>0?Math.round(oi*0.07):0; // 사업세 7% (표준세율)
+  // 사업세: 누진세율 (자본금1억이하, 3단계)
+  var jigyouzei=0;
+  if(oi>0){
+    if(oi<=4000000) jigyouzei=Math.round(oi*0.035);
+    else if(oi<=8000000) jigyouzei=Math.round(4000000*0.035+(oi-4000000)*0.053);
+    else jigyouzei=Math.round(4000000*0.035+4000000*0.053+(oi-8000000)*0.07);
+  }
   const tokubetsu_jigyou=Math.round(jigyouzei*0.37); // 특별법인사업세 37%
   const touminzei=Math.round(houjinzei*0.07); // 도민세(법인세할) 7%
   const kintou=70000; // 균등할 7만엔 (도쿄도 최저)
@@ -2078,7 +2087,8 @@ function rTxTab(){
     '<div class="fr i"><span>지방법인세 (법인세×10.3%)</span><span class="m">'+fm(chihou_houjin)+'</span></div>'+
     '<div style="height:6px"></div>'+
     '<div class="fr h" style="color:#d97706"><span>② 도도부현세 (도쿄도)</span></div>'+
-    '<div class="fr i"><span>법인사업세 (7%)</span><span class="m">'+fm(jigyouzei)+'</span></div>'+
+    '<div class="fr i"><span>법인사업세 (누진: 3.5%/5.3%/7%)</span><span class="m">'+fm(jigyouzei)+'</span></div>'+
+    '<div class="fr i" style="font-size:10px;color:#64748b"><span>　※400万以下3.5% / 400~800万5.3% / 800万超7%</span></div>'+
     '<div class="fr i"><span>특별법인사업세 (사업세×37%)</span><span class="m">'+fm(tokubetsu_jigyou)+'</span></div>'+
     '<div class="fr i"><span>법인도민세 (법인세×7%)</span><span class="m">'+fm(touminzei)+'</span></div>'+
     '<div class="fr i"><span>균등할 (도쿄도 최저)</span><span class="m">'+fm(kintou)+'</span></div>'+
@@ -2088,6 +2098,15 @@ function rTxTab(){
     '<div style="height:10px"></div>'+
     '<div class="ib" style="font-size:9px">💡 참고용 추정치입니다. 실제 세액은 세무사 확인이 필요합니다.<br>'+
     '사업세는 손금산입 가능하나 여기서는 미반영. 결손금 이월공제 미반영.</div>'+
+    '<div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e6ed;border-radius:6px;font-size:10px">'+
+    '<div style="font-weight:600;margin-bottom:6px">📋 법인사업세 누진세율 (자본금1억이하)</div>'+
+    '<table style="font-size:10px;width:100%"><thead><tr><th style="text-align:left">과세소득</th><th style="text-align:right">세율</th></tr></thead><tbody>'+
+    '<tr><td>400만엔 이하</td><td style="text-align:right">3.5%</td></tr>'+
+    '<tr><td>400만~800만엔</td><td style="text-align:right">5.3%</td></tr>'+
+    '<tr><td>800만엔 초과</td><td style="text-align:right">7.0%</td></tr>'+
+    '</tbody></table>'+
+    '<div style="margin-top:6px;color:#64748b">※ 특별법인사업세: 사업세 × 37%<br>※ 방위특별법인세: 2026.04.01 이후 개시 사업연도부터 (1기 해당없음)</div>'+
+    '</div>'+
     '<div style="margin-top:12px"><button class="bt" onclick="updateTaxJournal()" style="background:#dc2626">📋 이 금액으로 법인세 전표 갱신</button></div>'+
     '</div>';
 }
