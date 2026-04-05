@@ -835,6 +835,20 @@ function rExpenseAnalysis(){
   return chartHtml+pieHtml+tableHtml;
 }
 
+
+// ===== One-time ADJ fix =====
+function fixAdjEntries(){
+  var fixed=0;
+  D.journals.forEach(function(j){
+    if(j.no==='ADJ01'){j.dt='9/18';j.no='S0671';j.desc='IPO증거금 증권이체';fixed++;}
+    if(j.no==='ADJ02'){j.dt='3/18';j.no='S0900';j.desc='매수수수료 취득원가 반영(보유종목분)';fixed++;}
+    if(j.no==='ADJ03'){j.dt='3/18';j.no='S0901';j.desc='유가증권 취득원가 정정(수수료분)';fixed++;}
+    if(j.no==='ADJ04'){j.dt='3/9';j.no='S0902';j.desc='매각이익 반올림 조정';fixed++;}
+  });
+  if(fixed>0){saveD();toast(fixed+'건 조정전표 정정 완료');go('jrn');}
+  else{toast('수정할 조정전표가 없습니다','info');}
+}
+
 // ===== Toast Notification =====
 function toast(msg,type){
   type=type||'success';
@@ -2129,6 +2143,8 @@ function cP(v){let{d,p,o,f}=cS;if(v==='C'){d="0";p=null;o=null;f=true;}else if([
 
 document.addEventListener('DOMContentLoaded',function(){
   go('dash');updateNavLabels();
+  // Auto-fix ADJ entries
+  if(D.journals.some(function(j){return j.no&&j.no.startsWith('ADJ');})){fixAdjEntries();}
   document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
   const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
   const kd=document.getElementById('cK');
