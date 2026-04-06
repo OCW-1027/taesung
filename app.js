@@ -1518,24 +1518,24 @@ function autoEvalAdjust(){
   const diff=marketEvalLoss-journalEvalLoss;
   
   if(diff===0){
-    alert('조정 불필요\n\n전표 평가손: '+fm(journalEvalLoss)+'\n시가 평가손: '+fm(marketEvalLoss)+'\n\n차이: 0');
+    alert('조정 불필요\n\n전표 평가손익: '+fm(journalEvalLoss)+'\n시가 평가손익: '+fm(marketEvalLoss)+'\n\n차이: 0');
     return;
   }
   
-  const info='평가손 조정전표 생성\n\n'+
+  const info='평가손익 조정전표 생성\n\n'+
     '전표상 평가손: '+fm(journalEvalLoss)+'\n'+
-    '시가기준 평가손: '+fm(marketEvalLoss)+'\n'+
+    '시가기준 평가손익: '+fm(marketEvalLoss)+'\n'+
     '조정액: '+fm(Math.abs(diff))+'\n\n';
   
   if(diff>0){
     // 평가손 증가: DR 유가증권평가손(542) / CR 유가증권(130)
     if(!confirm(info+'평가손 증가 → 전표 생성:\n차변: 유가증권평가손(542) '+fm(diff)+'\n대변: 유가증권(130) '+fm(diff)+'\n\n생성하시겠습니까?'))return;
-    D.journals.push({id:nid(),dt:todayStr(),no:'ADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 유가증권평가손 추가인식',dr:'542',cr:'130',amt:diff});
+    D.journals.push({id:nid(),dt:todayStr(),no:'ADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 유가증권평가손익 추가인식',dr:'542',cr:'130',amt:diff});
   } else {
     // 평가손 감소(환입): DR 유가증권(130) / CR 유가증권평가손(542)
     var absDiff=Math.abs(diff);
     if(!confirm(info+'평가손 감소(환입) → 전표 생성:\n차변: 유가증권(130) '+fm(absDiff)+'\n대변: 유가증권평가손(542) '+fm(absDiff)+'\n\n생성하시겠습니까?'))return;
-    D.journals.push({id:nid(),dt:todayStr(),no:'ADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 유가증권평가손 환입',dr:'130',cr:'542',amt:absDiff});
+    D.journals.push({id:nid(),dt:todayStr(),no:'ADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 유가증권평가손익 환입',dr:'130',cr:'542',amt:absDiff});
   }
   saveD();
   alert('조정전표 생성 완료!\n전표조회에서 확인하세요.');
@@ -1551,7 +1551,7 @@ function rSec(){const c=calc();const jpT=c.jpMv;
   return `<div class="pt">유가증권</div>
   <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
   <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span><button class="bt" onclick="saveDeposit()" style="font-size:10px;padding:3px 10px">💾 저장</button></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정 (평가손익전표)</button></div>
   <div id="TC">
   <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
     <thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">수수료</th><th class="r">취득원가</th><th class="r">BEP</th><th class="r">현재가</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th><th></th></tr></thead>
@@ -1823,6 +1823,7 @@ function rSet(){return `<div class="pt">설정</div>
   <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 자동 동기화: 전표 저장 시 자동으로 서버에 업로드됩니다</div><button class="bt gh" onclick="showDiag()" style="font-size:9px;margin-top:6px">🔍 데이터 진단</button></div></div>
   <div class="sc"><h4>📅 월차 마감</h4>
   <div style="font-size:11px;color:#64748b;margin-bottom:8px">현재 재무상태를 월별로 저장합니다. 매월 말에 실행하세요.</div>
+  <div style="font-size:10px;color:#d97706;margin-bottom:8px;background:#fffbeb;padding:6px 10px;border-radius:4px">⚠️ 결산(5월) 시 유가증권 → 📋 결산조정(평가손익전표) 버튼으로 평가손익 전표를 반드시 생성하세요</div>
   <button class="bt" onclick="saveMonthlyClose()" style="background:#7c3aed">📅 이번 달 마감 저장</button></div>
   <div class="sc"><h4>💾 데이터 백업 / 복원</h4>
   <div style="font-size:11px;color:#64748b;margin-bottom:10px">다른 기기로 데이터를 이동하거나 백업할 수 있습니다</div>
@@ -2153,6 +2154,9 @@ document.addEventListener('DOMContentLoaded',function(){
     if(j.dr==='570'){j.dr='520';reclass++;}
   });
   if(reclass>0){saveD();toast(reclass+'건 계정 재분류 완료 (→여비교통비)');go('dash');}
+  // Auto-delete S0400 (평가손 전표 → 결산 시 생성으로 변경)
+  var s0400=D.journals.findIndex(function(j){return j.no==='S0400';});
+  if(s0400>=0){D.journals.splice(s0400,1);saveD();toast('평가손익 전표(S0400) 삭제 → 결산 시 생성으로 변경');}
   document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
   const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
   const kd=document.getElementById('cK');
