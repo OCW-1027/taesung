@@ -1376,11 +1376,12 @@ function showGLDetail(code){
   D.journals.filter(j=>j.dr===code||j.cr===code).forEach(j=>{
     const isDr=j.dr===code;const dr=isDr?j.amt:0;const cr=isDr?0:j.amt;
     bal+=isDb?(dr-cr):(cr-dr);
-    entries.push({dt:j.dt,no:j.no,desc:j.desc,dr,cr,bal});
+    entries.push({id:j.id,dt:j.dt,no:j.no,desc:j.desc,dr,cr,bal});
   });
-  showModal(`【${a.k}】 원장 (잔액: ${fy(bal)})`,`
-    <table><thead><tr><th>날짜</th><th>전표</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th class="r">잔액</th></tr></thead>
-    <tbody>${entries.map((e,i)=>`<tr class="${i%2?'a':''}"><td class="mu m">${e.dt}</td><td class="bl">${e.no}</td><td>${e.desc||''}</td><td class="r m">${e.dr?fm(e.dr):''}</td><td class="r m">${e.cr?fm(e.cr):''}</td><td class="r m b">${fm(e.bal)}</td></tr>`).join('')}</tbody></table>`);
+  showModal(`【${a.k}】 ${code} (${a.g}) — 残高: ${fm(bal)}円`,`
+    <div style="max-height:500px;overflow-y:auto"><table><thead><tr><th>日付</th><th>伝票</th><th>摘要</th><th class="r">借方</th><th class="r">貸方</th><th class="r">残高</th></tr></thead>
+    <tbody>${entries.map((e,i)=>`<tr class="${i%2?'a':''}" onclick="closeModal();viewSlip(${e.id})" style="cursor:pointer" onmouseenter="this.style.background='#f0f9ff'" onmouseleave="this.style.background='${i%2?'#f8f9fb':''}'"><td class="mu m">${e.dt}</td><td style="color:#2563eb;font-size:10px">${e.no}</td><td>${e.desc||''}</td><td class="r m">${e.dr?fm(e.dr):''}</td><td class="r m">${e.cr?fm(e.cr):''}</td><td class="r m b">${fm(e.bal)}</td></tr>`).join('')}</tbody></table></div>
+    <div style="font-size:9px;color:#94a3b8;margin-top:6px">전표를 클릭하면 상세보기로 이동합니다</div>`);
 }
 
 // ===== PAGES =====
@@ -2145,6 +2146,13 @@ document.addEventListener('DOMContentLoaded',function(){
   go('dash');updateNavLabels();
   // Auto-fix ADJ entries
   if(D.journals.some(function(j){return j.no&&j.no.startsWith('ADJ');})){fixAdjEntries();}
+  // Auto-fix 531/570→520 reclassification
+  var reclass=0;
+  D.journals.forEach(function(j){
+    if(j.dr==='531'&&j.desc!=='コバヤシタイヤ'){j.dr='520';reclass++;}
+    if(j.dr==='570'){j.dr='520';reclass++;}
+  });
+  if(reclass>0){saveD();toast(reclass+'건 계정 재분류 완료 (→여비교통비)');go('dash');}
   document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
   const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
   const kd=document.getElementById('cK');
