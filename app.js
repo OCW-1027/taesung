@@ -1618,7 +1618,7 @@ function rFS(){
   const noi=D.accts.filter(ac=>ac.g==='수익').map(ac=>({nm:ac.k,a:acctBal(ac.c)})).filter(x=>x.a!==0);
   // NOE
   const noe=[
-    {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"보유종목 시가기준 자동반영"},
+    {nm:"유가증권평가손익(미실현)",a:d.evalLoss,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"},
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
