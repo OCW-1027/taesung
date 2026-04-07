@@ -1435,7 +1435,7 @@ function rGL(){
     <span id="gl_info" style="font-size:11px;color:#64748b">${D.journals.length}건</span>
   </div>
   <div id="glBody">
-  <div class="ib">💡 전표 \${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
+  <div class="ib">💡 전표 ${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
   ${["자산","부채","순자산","수익","비용"].filter(g=>groups[g]).map(g=>`
     <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:6px;padding:3px 8px;background:#dbeafe;border-radius:5px;display:inline-block">${g}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px">
