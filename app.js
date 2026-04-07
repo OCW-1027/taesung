@@ -2335,7 +2335,7 @@ function rCashFlow(){
     var t=d.type||cfGuessType(d,'in');
     if(t==='income') cfData[mo].opIn+=d.amt;
     else if(t==='capital'||t==='loan') cfData[mo].finIn+=d.amt;
-    else if(t==='sec') cfData[mo].invIn+=d.amt;
+    else if(t==='sec') {} // 은행↔증권 내부이체 제외 (전표에서 추적)
     else cfData[mo].opIn+=d.amt;
   });
   
@@ -2344,27 +2344,25 @@ function rCashFlow(){
     if(!mo||!cfData[mo])return;
     var t=d.type||cfGuessType(d,'out');
     if(t==='expense') cfData[mo].opOut+=d.amt;
-    else if(t==='sec') cfData[mo].invOut+=d.amt;
+    else if(t==='sec') {} // 은행↔증권 내부이체 제외 (전표에서 추적)
     else if(t==='loan') cfData[mo].finOut+=d.amt;
     else cfData[mo].opOut+=d.amt;
   });
   
-  // 증권계좌 내 주식매매 (전표 기반) — 은행이체와 별도로 실제 매수/매각 추적
-  var secBuy=0, secSell=0;
+  // 증권 매매 (전표 기반) — 실제 주식매수/매각만 투자활동에 반영
   D.journals.forEach(function(j){
     var m=j.dt.match(/(\d+)\//);
     if(!m)return;
     var mo=String(parseInt(m[1])).padStart(2,'0');
     if(!cfData[mo])return;
     // 주식매수: DR 130(유가증권) / CR 191(증권예수금)
-    if(j.dr==='130'&&j.cr==='191'){cfData[mo].invOut+=j.amt;secBuy+=j.amt;}
+    if(j.dr==='130'&&j.cr==='191') cfData[mo].invOut+=j.amt;
     // 주식매각(원가제거): DR 191 / CR 130
-    if(j.dr==='191'&&j.cr==='130'){cfData[mo].invIn+=j.amt;secSell+=j.amt;}
+    if(j.dr==='191'&&j.cr==='130') cfData[mo].invIn+=j.amt;
     // 매각이익: DR 191 / CR 403(매각이익)
-    if(j.dr==='191'&&j.cr==='403'){cfData[mo].invIn+=j.amt;secSell+=j.amt;}
-    // 매각손: DR 541(매각손) / CR 191 — 매각대금 감소
+    if(j.dr==='191'&&j.cr==='403') cfData[mo].invIn+=j.amt;
     // 매수수수료(증권): DR 537 / CR 191
-    if(j.dr==='537'&&j.cr==='191'){cfData[mo].invOut+=j.amt;secBuy+=j.amt;}
+    if(j.dr==='537'&&j.cr==='191') cfData[mo].invOut+=j.amt;
   });
   
   var totals={opIn:0,opOut:0,invIn:0,invOut:0,finIn:0,finOut:0};
