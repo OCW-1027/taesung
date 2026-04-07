@@ -1303,11 +1303,18 @@ function filterSlips(month){
 
 
 // ===== Vendor Management =====
+
+function refreshVendorSel(){
+  var sel=document.getElementById('sl_vendor_sel');
+  if(!sel)return;
+  var cur=sel.value;
+  sel.innerHTML=vendorOptions(cur);
+}
 function vendorOptions(sel){if(!D.vendors)D.vendors=[];return '<option value="">(직접입력)</option>'+D.vendors.map(v=>'<option value="'+v.name+'"'+(v.name===sel?' selected':'')+'>'+v.name+'</option>').join('');}
 function addVendor(nm){if(!D.vendors)D.vendors=[];if(nm&&!D.vendors.find(v=>v.name===nm)){D.vendors.push({id:nid(),name:nm,note:''});saveD();}}
 function manageVendors(){showModal('거래처 관리','<div style="margin-bottom:10px;display:flex;gap:6px"><input id="vn_n" placeholder="거래처명" style="flex:1;padding:5px 8px;border:1px solid #e2e6ed;border-radius:4px;font-size:12px"><input id="vn_t" placeholder="비고" style="width:80px;padding:5px 8px;border:1px solid #e2e6ed;border-radius:4px;font-size:12px"><button class="bt gn" onclick="doAddV()">추가</button></div><table><thead><tr><th>거래처</th><th>비고</th><th></th></tr></thead><tbody>'+D.vendors.map(v=>'<tr><td>'+v.name+'</td><td class="mu">'+(v.note||'')+'</td><td><button class="del" onclick="delV('+v.id+')">✕</button></td></tr>').join('')+'</tbody></table>');}
-function doAddV(){var n=document.getElementById('vn_n').value,t=document.getElementById('vn_t').value;if(!n)return;D.vendors.push({id:nid(),name:n,note:t});saveD();manageVendors();}
-function delV(id){D.vendors=D.vendors.filter(v=>v.id!==id);saveD();manageVendors();}
+function doAddV(){var n=document.getElementById('vn_n').value,t=document.getElementById('vn_t').value;if(!n)return;D.vendors.push({id:nid(),name:n,note:t});saveD();manageVendors();refreshVendorSel();}
+function delV(id){D.vendors=D.vendors.filter(v=>v.id!==id);saveD();manageVendors();refreshVendorSel();}
 
 // ===== Slip Edit/Copy =====
 function editSlip(id){var j=D.journals.find(x=>x.id===id);if(!j)return;closeModal();window._editSlipId=id;go('slip');setTimeout(function(){var e=document.getElementById('sl_edt');if(e)e.value=j.edt||'';var p=document.getElementById('sl_pdt');if(p)p.value=j.pdt||'';var d2=document.getElementById('sl_desc');if(d2)d2.value=j.desc||'';var c2=document.getElementById('sl_cur');if(c2)c2.value=j.cur||'JPY';var vs=document.getElementById('sl_vendor_sel');if(vs)vs.value=j.vendor||'';var vi=document.getElementById('sl_vendor_inp');if(vi){vi.value=j.vendor||'';vi.style.display=vs&&vs.value?'none':'block';}var rows=document.querySelectorAll('#slipRows tr');if(rows[0]){rows[0].querySelector('.sl_side').value='dr';rows[0].querySelector('.sl_acct').value=j.dr;rows[0].querySelector('.sl_amt').value=j.amt;var tc=rows[0].querySelector('.sl_taxcls');if(tc)tc.value=j.taxCls||'';}if(rows[1]){rows[1].querySelector('.sl_side').value='cr';rows[1].querySelector('.sl_acct').value=j.cr;rows[1].querySelector('.sl_amt').value=j.amt;}updSlipBal();var sb=document.getElementById('slipSubmit');if(sb){sb.textContent='수정 저장';sb.style.background='#2563eb';}},300);}
@@ -1362,12 +1369,25 @@ function rGL(){
     <div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:40px;margin-bottom:12px">📒</div><div>아직 기표된 전표가 없습니다.<br>[전표처리] 메뉴에서 전표를 입력하세요.</div></div>`;}
 
   return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div><button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 엑셀 내보내기 (日本語)</button></div>
-  <div class="ib">💡 전표 ${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:10px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">
+    <span style="font-size:12px;font-weight:600">📅 기간:</span>
+    <select id="gl_mo" onchange="filterGL()" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">
+      <option value="all">전체 (누적)</option>
+      <option value="06">6월</option><option value="07">7월</option><option value="08">8월</option>
+      <option value="09">9월</option><option value="10">10월</option><option value="11">11월</option>
+      <option value="12">12월</option><option value="01">1월</option><option value="02">2월</option>
+      <option value="03">3월</option><option value="04">4월</option><option value="05">5월 (결산)</option>
+    </select>
+    <span id="gl_info" style="font-size:11px;color:#64748b">${D.journals.length}건</span>
+  </div>
+  <div id="glBody">
+  <div class="ib">💡 전표 \${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
   ${["자산","부채","순자산","수익","비용"].filter(g=>groups[g]).map(g=>`
     <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:6px;padding:3px 8px;background:#dbeafe;border-radius:5px;display:inline-block">${g}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px">
     ${groups[g].map(a=>`<div onclick="showGLDetail('${a.code}')" style="background:#fff;border:1px solid #e2e6ed;border-radius:7px;padding:8px 12px;cursor:pointer" onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e6ed'"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">${a.name}</div><div style="font-size:9px;color:#64748b">${a.code} · ${a.entries.length}건</div></div><div style="font-size:13px;font-weight:700;font-feature-settings:'tnum'">${fy(a.net)}</div></div></div>`).join('')}
-    </div></div>`).join('')}`;}
+    </div></div>`).join('')}
+  </div>`;}
 
 function showGLDetail(code){
   const a=D.accts.find(x=>x.c===code);if(!a)return;
@@ -1382,6 +1402,63 @@ function showGLDetail(code){
     <div style="max-height:500px;overflow-y:auto"><table><thead><tr><th>日付</th><th>伝票</th><th>摘要</th><th class="r">借方</th><th class="r">貸方</th><th class="r">残高</th></tr></thead>
     <tbody>${entries.map((e,i)=>`<tr class="${i%2?'a':''}" onclick="closeModal();viewSlip(${e.id})" style="cursor:pointer" onmouseenter="this.style.background='#f0f9ff'" onmouseleave="this.style.background='${i%2?'#f8f9fb':''}'"><td class="mu m">${e.dt}</td><td style="color:#2563eb;font-size:10px">${e.no}</td><td>${e.desc||''}</td><td class="r m">${e.dr?fm(e.dr):''}</td><td class="r m">${e.cr?fm(e.cr):''}</td><td class="r m b">${fm(e.bal)}</td></tr>`).join('')}</tbody></table></div>
     <div style="font-size:9px;color:#94a3b8;margin-top:6px">전표를 클릭하면 상세보기로 이동합니다</div>`);
+}
+
+function filterGL(){
+  var sel=document.getElementById('gl_mo');
+  if(!sel)return;
+  var mo=sel.value;
+  
+  // Filter journals by month
+  var filtered=D.journals;
+  if(mo!=='all'){
+    filtered=D.journals.filter(function(j){
+      var m=j.dt.match(/(\d+)\//);
+      if(!m)return mo==='05';
+      return String(parseInt(m[1])).padStart(2,'0')===mo;
+    });
+  }
+  
+  // Compute balances from filtered journals
+  var bal={};
+  filtered.forEach(function(j){
+    if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
+    if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
+    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push(Object.assign({},j,{isDr:true}));
+    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push(Object.assign({},j,{isDr:false}));
+  });
+  var groups={};
+  Object.entries(bal).forEach(function(pair){
+    var code=pair[0],v=pair[1];
+    var ac=D.accts.find(function(x){return x.c===code;});
+    if(!ac)return;
+    var isDb=["자산","비용"].indexOf(ac.g)>=0;
+    v.net=isDb?v.dr-v.cr:v.cr-v.dr;
+    if(!groups[ac.g])groups[ac.g]=[];
+    groups[ac.g].push({code:code,name:ac.k,net:v.net,dr:v.dr,cr:v.cr,entries:v.entries});
+  });
+  
+  // Update info
+  var infoEl=document.getElementById('gl_info');
+  if(infoEl) infoEl.textContent=filtered.length+'건'+(mo!=='all'?' ('+mo+'월)':'');
+  
+  // Build HTML
+  var html='<div class="ib">💡 '+(mo==='all'?'전체 누적':mo+'월')+' 전표 '+filtered.length+'건 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>';
+  
+  ["자산","부채","순자산","수익","비용"].forEach(function(g){
+    if(!groups[g])return;
+    html+='<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:6px;padding:3px 8px;background:#dbeafe;border-radius:5px;display:inline-block">'+g+'</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px">';
+    groups[g].forEach(function(ac){
+      html+='<div onclick="showGLDetail(\''+ac.code+'\')" style="background:#fff;border:1px solid #e2e6ed;border-radius:7px;padding:8px 12px;cursor:pointer" onmouseenter="this.style.borderColor=\'#2563eb\'" onmouseleave="this.style.borderColor=\'#e2e6ed\'"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:600">'+ac.name+'</div><div style="font-size:9px;color:#64748b">'+ac.code+' · '+ac.entries.length+'건</div></div><div style="font-size:13px;font-weight:700;font-feature-settings:\'tnum\'">¥'+fm(ac.net)+'</div></div></div>';
+    });
+    html+='</div></div>';
+  });
+  
+  if(filtered.length===0) html='<div style="text-align:center;padding:40px;color:#64748b">해당 월에 기표된 전표가 없습니다.</div>';
+  
+  var body=document.getElementById('glBody');
+  if(body) body.innerHTML=html;
 }
 
 // ===== PAGES =====
