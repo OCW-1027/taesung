@@ -2413,7 +2413,7 @@ function rCashFlow(){
     else cfData[mo].opOut+=d.amt;
   });
   
-  // 증권 매매 (전표 기반) — 실제 주식매수/매각만 투자활동에 반영
+  // 증권 매매 + 증권계좌 직접거래 (전표 기반)
   D.journals.forEach(function(j){
     var m=j.dt.match(/(\d+)\//);
     if(!m)return;
@@ -2427,6 +2427,10 @@ function rCashFlow(){
     if(j.dr==='191'&&j.cr==='403') cfData[mo].invIn+=j.amt;
     // 매수수수료(증권): DR 537 / CR 191
     if(j.dr==='537'&&j.cr==='191') cfData[mo].invOut+=j.amt;
+    // 소비세(증권수수료): DR 154 / CR 191 (세빼기 마이그레이션 후)
+    if(j.dr==='154'&&j.cr==='191') cfData[mo].invOut+=j.amt;
+    // 증권계좌 직접 수입: 배당금(402), 잡수입(405) → 영업활동
+    if(j.dr==='191'&&(j.cr==='402'||j.cr==='405')) cfData[mo].opIn+=j.amt;
   });
   
   var totals={opIn:0,opOut:0,invIn:0,invOut:0,finIn:0,finOut:0};
@@ -2539,9 +2543,21 @@ function rCashFlow(){
   });
   tableHtml+='<td class="r m b" style="color:#2563eb;font-size:12px">'+fm(cumBal)+'</td></tr>';
   
+  // 실제보유현금 검증 행
+  var actualCash=acctBal('110')+(D.secDeposit||SEC_DEP);
+  var cfDiff=actualCash-cumBal;
+  tableHtml+='<tr style="background:#dbeafe"><td style="font-weight:700;color:#1e3a5f">실제보유현금</td>';
+  months.forEach(function(){tableHtml+='<td></td>';});
+  tableHtml+='<td class="r m b" style="color:#1e3a5f;font-size:12px">'+fm(actualCash)+'</td></tr>';
+  if(Math.abs(cfDiff)>0){
+    tableHtml+='<tr><td style="font-size:9px;color:#64748b;padding-left:8px">└ 차이 (비현금 회계조정)</td>';
+    months.forEach(function(){tableHtml+='<td></td>';});
+    tableHtml+='<td class="r m" style="font-size:9px;color:#64748b">'+fm(cfDiff)+'</td></tr>';
+  }
+  
   tableHtml+='</tbody></table></div>';
   
-  var noteHtml='<div class="ib" style="font-size:9px;margin-top:8px">\uD83D\uDCA1 \uBC95\uC778\uACC4\uC88C \uC785\uCD9C\uAE08 \uAE30\uBC18 \uD604\uAE08\uD750\uB984. \uC601\uC5C5=\uACBD\uBE44\uC218\uC785/\uC9C0\uCD9C, \uD22C\uC790=\uC99D\uAD8C\uB9E4\uB9E4\u00b7\uC774\uCCB4, \uC7AC\uBB34=\uC790\uBCF8\uAE08\u00b7\uCC28\uC785\uAE08</div>';
+  var noteHtml='<div class="ib" style="font-size:9px;margin-top:8px">\uD83D\uDCA1 법인계좌+증권계좌 입출금 기반. 영업=경비수입/지출(배당·잡수입 포함), 투자=증권매매·수수료·소비세, 재무=자본금·차입금. 실제보유현금과의 차이는 비현금 회계조정(취득원가 재분류 등)에 의한 것.</div>';
   
   return summaryHtml+chartHtml+tableHtml+noteHtml;
 }
