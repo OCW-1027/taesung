@@ -779,6 +779,9 @@ function rExpenseAnalysis(){
     var total=acctBal(ac.c);
     if(total!==0)expAccts.push({c:ac.c,k:ac.k,total:total});
   });
+  // 154 가지급소비세도 표시 (환급 대상 자산이지만 비용분석에서 참고용)
+  var tax154=acctBal('154');
+  if(tax154!==0) expAccts.push({c:'154',k:'가지급소비세 (매입세액)',total:tax154});
   expAccts.sort(function(a,b){return b.total-a.total;});
   
   // Monthly breakdown
@@ -3937,12 +3940,15 @@ document.addEventListener('DOMContentLoaded',function(){
       var dr=j.dr,cr=j.cr;
       // 과세10% 비용 (세포함 → 분리 대상)
       if(['520','523','526','527','528','529','531','532','533','534','536','538','539','548','570'].indexOf(dr)>=0){
+        // 마이너스 금액(정산/조정)은 불과세 처리
+        if(j.amt<=0){j.taxCls='불과세';taxChanges++;return;}
         j.taxCls='과세10%';
-        // 세빼기 분리: 본체 감액 + 소비세 전표 생성
+        // 세빼기 분리: 본체 감액 + 소비세 전표 생성 (마이너스/제로 제외)
         var taxAmt=Math.round(j.amt*10/110);
         if(taxAmt>0&&j.amt>0){
           j.amt=j.amt-taxAmt; // 본체를 세빼기 금액으로 조정
-          newTaxEntries.push({id:nid(),dt:j.dt,no:'',desc:'[소비세] '+j.desc,dr:'154',cr:j.cr,amt:taxAmt,edt:j.edt||'',pdt:j.pdt||'',cur:j.cur||'JPY',exp:'',vendor:j.vendor||'',taxCls:'과세10%'});
+          var taxSlipNo=genSlipNo(j.edt||'2026-03','154',j.cr);
+          newTaxEntries.push({id:nid(),dt:j.dt,no:taxSlipNo,desc:'[소비세] '+j.desc,dr:'154',cr:j.cr,amt:taxAmt,edt:j.edt||'',pdt:j.pdt||'',cur:j.cur||'JPY',exp:'',vendor:j.vendor||'',taxCls:'과세10%'});
         }
         taxChanges++;return;
       }
