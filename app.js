@@ -3911,6 +3911,42 @@ document.addEventListener('DOMContentLoaded',function(){
   // Auto-delete S0400 (평가손 전표 → 결산 시 생성으로 변경)
   var s0400=D.journals.findIndex(function(j){return j.no==='S0400';});
   if(s0400>=0){D.journals.splice(s0400,1);saveD();toast('평가손익 전표(S0400) 삭제 → 결산 시 생성으로 변경');}
+
+  // === 소비세 세빼기 마이그레이션 (1회만 실행) ===
+  if(!D._taxMigrated){
+    var taxChanges=0;
+    D.journals.forEach(function(j){
+      // 1) 537 "소비세" 전표 → DR을 154(가지급소비세)로 변경
+      if(j.dr==='537'&&j.desc&&j.desc.indexOf('소비세')>=0){
+        j.dr='154';j.taxCls='과세10%';taxChanges++;return;
+      }
+      // 이미 taxCls가 있으면 스킵
+      if(j.taxCls) return;
+      // 2) 비용 계정별 분류
+      var dr=j.dr,cr=j.cr;
+      // 과세10% 비용
+      if(['520','523','526','527','528','529','531','532','533','534','536','537','538','539','548','570'].indexOf(dr)>=0){j.taxCls='과세10%';taxChanges++;return;}
+      // 해외출장비 → 불과세
+      if(dr==='521'){j.taxCls='불과세';taxChanges++;return;}
+      // 지급이자 → 비과세
+      if(dr==='540'){j.taxCls='비과세';taxChanges++;return;}
+      // 설립비·법인세 → 불과세
+      if(['550','551','552','553','560','561'].indexOf(dr)>=0){j.taxCls='불과세';taxChanges++;return;}
+      // 3) 수익 계정별 분류
+      if(cr==='401'){j.taxCls='비과세';taxChanges++;return;} // 수취이자
+      if(cr==='402'){j.taxCls='불과세';taxChanges++;return;} // 배당금
+      if(cr==='403'){j.taxCls='비과세';taxChanges++;return;} // 유가증권매각(非課税)
+      if(cr==='405'){j.taxCls='불과세';taxChanges++;return;} // 잡수입
+      // 4) 자산간 이동, 자본, 차입 → 불과세
+      if(['110','130','191'].indexOf(dr)>=0||['110','130','191','300','221'].indexOf(cr)>=0){j.taxCls='불과세';taxChanges++;return;}
+    });
+    D._taxMigrated=true;
+    if(taxChanges>0){
+      saveD();
+      toast('소비세 세빼기 마이그레이션 완료 ('+taxChanges+'건 분류, 소비세분→154 재분류)');
+      go('dash');
+    }
+  }
   document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>go(el.dataset.page)));
   const ks=['C','±','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0','0','.','='];
   const kd=document.getElementById('cK');
