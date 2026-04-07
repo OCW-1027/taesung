@@ -1493,9 +1493,118 @@ function filterJrn(){
 }
 
 
+
+// ===== 일정 알림 (세무 기한/마감) =====
+function getAlerts(){
+  var today=new Date();
+  var mm=today.getMonth()+1, dd=today.getDate(), dow=today.getDay();
+  var alerts=[];
+  // Helper: days until target date
+  function daysUntil(m,d){
+    var t=new Date(today.getFullYear(),m-1,d);
+    if(t<today)t=new Date(today.getFullYear()+1,m-1,d);
+    return Math.ceil((t-today)/(1000*60*60*24));
+  }
+  function addAlert(icon,title,desc,daysLeft,cls){
+    alerts.push({icon:icon,title:title,desc:desc,days:daysLeft,cls:cls||'info'});
+  }
+
+  // 1) 월차마감 알림 — 매월 25일~말일
+  var lastDay=new Date(today.getFullYear(),mm,0).getDate();
+  if(dd>=25){
+    var closedKey=today.getFullYear()+'-'+String(mm).padStart(2,'0');
+    var alreadyClosed=D.monthlyClosed&&D.monthlyClosed[closedKey];
+    if(!alreadyClosed){
+      addAlert('📅','월차마감 ('+(mm)+'월)','설정 → 월차마감 저장 실행',lastDay-dd,'warn');
+    }
+  }
+
+  // 2) 주간 운용보고서 — 매주 금요일 알림
+  if(dow>=4 && dow<=5){
+    addAlert('📄','주간 운용보고서','운용보고서 → 워드 내보내기',dow===5?0:1,'info');
+  }
+
+  // 3) Firebase 동기화 — 7일 이상 동기화 안 한 경우
+  if(D._lastSaved){
+    var lastMs=new Date(D._lastSaved).getTime();
+    var diffDays=Math.floor((today.getTime()-lastMs)/(1000*60*60*24));
+    if(diffDays>=7){
+      addAlert('☁️','Firebase 동기화 필요',diffDays+'일 전 마지막 저장','overdue','warn');
+    }
+  }
+
+  // 4) 결산 관련 (5월)
+  var dMay31=daysUntil(5,31);
+  if(dMay31<=60 && dMay31>30){
+    addAlert('📋','결산 준비 (5월말)','중간보고 → 법인세 추정탭 확인',dMay31,'info');
+  }
+  if(dMay31<=30 && dMay31>0){
+    addAlert('🔴','결산 D-'+dMay31,'유가증권 시세 확정 · 평가손익 전표 · 법인세 확정',dMay31,'urgent');
+  }
+
+  // 5) 법인세 확정신고 (결산일+2개월 = 7/31)
+  var dJul31=daysUntil(7,31);
+  if(dJul31<=30 && dJul31>0){
+    addAlert('🏛','법인세 확정신고 (7/31)','세무사에게 재무제표 · 총계정원장 전달',dJul31,'urgent');
+  }
+  if(dJul31<=60 && dJul31>30){
+    addAlert('🏛','법인세 신고 준비','워드/엑셀 내보내기 → 세무사 전달 준비',dJul31,'warn');
+  }
+
+  // 6) 법인도민세(균등할) — 매년 8/31 납부 (도쿄도)
+  var dAug31=daysUntil(8,31);
+  if(dAug31<=30 && dAug31>0){
+    addAlert('🏢','도민세 균등할 납부 (8/31)','도쿄도 7만엔 납부',dAug31,'warn');
+  }
+
+  // 7) 시세 업데이트 리마인더 — 평일 표시
+  if(dow>=1 && dow<=5){
+    addAlert('📈','시세 업데이트','유가증권 → 시세 업데이트 실행','-','daily');
+  }
+
+  // 8) 제2기 전환 (2026.06 초)
+  var dJun1=daysUntil(6,1);
+  if(today.getFullYear()>=2026 && dJun1<=30 && dJun1>0){
+    addAlert('🔄','제2기 전환 준비','BS이월 · PL리셋 · 이익잉여금 합산',dJun1,'warn');
+  }
+
+  // Sort: urgent first, then warn, then info/daily
+  var order={urgent:0,warn:1,info:2,daily:3};
+  alerts.sort(function(a,b){return (order[a.cls]||9)-(order[b.cls]||9);});
+  return alerts;
+}
+
+function renderAlerts(){
+  var alerts=getAlerts();
+  if(alerts.length===0) return '';
+  var colors={urgent:'#dc2626',warn:'#d97706',info:'#2563eb',daily:'#64748b'};
+  var bgColors={urgent:'#fef2f2',warn:'#fffbeb',info:'#eff6ff',daily:'#f8fafc'};
+  var borderColors={urgent:'#fca5a5',warn:'#fde68a',info:'#bfdbfe',daily:'#e2e6ed'};
+  var html='<div class="pn" style="margin-bottom:14px"><div class="ph"><span>🔔 일정 알림</span><span style="font-size:10px;color:#64748b">'+alerts.length+'건</span></div>';
+  html+='<div style="padding:8px 12px">';
+  alerts.forEach(function(al){
+    var c=colors[al.cls]||'#64748b';
+    var bg=bgColors[al.cls]||'#f8fafc';
+    var bd=borderColors[al.cls]||'#e2e6ed';
+    var daysText='';
+    if(al.days==='overdue')daysText='<span style="color:#dc2626;font-weight:700">지연</span>';
+    else if(al.days==='-')daysText='<span style="color:#64748b">매일</span>';
+    else if(al.days===0)daysText='<span style="color:#dc2626;font-weight:700">오늘</span>';
+    else if(typeof al.days==='number')daysText='<span style="color:'+c+';font-weight:600">D-'+al.days+'</span>';
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;margin-bottom:4px;background:'+bg+';border:1px solid '+bd+';border-radius:7px;border-left:3px solid '+c+'">';
+    html+='<span style="font-size:16px;flex-shrink:0">'+al.icon+'</span>';
+    html+='<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:'+c+'">'+al.title+'</div><div style="font-size:10px;color:#64748b;margin-top:1px">'+al.desc+'</div></div>';
+    html+='<div style="text-align:right;font-size:11px;flex-shrink:0">'+daysText+'</div>';
+    html+='</div>';
+  });
+  html+='</div></div>';
+  return html;
+}
+
 function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보드</div>
   <div class="cards"><div class="cd bl"><div class="l">총 보유 자산</div><div class="v">${fy(c.totA)}</div></div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
   <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>
+  ${renderAlerts()}
   <div class="pn" style="margin-top:14px">
     <div class="ph"><span>📈 자산추이</span>
       <div style="display:flex;gap:4px">
@@ -1622,7 +1731,7 @@ function rFS(){
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
-  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly" onclick="showMonthlyTab(this)">월차추이</button><button class="tab" data-tab="expense" onclick="showExpenseTab(this)">비용분석</button></div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly" onclick="showMonthlyTab(this)">월차추이</button><button class="tab" data-tab="expense" onclick="showExpenseTab(this)">비용분석</button><button class="tab" data-tab="cashflow">현금흐름</button></div>'+
   '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
   '<div class="fr"><span>Ⅰ 매출액</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
   '<div class="fr h"><span>Ⅱ 판매비와 일반관리비</span></div>'+
@@ -2031,6 +2140,174 @@ function exportFSWord(){
 
 
 
+
+
+// ===== 월별 현금흐름표 =====
+function rCashFlow(){
+  var months=['06','07','08','09','10','11','12','01','02','03','04','05'];
+  var monthLabels=['6월','7월','8월','9월','10월','11월','12월','1월','2월','3월','4월','5월'];
+  
+  var cfData={};
+  months.forEach(function(m){
+    cfData[m]={opIn:0,opOut:0,invIn:0,invOut:0,finIn:0,finOut:0};
+  });
+  
+  D.bkIn.forEach(function(d){
+    var mo=cfExtractMonth(d.dt);
+    if(!mo||!cfData[mo])return;
+    var t=d.type||cfGuessType(d,'in');
+    if(t==='income') cfData[mo].opIn+=d.amt;
+    else if(t==='capital'||t==='loan') cfData[mo].finIn+=d.amt;
+    else if(t==='sec') cfData[mo].invIn+=d.amt;
+    else cfData[mo].opIn+=d.amt;
+  });
+  
+  D.bkOut.forEach(function(d){
+    var mo=cfExtractMonth(d.dt);
+    if(!mo||!cfData[mo])return;
+    var t=d.type||cfGuessType(d,'out');
+    if(t==='expense') cfData[mo].opOut+=d.amt;
+    else if(t==='sec') cfData[mo].invOut+=d.amt;
+    else if(t==='loan') cfData[mo].finOut+=d.amt;
+    else cfData[mo].opOut+=d.amt;
+  });
+  
+  var totals={opIn:0,opOut:0,invIn:0,invOut:0,finIn:0,finOut:0};
+  months.forEach(function(m){
+    var d=cfData[m];
+    totals.opIn+=d.opIn;totals.opOut+=d.opOut;
+    totals.invIn+=d.invIn;totals.invOut+=d.invOut;
+    totals.finIn+=d.finIn;totals.finOut+=d.finOut;
+  });
+  
+  var cumBal=0;
+  var cumData=[];
+  months.forEach(function(m){
+    var d=cfData[m];
+    var netCf=(d.opIn-d.opOut)+(d.invIn-d.invOut)+(d.finIn-d.finOut);
+    cumBal+=netCf;
+    cumData.push({m:m,net:netCf,cum:cumBal});
+  });
+  
+  // Chart
+  var maxAbs=1;
+  cumData.forEach(function(cd){maxAbs=Math.max(maxAbs,Math.abs(cd.net));});
+  var chartH=140,barW=50;
+  var chartHtml='<div style="overflow-x:auto"><svg viewBox="0 0 '+(months.length*barW+60)+' '+(chartH+40)+'" style="width:100%;max-height:180px;font-family:sans-serif">';
+  var zeroY=20+chartH/2;
+  chartHtml+='<line x1="40" y1="'+zeroY+'" x2="'+(months.length*barW+50)+'" y2="'+zeroY+'" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,3"/>';
+  chartHtml+='<text x="36" y="'+(zeroY+3)+'" text-anchor="end" fill="#94a3b8" font-size="8">0</text>';
+  
+  cumData.forEach(function(cd,i){
+    var x=45+i*barW;
+    var h=maxAbs>0?Math.abs(cd.net)/maxAbs*(chartH/2-10):0;
+    var y=cd.net>=0?zeroY-h:zeroY;
+    var color=cd.net>=0?'#059669':'#dc2626';
+    if(h>0) chartHtml+='<rect x="'+(x-12)+'" y="'+y+'" width="24" height="'+h+'" fill="'+color+'" rx="3" opacity="0.8"/>';
+    if(cd.net!==0){
+      var valY=cd.net>=0?y-4:y+h+10;
+      var val=Math.abs(cd.net)>=100000000?(cd.net/100000000).toFixed(1)+'\u5104':Math.abs(cd.net)>=10000?(cd.net/10000).toFixed(0)+'\u4E07':String(cd.net);
+      chartHtml+='<text x="'+x+'" y="'+valY+'" text-anchor="middle" fill="'+color+'" font-size="7" font-weight="600">'+val+'</text>';
+    }
+    chartHtml+='<text x="'+x+'" y="'+(chartH+36)+'" text-anchor="middle" fill="#64748b" font-size="8">'+monthLabels[i].slice(0,-1)+'</text>';
+  });
+  chartHtml+='</svg></div>';
+  
+  // Summary cards
+  var netOp=totals.opIn-totals.opOut;
+  var netInv=totals.invIn-totals.invOut;
+  var netFin=totals.finIn-totals.finOut;
+  var netTotal=netOp+netInv+netFin;
+  
+  var summaryHtml='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">';
+  summaryHtml+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#2563eb;margin-bottom:2px">\u2160 \u00b7 \uC601\uC5C5\uD65C\uB3D9</div><div style="font-size:14px;font-weight:700;color:'+(netOp>=0?'#059669':'#dc2626')+'">'+fm(netOp)+'</div></div>';
+  summaryHtml+='<div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#d97706;margin-bottom:2px">\u2161 \u00b7 \uD22C\uC790\uD65C\uB3D9</div><div style="font-size:14px;font-weight:700;color:'+(netInv>=0?'#059669':'#dc2626')+'">'+fm(netInv)+'</div></div>';
+  summaryHtml+='<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#059669;margin-bottom:2px">\u2162 \u00b7 \uC7AC\uBB34\uD65C\uB3D9</div><div style="font-size:14px;font-weight:700;color:'+(netFin>=0?'#059669':'#dc2626')+'">'+fm(netFin)+'</div></div>';
+  summaryHtml+='<div style="background:#f8fafc;border:1px solid #e2e6ed;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#1e3a5f;margin-bottom:2px">\uC21C\uD604\uAE08\uC99D\uAC10</div><div style="font-size:14px;font-weight:700;color:'+(netTotal>=0?'#059669':'#dc2626')+'">'+fm(netTotal)+'</div></div>';
+  summaryHtml+='</div>';
+  
+  // Detail table
+  var cn=months.length+2;
+  var tableHtml='<div style="overflow-x:auto"><table style="font-size:10px;min-width:800px"><thead><tr><th style="text-align:left;min-width:140px">\uAD6C\uBD84</th>';
+  monthLabels.forEach(function(l){tableHtml+='<th class="r">'+l+'</th>';});
+  tableHtml+='<th class="r" style="font-weight:700;background:#dbeafe">\uD569\uACC4</th></tr></thead><tbody>';
+  
+  // Operating
+  tableHtml+='<tr style="background:#eff6ff"><td colspan="'+cn+'" style="font-weight:700;color:#2563eb;padding:6px 6px 4px">\u2160 \uC601\uC5C5\uD65C\uB3D9 \uD604\uAE08\uD750\uB984</td></tr>';
+  tableHtml+='<tr><td style="padding-left:16px">\uC218\uC785 (\uC774\uC790\u00b7\uBC30\uB2F9 \uB4F1)</td>';
+  months.forEach(function(m){tableHtml+='<td class="r m gn">'+(cfData[m].opIn?fm(cfData[m].opIn):'')+'</td>';});
+  tableHtml+='<td class="r m b gn">'+fm(totals.opIn)+'</td></tr>';
+  tableHtml+='<tr class="a"><td style="padding-left:16px">\uC9C0\uCD9C (\uACBD\uBE44)</td>';
+  months.forEach(function(m){tableHtml+='<td class="r m rd">'+(cfData[m].opOut?'('+fm(cfData[m].opOut)+')':'')+'</td>';});
+  tableHtml+='<td class="r m b rd">('+fm(totals.opOut)+')</td></tr>';
+  tableHtml+='<tr style="font-weight:600;border-top:1px solid #bfdbfe"><td style="padding-left:8px;color:#2563eb">\uC601\uC5C5\uD65C\uB3D9 \uC18C\uACC4</td>';
+  months.forEach(function(m){var v=cfData[m].opIn-cfData[m].opOut;tableHtml+='<td class="r m '+(v>=0?'gn':'rd')+'">'+fm(v)+'</td>';});
+  tableHtml+='<td class="r m b '+(netOp>=0?'gn':'rd')+'">'+fm(netOp)+'</td></tr>';
+  
+  // Investing
+  tableHtml+='<tr style="background:#fefce8"><td colspan="'+cn+'" style="font-weight:700;color:#d97706;padding:6px 6px 4px">\u2161 \uD22C\uC790\uD65C\uB3D9 \uD604\uAE08\uD750\uB984</td></tr>';
+  tableHtml+='<tr><td style="padding-left:16px">\uC720\uC785 (\uC99D\uAD8C\uB9E4\uAC01 \uB4F1)</td>';
+  months.forEach(function(m){tableHtml+='<td class="r m gn">'+(cfData[m].invIn?fm(cfData[m].invIn):'')+'</td>';});
+  tableHtml+='<td class="r m b gn">'+fm(totals.invIn)+'</td></tr>';
+  tableHtml+='<tr class="a"><td style="padding-left:16px">\uC720\uCD9C (\uC99D\uAD8C\uB9E4\uC218\u00b7\uC774\uCCB4)</td>';
+  months.forEach(function(m){tableHtml+='<td class="r m rd">'+(cfData[m].invOut?'('+fm(cfData[m].invOut)+')':'')+'</td>';});
+  tableHtml+='<td class="r m b rd">('+fm(totals.invOut)+')</td></tr>';
+  tableHtml+='<tr style="font-weight:600;border-top:1px solid #fde68a"><td style="padding-left:8px;color:#d97706">\uD22C\uC790\uD65C\uB3D9 \uC18C\uACC4</td>';
+  months.forEach(function(m){var v=cfData[m].invIn-cfData[m].invOut;tableHtml+='<td class="r m '+(v>=0?'gn':'rd')+'">'+(v!==0?fm(v):'')+'</td>';});
+  tableHtml+='<td class="r m b '+(netInv>=0?'gn':'rd')+'">'+fm(netInv)+'</td></tr>';
+  
+  // Financing
+  tableHtml+='<tr style="background:#f0fdf4"><td colspan="'+cn+'" style="font-weight:700;color:#059669;padding:6px 6px 4px">\u2162 \uC7AC\uBB34\uD65C\uB3D9 \uD604\uAE08\uD750\uB984</td></tr>';
+  tableHtml+='<tr><td style="padding-left:16px">\uC720\uC785 (\uC790\uBCF8\uAE08\u00b7\uCC28\uC785\uAE08)</td>';
+  months.forEach(function(m){tableHtml+='<td class="r m gn">'+(cfData[m].finIn?fm(cfData[m].finIn):'')+'</td>';});
+  tableHtml+='<td class="r m b gn">'+fm(totals.finIn)+'</td></tr>';
+  tableHtml+='<tr class="a"><td style="padding-left:16px">\uC720\uCD9C (\uC0C1\uD658 \uB4F1)</td>';
+  months.forEach(function(m){tableHtml+='<td class="r m rd">'+(cfData[m].finOut?'('+fm(cfData[m].finOut)+')':'')+'</td>';});
+  tableHtml+='<td class="r m b rd">'+(totals.finOut?'('+fm(totals.finOut)+')':'0')+'</td></tr>';
+  tableHtml+='<tr style="font-weight:600;border-top:1px solid #bbf7d0"><td style="padding-left:8px;color:#059669">\uC7AC\uBB34\uD65C\uB3D9 \uC18C\uACC4</td>';
+  months.forEach(function(m){var v=cfData[m].finIn-cfData[m].finOut;tableHtml+='<td class="r m '+(v>=0?'gn':'rd')+'">'+(v!==0?fm(v):'')+'</td>';});
+  tableHtml+='<td class="r m b '+(netFin>=0?'gn':'rd')+'">'+fm(netFin)+'</td></tr>';
+  
+  // Net + Cumulative
+  tableHtml+='<tr style="background:#1e293b;color:#fff"><td style="font-weight:700;padding:8px 6px">\uC21C\uD604\uAE08\uC99D\uAC10</td>';
+  months.forEach(function(m){
+    var v=(cfData[m].opIn-cfData[m].opOut)+(cfData[m].invIn-cfData[m].invOut)+(cfData[m].finIn-cfData[m].finOut);
+    tableHtml+='<td class="r m" style="color:'+(v>=0?'#6ee7b7':'#fca5a5')+';font-weight:600">'+(v!==0?fm(v):'')+'</td>';
+  });
+  tableHtml+='<td class="r m" style="font-weight:700;font-size:12px">'+fm(netTotal)+'</td></tr>';
+  
+  tableHtml+='<tr style="background:#f1f3f6"><td style="font-weight:700;color:#1e3a5f">\uB204\uC801 \uC794\uC561</td>';
+  cumData.forEach(function(cd){
+    tableHtml+='<td class="r m b">'+(cd.cum!==0?fm(cd.cum):'')+'</td>';
+  });
+  tableHtml+='<td class="r m b" style="color:#2563eb;font-size:12px">'+fm(cumBal)+'</td></tr>';
+  
+  tableHtml+='</tbody></table></div>';
+  
+  var noteHtml='<div class="ib" style="font-size:9px;margin-top:8px">\uD83D\uDCA1 \uBC95\uC778\uACC4\uC88C \uC785\uCD9C\uAE08 \uAE30\uBC18 \uD604\uAE08\uD750\uB984. \uC601\uC5C5=\uACBD\uBE44\uC218\uC785/\uC9C0\uCD9C, \uD22C\uC790=\uC99D\uAD8C\uB9E4\uB9E4\u00b7\uC774\uCCB4, \uC7AC\uBB34=\uC790\uBCF8\uAE08\u00b7\uCC28\uC785\uAE08</div>';
+  
+  return summaryHtml+chartHtml+tableHtml+noteHtml;
+}
+
+function cfExtractMonth(dt){
+  if(!dt)return null;
+  var m;
+  m=dt.match(/^(\d{4})[\/\-](\d{1,2})/);
+  if(m) return String(parseInt(m[2])).padStart(2,'0');
+  m=dt.match(/^(\d{1,2})\//);
+  if(m) return String(parseInt(m[1])).padStart(2,'0');
+  return null;
+}
+
+function cfGuessType(d,dir){
+  var c=(d.cat||'').toLowerCase();
+  if(c.includes('\uC99D\uAD8C')||c.includes('\uC8FC\uC2DD')||c.includes('\uB9E4\uC218')||c.includes('\uB9E4\uB3C4')||c.includes('\uC774\uCCB4')||c.includes('ipo')||c.includes('\uC99D\uAC70\uAE08'))return 'sec';
+  if(c.includes('\uC790\uBCF8')||c.includes('\uCD9C\uC790'))return 'capital';
+  if(c.includes('\uCC28\uC785'))return 'loan';
+  if(dir==='in'&&(c.includes('\uC774\uC790')||c.includes('\uBC30\uB2F9')))return 'income';
+  return dir==='in'?'income':'expense';
+}
+
 // ===== ROUTING =====
 const pages={dash:rDash,slip:rSlip,jrn:rJrn,gl:rGL,fs:rFS,sec:rSec,bank:rBank,rpt:rRpt,set:rSet};
 let cur='dash';
@@ -2045,7 +2322,7 @@ function go(p){
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));this.classList.add('on');
     const tc=document.getElementById('TC'),id=this.dataset.tab;if(!tc)return;
     if(cur==='sec'){if(id==='real')tc.innerHTML=rRealTab();else go('sec');}
-    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📊 월별 비용분석</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else go('fs');}
+    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📊 월별 비용분석</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else if(id==='cashflow')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 월별 현금흐름표</div>'+rCashFlow()+'</div>';else go('fs');}
   }));
 }
 
