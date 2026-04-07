@@ -158,7 +158,7 @@ function acctBal(code){
 function dynamicFS(){
   const c=calc();
   // P&L: all computed from journals
-  const sgaCodes=['510','511','512','513','514','515','516','520','521','522','523','524','525','526','527','528','529','530','531','532','533','534','535','536','537','538','539','547','548','549','570','580','581','582','583','584'];
+  const sgaCodes=['510','511','512','513','514','515','516','520','521','522','523','524','525','526','527','528','529','530','531','532','533','534','535','536','538','539','547','548','549','570','580','581','582','583','584'];
   const noiCodes=['401','402','403','404','405','406','407','408','409','410','411','412','413'];
   const specCodes=['560','561','562','563','564','565'];
   let sgaT=0,noiT=0,suT=0;
@@ -170,7 +170,8 @@ function dynamicFS(){
   const interestPay=acctBal('540'); // 지급이자 from journals
   // Dynamic: unrealized P&L from current holdings
   const evalLoss=Math.max(0, c.allC - c.allMv); // 보유종목 시가기준 실시간 // positive = loss
-  const noeT=evalLoss+interestPay;
+  const secFee=acctBal('537'); // 유가증권매매수수료 (영업외비용)
+  const noeT=evalLoss+interestPay+secFee;
   const oi=ol+noiT-noeT;
   // Use journal tax if exists, otherwise estimate
   const journalCt=acctBal('550');
@@ -201,7 +202,7 @@ function dynamicFS(){
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sgaT,su,ol,noiT,evalLoss,interestPay,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,totA,totL,capitalBal,eqNI,totE,evalAdj};
+  return {sgaT,su,ol,noiT,evalLoss,interestPay,secFee,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,totA,totL,capitalBal,eqNI,totE,evalAdj};
 }
 
 
@@ -1850,13 +1851,14 @@ function rFS(){
   const d=dynamicFS();const c=calc();
   // SGA: dynamically from journals
   // SGA: scan ALL expense accounts with balance (exclude NOE 540-546, tax 550+, startup 560+)
-  const sgaExclude=['540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];
+  const sgaExclude=['537','540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];
   const sga=D.accts.filter(ac=>ac.g==='비용'&&!sgaExclude.includes(ac.c)).map(ac=>({nm:ac.k,a:acctBal(ac.c)})).filter(x=>x.a!==0);
   // NOI: dynamically from journals
   // NOI: scan ALL revenue accounts with balance
   const noi=D.accts.filter(ac=>ac.g==='수익').map(ac=>({nm:ac.k,a:acctBal(ac.c)})).filter(x=>x.a!==0);
   // NOE
   const noe=[
+    {nm:"유가증권매매수수료",a:d.secFee},
     {nm:"유가증권평가손익(미실현)",a:d.evalLoss,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"},
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
@@ -2247,7 +2249,7 @@ function exportFSWord(){
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅱ　販売費及び一般管理費</td></tr>
-'+function(){var excl=['540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];var r='';D.accts.filter(function(ac){return ac.g==='비용'&&excl.indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBal(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;}()+'
+'+function(){var excl=['537','540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];var r='';D.accts.filter(function(ac){return ac.g==='비용'&&excl.indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBal(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;}()+'
 <tr class="sub"><td>　販管費合計</td><td></td><td class="r b">${fm(d.sgaT)}</td><td></td></tr>
 <tr><td>　創立費</td><td></td><td class="r">${fm(d.su)}</td><td></td></tr>
 <tr class="sub"><td>営業損失</td><td></td><td></td><td class="r b" style="color:#c0392b">${fm(d.ol)}</td></tr>
@@ -2259,6 +2261,7 @@ function exportFSWord(){
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅳ　営業外費用</td></tr>
+<tr><td>　有価証券売買手数料</td><td class="r">${fm(d.secFee)}</td><td></td><td></td></tr>
 <tr><td>　有価証券評価損（未実現）</td><td class="r">${fm(d.evalLoss)}</td><td></td><td></td></tr>
 <tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>
 <tr><td>　支払利息（役員借入金 年1%）</td><td class="r">${fm(d.interestPay)}</td><td></td><td></td></tr>
