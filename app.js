@@ -2874,16 +2874,17 @@ function rTaxSummary(){
     cats[cls].cnt++;
   });
 
-  // Check for un-migrated entries (세포함 entries that need splitting)
+  // Check for un-migrated entries
   var unmigrated=D.journals.filter(function(j){
     if(j.taxCls!=='과세10%'&&j.taxCls!=='경감8%') return false;
-    if(j.dr==='154'||j.cr==='211') return false; // already a tax entry
+    if(j.dr==='154'||j.cr==='211') return false;
+    if(j.dr==='537') return false; // 537 already has separate tax entries
     if(j.desc&&j.desc.indexOf('[소비세]')>=0) return false;
-    // Check if companion tax entry exists
+    if(!expCodes[j.dr]&&!revCodes[j.cr]) return false;
+    var desc=j.desc;
     var hasCompanion=D.journals.some(function(j2){
-      return j2.desc&&j2.desc.indexOf('[소비세]')>=0&&j2.dt===j.dt&&(j2.dr==='154'||j2.cr==='211');
+      return j2.desc==='[소비세] '+desc&&j2.dt===j.dt;
     });
-    // Simple heuristic: if no 154/211 companion for this exact entry
     return !hasCompanion;
   });
 
@@ -3002,14 +3003,22 @@ function genTaxSettlement(){
 function migrateTaxSplit(){
   var expCodes={};D.accts.filter(function(ac){return ac.g==='비용';}).forEach(function(ac){expCodes[ac.c]=true;});
   var revCodes={};D.accts.filter(function(ac){return ac.g==='수익';}).forEach(function(ac){revCodes[ac.c]=true;});
+  // Find entries that have taxCls but no [소비세] companion AND are not 537 (537 already has separate tax entries)
   var targets=D.journals.filter(function(j){
     if(j.taxCls!=='과세10%'&&j.taxCls!=='경감8%') return false;
-    if(j.dr==='154'||j.cr==='211') return false;
+    if(j.dr==='154'||j.cr==='211') return false; // already a tax entry
+    if(j.dr==='537') return false; // 537 already has separate 소비세 entries in data.js
     if(j.desc&&j.desc.indexOf('[소비세]')>=0) return false;
-    return true;
+    if(!expCodes[j.dr]&&!revCodes[j.cr]) return false; // not expense/revenue
+    // Check if companion [소비세] entry already exists for this specific entry
+    var desc=j.desc;
+    var hasCompanion=D.journals.some(function(j2){
+      return j2.desc==='[소비세] '+desc&&j2.dt===j.dt;
+    });
+    return !hasCompanion;
   });
   if(targets.length===0){toast('전환할 전표가 없습니다');return;}
-  if(!confirm(targets.length+'건의 과세 전표를 세빼기로 전환합니다.\n\n본체 금액이 조정되고 소비세 분리 전표가 자동 생성됩니다.\n계속하시겠습니까?')) return;
+  if(!confirm(targets.length+'건의 과세 전표를 세빼기로 전환합니다.\n계속하시겠습니까?')) return;
   var count=0,totalTax=0;
   targets.forEach(function(j){
     var rate=j.taxCls==='경감8%'?8:10;
@@ -3018,14 +3027,11 @@ function migrateTaxSplit(){
     var netAmt=j.amt-taxAmt;
     var isExp=expCodes[j.dr];
     var isRev=revCodes[j.cr];
-    // Adjust main entry to net amount
     j.amt=netAmt;
-    // Create companion tax entry
     var taxDr=isExp?'154':j.dr;
     var taxCr=isRev?'211':j.cr;
-    var taxNo=genSlipNo(j.edt||'2026-03',taxDr,taxCr);
     D.journals.push({
-      id:nid(),dt:j.dt,no:taxNo,desc:'[소비세] '+j.desc,
+      id:nid(),dt:j.dt,no:'',desc:'[소비세] '+j.desc,
       dr:taxDr,cr:taxCr,amt:taxAmt,
       edt:j.edt||'',pdt:j.pdt||'',cur:j.cur||'JPY',exp:'',vendor:j.vendor||'',taxCls:j.taxCls
     });
@@ -3915,6 +3921,11 @@ document.addEventListener('DOMContentLoaded',function(){
   // === 소비세 세빼기 마이그레이션 (1회만 실행) ===
   if(!D._taxMigrated){
     var taxChanges=0;
+    var newTaxEntries=[];
+    // Helper: check if account is expense
+    var expSet={};D.accts.filter(function(ac){return ac.g==='비용';}).forEach(function(ac){expSet[ac.c]=true;});
+    var revSet={};D.accts.filter(function(ac){return ac.g==='수익';}).forEach(function(ac){revSet[ac.c]=true;});
+
     D.journals.forEach(function(j){
       // 1) 537 "소비세" 전표 → DR을 154(가지급소비세)로 변경
       if(j.dr==='537'&&j.desc&&j.desc.indexOf('소비세')>=0){
@@ -3924,8 +3935,19 @@ document.addEventListener('DOMContentLoaded',function(){
       if(j.taxCls) return;
       // 2) 비용 계정별 분류
       var dr=j.dr,cr=j.cr;
-      // 과세10% 비용
-      if(['520','523','526','527','528','529','531','532','533','534','536','537','538','539','548','570'].indexOf(dr)>=0){j.taxCls='과세10%';taxChanges++;return;}
+      // 과세10% 비용 (세포함 → 분리 대상)
+      if(['520','523','526','527','528','529','531','532','533','534','536','538','539','548','570'].indexOf(dr)>=0){
+        j.taxCls='과세10%';
+        // 세빼기 분리: 본체 감액 + 소비세 전표 생성
+        var taxAmt=Math.round(j.amt*10/110);
+        if(taxAmt>0&&j.amt>0){
+          j.amt=j.amt-taxAmt; // 본체를 세빼기 금액으로 조정
+          newTaxEntries.push({id:nid(),dt:j.dt,no:'',desc:'[소비세] '+j.desc,dr:'154',cr:j.cr,amt:taxAmt,edt:j.edt||'',pdt:j.pdt||'',cur:j.cur||'JPY',exp:'',vendor:j.vendor||'',taxCls:'과세10%'});
+        }
+        taxChanges++;return;
+      }
+      // 537 수수료 (이미 별도 소비세 전표가 있으므로 분리 불필요, 라벨만)
+      if(dr==='537'){j.taxCls='과세10%';taxChanges++;return;}
       // 해외출장비 → 불과세
       if(dr==='521'){j.taxCls='불과세';taxChanges++;return;}
       // 지급이자 → 비과세
@@ -3940,10 +3962,12 @@ document.addEventListener('DOMContentLoaded',function(){
       // 4) 자산간 이동, 자본, 차입 → 불과세
       if(['110','130','191'].indexOf(dr)>=0||['110','130','191','300','221'].indexOf(cr)>=0){j.taxCls='불과세';taxChanges++;return;}
     });
+    // 소비세 분리 전표 추가
+    newTaxEntries.forEach(function(e){D.journals.push(e);});
     D._taxMigrated=true;
     if(taxChanges>0){
       saveD();
-      toast('소비세 세빼기 마이그레이션 완료 ('+taxChanges+'건 분류, 소비세분→154 재분류)');
+      toast('소비세 세빼기 마이그레이션 완료 ('+taxChanges+'건 분류, '+newTaxEntries.length+'건 소비세 분리)');
       go('dash');
     }
   }
