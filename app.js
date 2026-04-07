@@ -10,6 +10,7 @@ let D=loadJ(DKEY,DEF_DATA);
 // Migrate: always use fresh accts from ACCT_INIT (fixes JP->KR group name change)
 // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
+if(D._oiAccts)OI_ACCTS=D._oiAccts;
 D.accts=ACCT_INIT.concat(D.customAccts);
 if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
 if(!D.vendors)D.vendors=INIT_VENDORS;
@@ -508,6 +509,7 @@ async function doFbDownload(){
     for(var key in fbData){if(fbData.hasOwnProperty(key))D[key]=fbData[key];}
     // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
+if(D._oiAccts)OI_ACCTS=D._oiAccts;
 D.accts=ACCT_INIT.concat(D.customAccts);
     if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
     if(!D.vendors)D.vendors=INIT_VENDORS||[];
@@ -1208,7 +1210,8 @@ const edt=document.getElementById('sl_edt').value,pdt=document.getElementById('s
   // 원가구분 optional
 const mo=String(parseInt(edt.split('-')[1]||'1'));const dt=mo+'/'+String(parseInt(edt.split('-')[2]||'1'));const no=genSlipNo(edt,rows[0]?rows[0].ac:'',rows[1]?rows[1].ac:'');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');var _newSlipId=nid();if(!window._editSlipId&&!confirm('전표를 생성하시겠습니까?\n\n적요: '+desc+'\n금액: '+fm(dr)))return;drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);var tC=d.taxCls||c.taxCls||'';if(window._editSlipId){var ej=D.journals.find(x=>x.id===window._editSlipId);if(ej){saveUndo('edit',ej);ej.dt=dt;ej.desc=desc;ej.dr=d.ac;ej.cr=c.ac;ej.amt=amt;ej.edt=edt;ej.pdt=pdt;ej.cur=cur;ej.exp=d.exp||c.exp;ej.vendor=vendor;ej.taxCls=tC;}window._editSlipId=null;}else{var newJ={id:_newSlipId,dt,no,desc,dr:d.ac,cr:c.ac,amt,edt,pdt,cur,exp:d.exp||c.exp,vendor:vendor,taxCls:tC};D.journals.push(newJ);saveUndo('create',newJ);}});});saveD();toast(window._editSlipId?'전표 수정 완료':'전표 생성 완료: '+desc);go('slip');window.scrollTo(0,0);}
 function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="자산">자산</option><option value="부채">부채</option><option value="순자산">순자산</option><option value="수익">수익</option><option value="비용">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
-function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');if(D.accts.find(x=>x.c===c))return alert('이미 존재하는 코드입니다');var newAcct={c,n,k,g};D.accts.push(newAcct);if(!D.customAccts)D.customAccts=[];D.customAccts.push(newAcct);saveD();closeModal();toast('계정과목 추가: '+c+' '+k);go('slip');}
+function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');if(D.accts.find(x=>x.c===c))return alert('이미 존재하는 코드입니다');var newAcct={c,n,k,g};D.accts.push(newAcct);if(!D.customAccts)D.customAccts=[];
+if(D._oiAccts)OI_ACCTS=D._oiAccts;D.customAccts.push(newAcct);saveD();closeModal();toast('계정과목 추가: '+c+' '+k);go('slip');}
 
 function rSlip(){
   // Group journals by year-month
@@ -1970,6 +1973,7 @@ function importBackup(){
         D=backup.data;
         // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
+if(D._oiAccts)OI_ACCTS=D._oiAccts;
 D.accts=ACCT_INIT.concat(D.customAccts); // Always use fresh accounts
         saveD();
         // Restore settings
@@ -2385,8 +2389,298 @@ function cfGuessType(d,dir){
   return dir==='in'?'income':'expense';
 }
 
+
+// ===== 미결관리 (Open Item Management) =====
+// 미결관리 대상 계정 (부채·자산 중 개별 추적 필요한 계정)
+var OI_ACCTS=['122','203','204','205','206','207','221','224','225'];
+
+function isOIAcct(code){return OI_ACCTS.indexOf(code)>=0;}
+
+// 미결 항목 조회: 해당 계정에서 반제되지 않은 전표
+function getOpenItems(acctCode){
+  var items=[];
+  D.journals.forEach(function(j){
+    if(j.dr===acctCode||j.cr===acctCode){
+      var isDr=j.dr===acctCode;
+      var side=isDr?'dr':'cr';
+      // 부채계정: cr=발생(+), dr=상환(-)
+      // 자산계정: dr=발생(+), cr=회수(-)
+      var ac=D.accts.find(function(x){return x.c===acctCode;});
+      var isLiab=ac&&ac.g==='부채';
+      var sign=(isLiab&&!isDr)||(!isLiab&&isDr)?1:-1;
+      items.push({
+        id:j.id, dt:j.dt, no:j.no, desc:j.desc, 
+        amt:j.amt, side:side, sign:sign,
+        signedAmt:j.amt*sign,
+        tkCode:j.tkCode||'',
+        cleared:j.cleared||false,
+        clearGroup:j.clearGroup||''
+      });
+    }
+  });
+  return items;
+}
+
+function rOI(){
+  // 미결관리 대상 계정별 요약
+  var summaryHtml='';
+  var totalOpen=0, totalCleared=0;
+  
+  OI_ACCTS.forEach(function(code){
+    var ac=D.accts.find(function(x){return x.c===code;});
+    if(!ac)return;
+    var items=getOpenItems(code);
+    if(items.length===0)return;
+    
+    var openItems=items.filter(function(x){return !x.cleared;});
+    var clearedItems=items.filter(function(x){return x.cleared;});
+    var openBal=openItems.reduce(function(s,x){return s+x.signedAmt;},0);
+    
+    totalOpen+=openItems.length;
+    totalCleared+=clearedItems.length;
+    
+    var statusColor=openBal===0?'#059669':openBal>0?'#2563eb':'#d97706';
+    summaryHtml+='<div onclick="showOIDetail(\''+code+'\')" style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:10px 14px;cursor:pointer;border-left:4px solid '+statusColor+'" onmouseenter="this.style.borderColor=\''+statusColor+'\'" onmouseleave="this.style.borderColor=\'#e2e6ed\'">';
+    summaryHtml+='<div style="display:flex;justify-content:space-between;align-items:center">';
+    summaryHtml+='<div><div style="font-size:12px;font-weight:600">'+ac.k+' ('+code+')</div>';
+    summaryHtml+='<div style="font-size:9px;color:#64748b">미결 '+openItems.length+'건 / 반제 '+clearedItems.length+'건</div></div>';
+    summaryHtml+='<div style="text-align:right"><div style="font-size:14px;font-weight:700;color:'+statusColor+';font-feature-settings:\'tnum\'">'+fm(Math.abs(openBal))+'</div>';
+    summaryHtml+='<div style="font-size:9px;color:#64748b">'+(openBal>0?'미결잔액':'')+(openBal===0&&openItems.length===0?'완결':'')+(openBal===0&&openItems.length>0?'잔액0 (확인필요)':'')+'</div></div>';
+    summaryHtml+='</div></div>';
+  });
+  
+  if(!summaryHtml) summaryHtml='<div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:40px;margin-bottom:12px">📋</div>미결관리 대상 전표가 없습니다.<br>전표 기표 후 여기서 확인하세요.</div>';
+  
+  return '<div class="pt">미결관리</div>'+
+    '<div class="ib">💡 부채·자산 계정의 미결(미정산) 항목을 추적하고 반제(상계)합니다. 계정을 클릭하면 상세 내역을 표시합니다.</div>'+
+    '<div class="cards">'+
+      '<div class="cd bl"><div class="l">미결관리 계정</div><div class="v">'+OI_ACCTS.length+'개</div></div>'+
+      '<div class="cd go"><div class="l">미결 항목</div><div class="v">'+totalOpen+'건</div></div>'+
+      '<div class="cd gn"><div class="l">반제 완료</div><div class="v">'+totalCleared+'건</div></div>'+
+    '</div>'+
+    '<div class="pn"><div class="ph"><span>계정별 미결 현황</span><button class="bt gh" style="font-size:10px" onclick="manageOIAccts()">⚙️ 대상계정 관리</button></div>'+
+    '<div style="padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">'+summaryHtml+'</div></div>';
+}
+
+function showOIDetail(code){
+  var ac=D.accts.find(function(x){return x.c===code;});
+  if(!ac)return;
+  var items=getOpenItems(code);
+  var openItems=items.filter(function(x){return !x.cleared;});
+  var clearedItems=items.filter(function(x){return x.cleared;});
+  
+  // Open items table
+  var openHtml='';
+  if(openItems.length>0){
+    openHtml='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:#d97706;margin-bottom:6px">🔶 미결 항목 ('+openItems.length+'건)</div>';
+    openHtml+='<table><thead><tr><th><input type="checkbox" id="oiSelAll" onchange="oiToggleAll(this)"></th><th>일자</th><th>전표</th><th>적요</th><th>추적코드</th><th class="r">발생</th><th class="r">상환</th><th class="r">잔액</th></tr></thead><tbody>';
+    var runBal=0;
+    openItems.forEach(function(it,i){
+      runBal+=it.signedAmt;
+      var isPositive=it.signedAmt>0;
+      openHtml+='<tr class="'+(i%2?'a':'')+'">';
+      openHtml+='<td><input type="checkbox" class="oi-chk" data-id="'+it.id+'" data-amt="'+it.signedAmt+'" onchange="oiUpdateSel()"></td>';
+      openHtml+='<td class="mu m">'+it.dt+'</td>';
+      openHtml+='<td style="color:#2563eb;font-size:10px">'+it.no+'</td>';
+      openHtml+='<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">'+it.desc+'</td>';
+      openHtml+='<td style="font-size:10px;color:#7c3aed">'+(it.tkCode||'-')+'</td>';
+      openHtml+='<td class="r m gn">'+(isPositive?fm(it.amt):'')+'</td>';
+      openHtml+='<td class="r m rd">'+(!isPositive?fm(it.amt):'')+'</td>';
+      openHtml+='<td class="r m b">'+fm(runBal)+'</td>';
+      openHtml+='</tr>';
+    });
+    openHtml+='</tbody></table>';
+    openHtml+='<div id="oiSelInfo" style="margin-top:8px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e6ed;border-radius:6px;font-size:11px;display:none"></div>';
+    openHtml+='<div style="margin-top:8px;display:flex;gap:6px">';
+    openHtml+='<button class="bt" id="oiClearBtn" onclick="oiClear(\''+code+'\')" style="background:#7c3aed" disabled>📋 선택항목 반제</button>';
+    openHtml+='<button class="bt gh" onclick="oiAssignTK(\''+code+'\')">🏷 추적코드 일괄부여</button>';
+    openHtml+='</div></div>';
+  }
+  
+  // Cleared items
+  var clearedHtml='';
+  if(clearedItems.length>0){
+    clearedHtml='<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:6px">✅ 반제 완료 ('+clearedItems.length+'건)</div>';
+    clearedHtml+='<table><thead><tr><th>일자</th><th>전표</th><th>적요</th><th>반제그룹</th><th class="r">금액</th><th></th></tr></thead><tbody>';
+    clearedItems.forEach(function(it,i){
+      clearedHtml+='<tr class="'+(i%2?'a':'')+'" style="opacity:0.6">';
+      clearedHtml+='<td class="mu m">'+it.dt+'</td>';
+      clearedHtml+='<td style="color:#2563eb;font-size:10px">'+it.no+'</td>';
+      clearedHtml+='<td>'+it.desc+'</td>';
+      clearedHtml+='<td style="font-size:10px;color:#059669">'+(it.clearGroup||'')+'</td>';
+      clearedHtml+='<td class="r m">'+fm(it.amt)+'</td>';
+      clearedHtml+='<td><button class="del" onclick="oiUndo('+it.id+',\''+code+'\')" style="font-size:9px;color:#d97706">반제취소</button></td>';
+      clearedHtml+='</tr>';
+    });
+    clearedHtml+='</tbody></table></div>';
+  }
+  
+  var bal=items.reduce(function(s,x){return s+x.signedAmt;},0);
+  var openBal=openItems.reduce(function(s,x){return s+x.signedAmt;},0);
+  
+  showModal('📋 '+ac.k+' ('+code+') 미결관리',
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'+
+    '<div style="background:#eff6ff;padding:8px;border-radius:6px;text-align:center"><div style="font-size:9px;color:#2563eb">총잔액</div><div style="font-size:14px;font-weight:700">'+fm(bal)+'</div></div>'+
+    '<div style="background:#fffbeb;padding:8px;border-radius:6px;text-align:center"><div style="font-size:9px;color:#d97706">미결잔액</div><div style="font-size:14px;font-weight:700">'+fm(openBal)+'</div></div>'+
+    '<div style="background:#f0fdf4;padding:8px;border-radius:6px;text-align:center"><div style="font-size:9px;color:#059669">반제완료</div><div style="font-size:14px;font-weight:700">'+clearedItems.length+'건</div></div>'+
+    '</div>'+
+    openHtml+clearedHtml
+  );
+}
+
+// 체크박스 전체선택
+function oiToggleAll(el){
+  document.querySelectorAll('.oi-chk').forEach(function(cb){cb.checked=el.checked;});
+  oiUpdateSel();
+}
+
+// 선택된 항목 합계 표시
+function oiUpdateSel(){
+  var checks=document.querySelectorAll('.oi-chk:checked');
+  var info=document.getElementById('oiSelInfo');
+  var btn=document.getElementById('oiClearBtn');
+  if(!info||!btn)return;
+  
+  if(checks.length===0){
+    info.style.display='none';
+    btn.disabled=true;
+    return;
+  }
+  
+  var total=0, cnt=0;
+  checks.forEach(function(cb){total+=parseFloat(cb.dataset.amt);cnt++;});
+  
+  info.style.display='block';
+  var isBalanced=Math.abs(total)<1;
+  info.innerHTML='선택: <b>'+cnt+'건</b> | 합계: <b style="color:'+(isBalanced?'#059669':'#dc2626')+'">'+fm(total)+'</b>'+
+    (isBalanced?' <span style="color:#059669">✅ 반제 가능 (차대일치)</span>':' <span style="color:#dc2626">⚠️ 잔액 불일치 — 차대가 맞아야 반제 가능</span>');
+  btn.disabled=!isBalanced;
+}
+
+// 반제 실행
+function oiClear(acctCode){
+  var checks=document.querySelectorAll('.oi-chk:checked');
+  if(checks.length===0)return;
+  
+  // Verify balance = 0
+  var total=0;
+  var ids=[];
+  checks.forEach(function(cb){total+=parseFloat(cb.dataset.amt);ids.push(parseInt(cb.dataset.id));});
+  
+  if(Math.abs(total)>=1){
+    alert('선택항목의 합계가 0이 아닙니다.\n발생(+)과 상환(-)이 일치해야 반제할 수 있습니다.');
+    return;
+  }
+  
+  // Generate clear group code
+  if(!D._clearSeq)D._clearSeq=0;
+  D._clearSeq++;
+  var clearGroup='CLR-'+acctCode+'-'+String(D._clearSeq).padStart(3,'0');
+  
+  var desc=ids.length+'건 반제 ('+clearGroup+')\n';
+  ids.forEach(function(id){
+    var j=D.journals.find(function(x){return x.id===id;});
+    if(j)desc+=j.dt+' '+j.no+' '+j.desc+' '+fm(j.amt)+'\n';
+  });
+  
+  if(!confirm('반제 실행\n\n'+desc+'\n반제그룹: '+clearGroup+'\n\n진행하시겠습니까?'))return;
+  
+  ids.forEach(function(id){
+    var j=D.journals.find(function(x){return x.id===id;});
+    if(j){
+      j.cleared=true;
+      j.clearGroup=clearGroup;
+      j.clearDate=new Date().toISOString().slice(0,10);
+    }
+  });
+  saveD();
+  toast(ids.length+'건 반제 완료 ('+clearGroup+')');
+  showOIDetail(acctCode);
+}
+
+// 반제 취소
+function oiUndo(journalId,acctCode){
+  if(!confirm('이 항목의 반제를 취소하시겠습니까?'))return;
+  var j=D.journals.find(function(x){return x.id===journalId;});
+  if(j){
+    delete j.cleared;
+    delete j.clearGroup;
+    delete j.clearDate;
+    saveD();
+    toast('반제 취소 완료');
+    showOIDetail(acctCode);
+  }
+}
+
+// 추적코드 일괄부여
+function oiAssignTK(acctCode){
+  var items=getOpenItems(acctCode).filter(function(x){return !x.cleared&&!x.tkCode;});
+  if(items.length===0){alert('추적코드가 없는 미결항목이 없습니다.');return;}
+  
+  if(!confirm(items.length+'건에 추적코드를 자동 부여하시겠습니까?'))return;
+  
+  var now=new Date();
+  var prefix=acctCode+'-'+String(now.getFullYear()).slice(2)+String(now.getMonth()+1).padStart(2,'0');
+  var seq=1;
+  
+  // Find max existing seq for this prefix
+  D.journals.forEach(function(j){
+    if(j.tkCode&&j.tkCode.startsWith(prefix)){
+      var n=parseInt(j.tkCode.split('-')[2])||0;
+      if(n>=seq)seq=n+1;
+    }
+  });
+  
+  items.forEach(function(it){
+    var j=D.journals.find(function(x){return x.id===it.id;});
+    if(j){
+      j.tkCode=prefix+'-'+String(seq).padStart(3,'0');
+      seq++;
+    }
+  });
+  saveD();
+  toast(items.length+'건 추적코드 부여 완료');
+  showOIDetail(acctCode);
+}
+
+// 미결관리 대상계정 관리
+function manageOIAccts(){
+  var html='<div style="margin-bottom:10px;font-size:11px;color:#64748b">체크된 계정이 미결관리 대상입니다. 부채·자산 계정 중 개별 추적이 필요한 항목을 선택하세요.</div>';
+  html+='<div style="max-height:400px;overflow-y:auto">';
+  
+  ['부채','자산'].forEach(function(g){
+    html+='<div style="font-size:11px;font-weight:700;color:#2563eb;margin:8px 0 4px;padding:3px 6px;background:#dbeafe;border-radius:4px;display:inline-block">'+g+'</div>';
+    D.accts.filter(function(ac){return ac.g===g;}).forEach(function(ac){
+      var checked=OI_ACCTS.indexOf(ac.c)>=0;
+      var hasBal=acctBal(ac.c)!==0;
+      html+='<label style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px;cursor:pointer'+(hasBal?';font-weight:600':'')+'">';
+      html+='<input type="checkbox" class="oi-acct-chk" value="'+ac.c+'"'+(checked?' checked':'')+'>';
+      html+=ac.c+' '+ac.k+(hasBal?' <span style="color:#2563eb;font-size:10px">('+fm(acctBal(ac.c))+')</span>':'');
+      html+='</label>';
+    });
+  });
+  html+='</div>';
+  html+='<div style="margin-top:10px"><button class="bt" onclick="saveOIAccts()">💾 저장</button></div>';
+  
+  showModal('⚙️ 미결관리 대상계정 설정', html);
+}
+
+function saveOIAccts(){
+  var newList=[];
+  document.querySelectorAll('.oi-acct-chk:checked').forEach(function(cb){
+    newList.push(cb.value);
+  });
+  OI_ACCTS=newList;
+  // Save to D for persistence
+  D._oiAccts=newList;
+  saveD();
+  closeModal();
+  toast('미결관리 대상계정 저장 완료 ('+newList.length+'개)');
+  go('oi');
+}
+
 // ===== ROUTING =====
-const pages={dash:rDash,slip:rSlip,jrn:rJrn,gl:rGL,fs:rFS,sec:rSec,bank:rBank,rpt:rRpt,set:rSet};
+const pages={dash:rDash,slip:rSlip,jrn:rJrn,gl:rGL,fs:rFS,sec:rSec,bank:rBank,rpt:rRpt,oi:rOI,set:rSet};
 let cur='dash';
 
 function go(p){
