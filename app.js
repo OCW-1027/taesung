@@ -195,7 +195,10 @@ function dynamicFS(){
   const evalAdj=evalLoss-journalEvalLoss; // 시가 조정액
   const secForBS=secBookVal-evalAdj; // 시가 반영 유가증권
   const cashT=deposit+secDep;
-  const totA=cashT+secForBS;
+  // Other assets (fixed assets, prepaid, etc.) — all asset accounts except 110, 191, 130
+  let otherAssets=0;
+  D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){otherAssets+=acctBal(ac.c);});
+  const totA=cashT+secForBS+otherAssets;
   // Liabilities + Equity: all from journals
   const liabCodes=['200','201','202','203','204','205','206','207','208','209','210','211','212','213','214','215','216','217','220','221','222','223','224','225','226','227','228'];
   let totL=0;liabCodes.forEach(c2=>{totL+=acctBal(c2);});
@@ -205,7 +208,7 @@ function dynamicFS(){
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sgaT,su,ol,noiT,evalLoss,interestPay,secFee,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,totA,totL,capitalBal,eqNI,totE,evalAdj};
+  return {sgaT,su,ol,noiT,evalLoss,interestPay,secFee,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,eqNI,totE,evalAdj};
 }
 
 
@@ -879,7 +882,10 @@ function calc(){
   const tI=D.bkIn.reduce((s,d)=>s+d.amt,0),tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
   const rpl=D.real.reduce((s,r)=>s+r.net,0),rC=D.real.reduce((s,r)=>s+r.tc,0),rS=D.real.reduce((s,r)=>s+r.sa,0);
   const bb=tI-tO,secDep=D.secDeposit||SEC_DEP,secBal=secDep+jpMv+usMv;
-  return {jpMv,jpC,usMv,usC,allMv:jpMv+usMv,allC:jpC+usC,allPl:jpMv+usMv-jpC-usC,rpl,rC,rS,tI,tO,bb,secDep,secBal,totA:bb+secBal};
+  // Include other asset balances (fixed assets etc.) for complete total
+  let otherA=0;
+  D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){otherA+=acctBal(ac.c);});
+  return {jpMv,jpC,usMv,usC,allMv:jpMv+usMv,allC:jpC+usC,allPl:jpMv+usMv-jpC-usC,rpl,rC,rS,tI,tO,bb,secDep,secBal,totA:bb+secBal+otherA};
 }
 
 function showModal(title,html){document.getElementById('modal').innerHTML='<div class="mo" onclick="closeModal()"><div class="mc" onclick="event.stopPropagation()"><h3>'+title+'</h3>'+html+'</div></div>';document.getElementById('modal').classList.remove('hidden');}
@@ -2322,6 +2328,7 @@ function exportFSWord(){
 <tr><td>　証券預り金</td><td class="r">${fm(d.secDep)}</td><td></td><td></td></tr>
 <tr class="sub"><td>　現金・預金計</td><td></td><td class="r b">${fm(d.cashT)}</td><td></td></tr>
 <tr class="sub"><td>　有価証券（時価）</td><td></td><td class="r b">${fm(d.secMV)}</td><td></td></tr>
+${(function(){var rows='';D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){var b=acctBal(ac.c);if(b!==0)rows+='<tr><td>　'+ac.n+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return rows;})()}
 <tr class="total"><td>資産合計</td><td></td><td></td><td class="r" style="font-size:11pt">${fm(d.totA)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
@@ -3319,6 +3326,96 @@ function delContract(id){
 
 // --- 자산관리 탭별 렌더링 ---
 
+// --- 감가상각 전표 자동생성 ---
+function genDepJournals(ym){
+  if(!ym){toast('연월을 선택하세요','warn');return;}
+  var parts=ym.split('-');
+  var yr=parseInt(parts[0]),mo=parseInt(parts[1]);
+  var moStr=mo+'/1'; // 전표 날짜 형식
+  var dtFull=ym; // edt(편집날짜) 형식
+  var activeFA=(D.fixedAssets||[]).filter(function(a){return !a.disposed;});
+  if(activeFA.length===0){toast('감가상각 대상 자산이 없습니다','warn');return;}
+  // 중복 체크: 해당 월에 이미 감가상각 전표가 있는지
+  var dupTag='[감가상각_'+ym+']';
+  var existing=D.journals.filter(function(j){return j.desc&&j.desc.indexOf(dupTag)>=0;});
+  if(existing.length>0){
+    if(!confirm('⚠️ '+ym+' 감가상각 전표가 이미 '+existing.length+'건 있습니다.\n중복 생성하시겠습니까?')) return;
+  }
+  var count=0,totalAmt=0;
+  var _batchId=nid();
+  activeFA.forEach(function(a){
+    var dep=calcDepreciation(a);
+    if(dep.monthly<=0) return; // 상각 완료
+    // 취득일 이전 월은 스킵
+    var acqParts=a.acquiredDate.split('-');
+    var acqYM=parseInt(acqParts[0])*100+parseInt(acqParts[1]);
+    var targetYM=yr*100+mo;
+    if(targetYM<acqYM) return;
+    var slipNo=genSlipNo(dtFull,'529',a.acctCode);
+    var acctName=(D.accts.find(function(ac){return ac.c===a.acctCode;})||{}).k||a.acctCode;
+    D.journals.push({
+      id:nid(),dt:moStr,no:slipNo,
+      desc:a.name+' 감가상각 ('+acctName+') '+dupTag,
+      dr:'529',cr:a.acctCode,amt:dep.monthly,
+      edt:dtFull+'-28',pdt:dtFull+'-28',cur:'JPY',exp:'',vendor:'',taxCls:''
+    });
+    count++;totalAmt+=dep.monthly;
+  });
+  if(count>0){
+    saveD();
+    toast(ym+' 감가상각 전표 '+count+'건 생성 (합계 '+totalAmt.toLocaleString()+'엔)');
+    go('asset');
+  } else {
+    toast('생성할 감가상각 전표가 없습니다 (모두 상각 완료 또는 미취득)','warn');
+  }
+}
+
+// --- 리스/렌탈 전표 자동생성 ---
+function genLeaseJournals(ym){
+  if(!ym){toast('연월을 선택하세요','warn');return;}
+  var parts=ym.split('-');
+  var yr=parseInt(parts[0]),mo=parseInt(parts[1]);
+  var moStr=mo+'/1';
+  var dtFull=ym;
+  var activeLS=(D.leases||[]).filter(function(l){return l.active;});
+  if(activeLS.length===0){toast('활성 리스/렌탈이 없습니다','warn');return;}
+  // 중복 체크
+  var dupTag='[리스_'+ym+']';
+  var existing=D.journals.filter(function(j){return j.desc&&j.desc.indexOf(dupTag)>=0;});
+  if(existing.length>0){
+    if(!confirm('⚠️ '+ym+' 리스/렌탈 전표가 이미 '+existing.length+'건 있습니다.\n중복 생성하시겠습니까?')) return;
+  }
+  var count=0,totalAmt=0;
+  var today=new Date(yr,mo-1,28);
+  activeLS.forEach(function(l){
+    // 계약기간 체크
+    if(l.startDate){
+      var sd=new Date(l.startDate);
+      if(today<sd) return; // 아직 시작 안됨
+    }
+    if(l.endDate){
+      var ed=new Date(l.endDate);
+      if(today>ed) return; // 이미 종료
+    }
+    var slipNo=genSlipNo(dtFull,l.acctCode,'110');
+    var typeLabel=l.type==='lease'?'리스료':'렌탈료';
+    D.journals.push({
+      id:nid(),dt:moStr,no:slipNo,
+      desc:l.name+' '+typeLabel+' '+dupTag,
+      dr:l.acctCode,cr:'110',amt:l.monthlyAmt,
+      edt:dtFull+'-28',pdt:dtFull+'-28',cur:'JPY',exp:'',vendor:l.vendor||'',taxCls:''
+    });
+    count++;totalAmt+=l.monthlyAmt;
+  });
+  if(count>0){
+    saveD();
+    toast(ym+' 리스/렌탈 전표 '+count+'건 생성 (합계 '+totalAmt.toLocaleString()+'엔)');
+    go('asset');
+  } else {
+    toast('생성할 리스/렌탈 전표가 없습니다 (계약기간 외)','warn');
+  }
+}
+
 function rFATab(){
   // 고정자산대장
   var acctOpts=ACCT_INIT.filter(function(ac){return ac.c>='160'&&ac.c<='185';}).map(function(ac){return '<option value="'+ac.c+'">'+ac.c+' '+ac.k+'</option>';}).join('');
@@ -3379,6 +3476,28 @@ function rFATab(){
 
   // 감가상각 참고표
   html+='<div class="ib" style="margin-top:14px;font-size:10px">💡 <b>일본 감가상각 기준:</b> 잔존가액 = 비망가액 1엔 (税法基準). 정액법: 매년 균등 상각. 정률법: 200%정률법 (取得日 기준). 내용연수 예시: PC 4년, 차량 6년, 건물(목조) 22년, 건물(RC) 47년, 비품 5~15년</div>';
+
+  // 전표 자동생성 버튼
+  if(activeItems.length>0){
+    var nowYM=new Date().toISOString().slice(0,7);
+    html+='<div class="pn" style="margin-top:14px;padding:14px"><div style="font-size:13px;font-weight:700;margin-bottom:10px">📋 감가상각 전표 자동생성</div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+    html+='<input type="month" id="fa_genMonth" value="'+nowYM+'" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">';
+    html+='<button class="bt" onclick="genDepJournals(document.getElementById(\'fa_genMonth\').value)">DR 529 감가상각비 전표 생성</button>';
+    html+='<span style="font-size:10px;color:#64748b">선택한 월의 감가상각비 전표를 일괄 생성합니다 (DR 529 / CR 자산계정)</span>';
+    html+='</div>';
+    // 생성 이력 표시
+    var depJournals=D.journals.filter(function(j){return j.desc&&j.desc.indexOf('[감가상각_')>=0;});
+    if(depJournals.length>0){
+      html+='<div style="margin-top:10px;font-size:10px;color:#64748b"><b>생성 이력:</b> ';
+      var months={};
+      depJournals.forEach(function(j){var m=j.desc.match(/\[감가상각_(\d{4}-\d{2})\]/);if(m)months[m[1]]=(months[m[1]]||0)+1;});
+      Object.keys(months).sort().forEach(function(m){html+=m+'('+months[m]+'건) ';});
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+
   return html;
 }
 
@@ -3447,6 +3566,28 @@ function rLeaseTab(){
   }
 
   html+='<div class="ib" style="margin-top:14px;font-size:10px">💡 <b>리스 vs 렌탈:</b> 리스 = 장기 계약(보통 3~7년), 중도해지 불가. 렌탈 = 단기 계약, 해지 자유. 비용계정: 리스→548(リース料), 렌탈→526(地代家賃)으로 분류</div>';
+
+  // 전표 자동생성 버튼
+  if(activeItems.length>0){
+    var nowYM=new Date().toISOString().slice(0,7);
+    html+='<div class="pn" style="margin-top:14px;padding:14px"><div style="font-size:13px;font-weight:700;margin-bottom:10px">📋 리스/렌탈 전표 자동생성</div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+    html+='<input type="month" id="ls_genMonth" value="'+nowYM+'" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">';
+    html+='<button class="bt gn" onclick="genLeaseJournals(document.getElementById(\'ls_genMonth\').value)">DR 리스료/임차료 전표 생성</button>';
+    html+='<span style="font-size:10px;color:#64748b">선택한 월의 활성 리스/렌탈 전표를 일괄 생성합니다 (DR 비용계정 / CR 110 보통예금)</span>';
+    html+='</div>';
+    // 생성 이력
+    var leaseJournals=D.journals.filter(function(j){return j.desc&&j.desc.indexOf('[리스_')>=0;});
+    if(leaseJournals.length>0){
+      html+='<div style="margin-top:10px;font-size:10px;color:#64748b"><b>생성 이력:</b> ';
+      var months={};
+      leaseJournals.forEach(function(j){var m=j.desc.match(/\[리스_(\d{4}-\d{2})\]/);if(m)months[m[1]]=(months[m[1]]||0)+1;});
+      Object.keys(months).sort().forEach(function(m){html+=m+'('+months[m]+'건) ';});
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+
   return html;
 }
 
