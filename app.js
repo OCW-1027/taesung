@@ -1052,7 +1052,7 @@ function viewSlip(id){
 function delSlip(id){
   if(!confirm("이 전표를 삭제하시겠습니까?\n삭제하면 총계정원장과 재무제표에도 반영됩니다."))return;
   var delJ=D.journals.find(x=>x.id===id);if(delJ)saveUndo('delete',delJ);D.journals=D.journals.filter(x=>x.id!==id);
-  saveD();closeModal();go("slip");
+  saveD();closeModal();go("jrn");
 }
 
 
@@ -1210,7 +1210,7 @@ function applyPrices(){
   alert(changed + '종목 현재가가 업데이트되었습니다.');
 }
 
-// ===== SLIP (전표처리) =====
+// ===== SLIP (전표작성) =====
 function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend','<tr id="sr_'+id+'"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%" onchange="slipAutoFill(this.closest(&quot;tr&quot;))">'+acctOptions()+'</select></td><td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td><td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="과세10%">과세10%</option><option value="경감8%">경감8%</option><option value="비과세">비과세</option><option value="불과세">불과세</option></select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td><button class="del" onclick="document.getElementById(\'sr_'+id+'\').remove();updSlipBal()">✕</button></td></tr>');}
 
 // ===== 전표 자동완성 (계정 선택 시 반대편 추천) =====
@@ -1271,7 +1271,7 @@ const edt=document.getElementById('sl_edt').value,pdt=document.getElementById('s
   // vendor is optional
   // Check all rows have 원가구분
   // 원가구분 optional
-const mo=String(parseInt(edt.split('-')[1]||'1'));const dt=mo+'/'+String(parseInt(edt.split('-')[2]||'1'));const no=genSlipNo(edt,rows[0]?rows[0].ac:'',rows[1]?rows[1].ac:'');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');var _newSlipId=nid();if(!window._editSlipId&&!confirm('전표를 생성하시겠습니까?\n\n적요: '+desc+'\n금액: '+fm(dr)))return;drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);var tC=d.taxCls||c.taxCls||'';if(window._editSlipId){var ej=D.journals.find(x=>x.id===window._editSlipId);if(ej){saveUndo('edit',ej);ej.dt=dt;ej.desc=desc;ej.dr=d.ac;ej.cr=c.ac;ej.amt=amt;ej.edt=edt;ej.pdt=pdt;ej.cur=cur;ej.exp=d.exp||c.exp;ej.vendor=vendor;ej.taxCls=tC;}window._editSlipId=null;}else{
+const mo=String(parseInt(edt.split('-')[1]||'1'));const dt=mo+'/'+String(parseInt(edt.split('-')[2]||'1'));const no=genSlipNo(edt,rows[0]?rows[0].ac:'',rows[1]?rows[1].ac:'');const drRows=rows.filter(r=>r.side==='dr'),crRows=rows.filter(r=>r.side==='cr');var _newSlipId=nid();var _isEdit=!!window._editSlipId;if(!_isEdit&&!confirm('전표를 생성하시겠습니까?\n\n적요: '+desc+'\n금액: '+fm(dr)))return;drRows.forEach(d=>{crRows.forEach(c=>{const ratio=c.amt/cr,amt=Math.round(d.amt*ratio);var tC=d.taxCls||c.taxCls||'';if(window._editSlipId){var ej=D.journals.find(x=>x.id===window._editSlipId);if(ej){saveUndo('edit',ej);ej.dt=dt;ej.desc=desc;ej.dr=d.ac;ej.cr=c.ac;ej.amt=amt;ej.edt=edt;ej.pdt=pdt;ej.cur=cur;ej.exp=d.exp||c.exp;ej.vendor=vendor;ej.taxCls=tC;}window._editSlipId=null;}else{
 // 세빼기: 과세거래 자동분리 (본체 + 소비세)
 var mainAmt=amt,taxAmt=0;
 if(tC==='과세10%'||tC==='경감8%'){
@@ -1290,7 +1290,16 @@ if(taxAmt>0){
   var taxJ={id:nid(),dt:dt,no:taxNo,desc:'[소비세] '+desc,dr:taxDr,cr:taxCr,amt:taxAmt,edt:edt,pdt:pdt,cur:cur,exp:'',vendor:vendor,taxCls:tC};
   D.journals.push(taxJ);
 }
-}});});saveD();toast(window._editSlipId?'전표 수정 완료':'전표 생성 완료: '+desc);go('slip');window.scrollTo(0,0);}
+}});});saveD();
+// 영향받은 계정 표시
+var impactMsg='';
+if(!_isEdit){
+  var impacts=[];
+  drRows.forEach(function(d){var a=D.accts.find(function(x){return x.c===d.ac;});impacts.push((a?a.k:d.ac)+' +'+fm(d.amt));});
+  crRows.forEach(function(c2){var a=D.accts.find(function(x){return x.c===c2.ac;});impacts.push((a?a.k:c2.ac)+' -'+fm(c2.amt));});
+  impactMsg=' → '+impacts.join(', ');
+}
+toast(_isEdit?'전표 수정 완료':'전표 생성 완료: '+desc+impactMsg);go('slip');window.scrollTo(0,0);}
 function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="자산">자산</option><option value="부채">부채</option><option value="순자산">순자산</option><option value="수익">수익</option><option value="비용">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
 function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');if(D.accts.find(x=>x.c===c))return alert('이미 존재하는 코드입니다');var newAcct={c,n,k,g};D.accts.push(newAcct);if(!D.customAccts)D.customAccts=[];
 if(D._oiAccts)OI_ACCTS=D._oiAccts;D.customAccts.push(newAcct);saveD();closeModal();toast('계정과목 추가: '+c+' '+k);go('slip');}
@@ -1330,7 +1339,7 @@ function rSlip(){
     allSlips+='</div>';
   });
 
-  return '<div class="pt">전표처리</div>'+
+  return '<div class="pt">전표작성</div>'+
   '<div class="ib">💡 전표 '+D.journals.length+'건 등록 | 전표 → 총계정원장 → 재무제표 자동연동</div>'+
   '<div class="pn" style="padding:14px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #1e3a5f">'+
@@ -1451,7 +1460,7 @@ function rGL(){
   if(D.journals.length===0){
     return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div><button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 엑셀 내보내기 (日本語)</button></div>
     <div class="ib">💡 전표를 기표하면 여기에 계정별로 자동 집계됩니다</div>
-    <div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:40px;margin-bottom:12px">📒</div><div>아직 기표된 전표가 없습니다.<br>[전표처리] 메뉴에서 전표를 입력하세요.</div></div>`;}
+    <div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:40px;margin-bottom:12px">📒</div><div>아직 기표된 전표가 없습니다.<br>[전표작성] 메뉴에서 전표를 입력하세요.</div></div>`;}
 
   return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div><button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 엑셀 내보내기 (日本語)</button></div>
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:10px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">
@@ -2155,7 +2164,7 @@ D.accts=ACCT_INIT.concat(D.customAccts); // Always use fresh accounts
 }
 
 function rSet(){return `<div class="pt">설정</div>
-  <div class="sc"><h4>💱 환율 설정</h4><div style="font-size:11px;color:#64748b;margin-bottom:10px">환율 변경 시 유가증권 평가 및 전표처리에 반영</div>
+  <div class="sc"><h4>💱 환율 설정</h4><div style="font-size:11px;color:#64748b;margin-bottom:10px">환율 변경 시 유가증권 평가 및 전표작성에 반영</div>
   <button class="bt" id="rateBtn" onclick="fetchRate()" style="background:#d97706;margin-bottom:12px">🔄 환율 자동 가져오기</button>
   <div class="rr"><span style="width:120px">USD/JPY:</span><input type="number" id="r1" value="${SET.rates.USDJPY}" step="0.000001"><span class="mu">1달러 = ? 엔</span></div>
   <div class="rr"><span style="width:120px">JPY/KRW:</span><input type="number" id="r2" value="${SET.rates.JPYKRW}" step="0.000001"><span class="mu">1엔 = ? 원</span></div>
