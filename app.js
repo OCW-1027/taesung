@@ -1932,7 +1932,7 @@ function rFS(){
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
-  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly" onclick="showMonthlyTab(this)">월차추이</button><button class="tab" data-tab="expense" onclick="showExpenseTab(this)">비용분석</button><button class="tab" data-tab="cashflow">현금흐름</button><button class="tab" data-tab="taxsum">소비세</button><button class="tab" data-tab="withholding">원천징수</button></div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">재무제표</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly" onclick="showMonthlyTab(this)">월차추이</button><button class="tab" data-tab="expense" onclick="showExpenseTab(this)">비용분석</button><button class="tab" data-tab="cashflow">현금흐름</button><button class="tab" data-tab="taxsum">소비세</button><button class="tab" data-tab="withholding">원천징수</button><button class="tab" data-tab="trial">시산표</button></div>'+
   '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
   '<div class="fr"><span>Ⅰ 매출액</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
   '<div class="fr h"><span>Ⅱ 판매비와 일반관리비</span></div>'+
@@ -3206,6 +3206,151 @@ function doAddWithholding(type){
   },200);
 }
 
+// ===== 시산표 (일계표/월계표/합계잔액시산표) =====
+function rTrialBalance(mode,dateVal){
+  mode=mode||'monthly';
+  // Default date
+  if(!dateVal){
+    var now=new Date();
+    if(mode==='daily') dateVal=now.toISOString().slice(0,10);
+    else if(mode==='monthly') dateVal=now.toISOString().slice(0,7);
+    else dateVal='FY1'; // 연도=회기
+  }
+  
+  // Parse journals by edt
+  function jEdt(j){return j.edt||('2025-'+String(parseInt((j.dt||'1/1').split('/')[0])).padStart(2,'0')+'-'+String(parseInt((j.dt||'1/1').split('/')[1]||'1')).padStart(2,'0'));}
+  
+  // Filter: before period (for carry-forward) and current period
+  var beforeJ=[],curJ=[];
+  D.journals.forEach(function(j){
+    var ed=jEdt(j);
+    if(mode==='daily'){
+      if(ed<dateVal) beforeJ.push(j);
+      else if(ed===dateVal) curJ.push(j);
+    }else if(mode==='monthly'){
+      var ym=ed.slice(0,7);
+      if(ym<dateVal) beforeJ.push(j);
+      else if(ym===dateVal) curJ.push(j);
+    }else{
+      // Annual: FY1=2025-06~2026-05
+      curJ=D.journals.slice(); // 전체
+    }
+  });
+  
+  // Collect all account codes with activity
+  var codes={};
+  D.accts.forEach(function(a){codes[a.c]={n:a.k,g:a.g,bf_dr:0,bf_cr:0,cur_dr:0,cur_cr:0};});
+  beforeJ.forEach(function(j){
+    if(codes[j.dr]) codes[j.dr].bf_dr+=j.amt;
+    if(codes[j.cr]) codes[j.cr].bf_cr+=j.amt;
+  });
+  curJ.forEach(function(j){
+    if(codes[j.dr]) codes[j.dr].cur_dr+=j.amt;
+    if(codes[j.cr]) codes[j.cr].cur_cr+=j.amt;
+  });
+  
+  // Calculate balances - DR positive for assets/expenses, CR positive for liabilities/revenue/equity
+  function bal(a){
+    var total_dr=a.bf_dr+a.cur_dr, total_cr=a.bf_cr+a.cur_cr;
+    return total_dr-total_cr;
+  }
+  function bfBal(a){return a.bf_dr-a.bf_cr;}
+  
+  // Build active accounts list
+  var active=[];
+  Object.keys(codes).forEach(function(c){
+    var a=codes[c];
+    if(a.bf_dr||a.bf_cr||a.cur_dr||a.cur_cr) active.push({c:c,n:a.n,g:a.g,bf_dr:a.bf_dr,bf_cr:a.bf_cr,cur_dr:a.cur_dr,cur_cr:a.cur_cr});
+  });
+  active.sort(function(a,b){return a.c.localeCompare(b.c);});
+  
+  // Group by category
+  var groups=[
+    {label:'자산',filter:'자산',color:'#2563eb'},
+    {label:'부채',filter:'부채',color:'#d97706'},
+    {label:'순자산',filter:'순자산',color:'#059669'},
+    {label:'수익',filter:'수익',color:'#059669'},
+    {label:'비용',filter:'비용',color:'#dc2626'}
+  ];
+  
+  // Period label
+  var periodLabel='';
+  if(mode==='daily') periodLabel=dateVal;
+  else if(mode==='monthly'){var sp=dateVal.split('-');periodLabel=sp[0]+'년 '+parseInt(sp[1])+'월';}
+  else periodLabel='제1기 (2025.06~2026.05)';
+  
+  // Mode selector + date input
+  var modeHtml='<div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">';
+  modeHtml+='<button class="bt '+(mode==='daily'?'':'gh')+'" onclick="document.getElementById(\'TC\').innerHTML=rTrialBalance(\'daily\')" style="font-size:11px">일계표</button>';
+  modeHtml+='<button class="bt '+(mode==='monthly'?'':'gh')+'" onclick="document.getElementById(\'TC\').innerHTML=rTrialBalance(\'monthly\')" style="font-size:11px">월계표</button>';
+  modeHtml+='<button class="bt '+(mode==='annual'?'':'gh')+'" onclick="document.getElementById(\'TC\').innerHTML=rTrialBalance(\'annual\')" style="font-size:11px">연간</button>';
+  if(mode==='daily'){
+    modeHtml+='<input type="date" value="'+dateVal+'" onchange="document.getElementById(\'TC\').innerHTML=rTrialBalance(\'daily\',this.value)" style="padding:4px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">';
+  }else if(mode==='monthly'){
+    modeHtml+='<input type="month" value="'+dateVal+'" onchange="document.getElementById(\'TC\').innerHTML=rTrialBalance(\'monthly\',this.value)" style="padding:4px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">';
+  }
+  modeHtml+='<span style="font-size:12px;color:#1e3a5f;font-weight:600;margin-left:8px">'+periodLabel+'</span>';
+  modeHtml+='</div>';
+  
+  // Title
+  var titleMap={daily:'일 계 표',monthly:'월 계 표 (합계잔액시산표)',annual:'합계잔액시산표 (연간)'};
+  
+  // Table
+  var tHtml='<div style="overflow-x:auto"><table style="font-size:11px"><thead><tr>';
+  tHtml+='<th style="min-width:60px">코드</th><th style="min-width:100px">계정과목</th>';
+  if(mode!=='annual') tHtml+='<th class="r" style="min-width:90px">전기이월</th>';
+  tHtml+='<th class="r" style="min-width:90px">차변 합계</th><th class="r" style="min-width:90px">대변 합계</th>';
+  tHtml+='<th class="r" style="min-width:90px">잔액</th></tr></thead><tbody>';
+  
+  var totBf=0,totDr=0,totCr=0,totBal=0;
+  var totBfCr=0; // for double-entry display
+  
+  groups.forEach(function(grp){
+    var items=active.filter(function(a){return a.g===grp.filter;});
+    if(items.length===0) return;
+    tHtml+='<tr style="background:#f1f3f6"><td colspan="'+(mode!=='annual'?6:5)+'" style="font-weight:700;color:'+grp.color+';padding:6px">'+grp.label+'</td></tr>';
+    items.forEach(function(a){
+      var bf=bfBal(a);
+      var endBal=bal(a);
+      // Display: assets/expenses show DR balance positive; liabilities/revenue/equity show CR balance positive
+      var isDebitNormal=(a.g==='자산'||a.g==='비용');
+      var dispBf=isDebitNormal?bf:-bf;
+      var dispBal=isDebitNormal?endBal:-endBal;
+      
+      tHtml+='<tr><td style="color:#2563eb">'+a.c+'</td><td>'+a.n+'</td>';
+      if(mode!=='annual') tHtml+='<td class="r m">'+(dispBf?fm(dispBf):'')+'</td>';
+      tHtml+='<td class="r m">'+(a.cur_dr?fm(a.cur_dr):'')+'</td>';
+      tHtml+='<td class="r m">'+(a.cur_cr?fm(a.cur_cr):'')+'</td>';
+      var balColor=dispBal<0?'color:#dc2626':'';
+      tHtml+='<td class="r m b" style="'+balColor+'">'+fm(dispBal)+'</td></tr>';
+      
+      totDr+=a.cur_dr;totCr+=a.cur_cr;
+      if(isDebitNormal){totBf+=bf;totBal+=endBal;}
+      else{totBfCr+=(-bf);totBal+=endBal;}
+    });
+  });
+  
+  // Totals row
+  tHtml+='<tr style="background:#1e293b;color:#fff;font-weight:700"><td colspan="2">합계</td>';
+  if(mode!=='annual') tHtml+='<td class="r m">—</td>';
+  tHtml+='<td class="r m">'+fm(totDr)+'</td><td class="r m">'+fm(totCr)+'</td>';
+  var diffCheck=totDr-totCr;
+  tHtml+='<td class="r m" style="color:'+(Math.abs(diffCheck)<2?'#6ee7b7':'#fca5a5')+'">차대차이: '+fm(diffCheck)+'</td></tr>';
+  
+  tHtml+='</tbody></table></div>';
+  
+  // Summary
+  var sumHtml='<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#64748b">';
+  sumHtml+='<span>전표 수: <b>'+curJ.length+'건</b></span>';
+  sumHtml+='<span>차변 합계: <b style="color:#2563eb">'+fm(totDr)+'</b></span>';
+  sumHtml+='<span>대변 합계: <b style="color:#2563eb">'+fm(totCr)+'</b></span>';
+  if(Math.abs(diffCheck)<2) sumHtml+='<span style="color:#059669;font-weight:600">✓ 차대일치</span>';
+  else sumHtml+='<span style="color:#dc2626;font-weight:600">✗ 차대불일치 '+fm(diffCheck)+'</span>';
+  sumHtml+='</div>';
+  
+  return '<div class="pn" style="padding:14px"><div style="text-align:center;margin-bottom:12px"><div style="font-size:16px;font-weight:700">'+titleMap[mode]+'</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+modeHtml+tHtml+sumHtml+'</div>';
+}
+
 // ===== 자산관리: 고정자산대장 / 리스·렌탈 / 계약서 관리 =====
 
 // --- 감가상각 계산 ---
@@ -3832,7 +3977,7 @@ function go(p){
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));this.classList.add('on');
     const tc=document.getElementById('TC'),id=this.dataset.tab;if(!tc)return;
     if(cur==='sec'){if(id==='real')tc.innerHTML=rRealTab();else go('sec');}
-    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📊 월별 비용분석</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else if(id==='cashflow')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 월별 현금흐름표</div>'+rCashFlow()+'</div>';else if(id==='taxsum')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">🧾 소비세 집계표</div>'+rTaxSummary()+'</div>';else if(id==='withholding')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 원천징수세 관리 (155)</div>'+rWithholding()+'</div>';else go('fs');}
+    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📊 월별 비용분석</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else if(id==='cashflow')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 월별 현금흐름표</div>'+rCashFlow()+'</div>';else if(id==='taxsum')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">🧾 소비세 집계표</div>'+rTaxSummary()+'</div>';else if(id==='withholding')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 원천징수세 관리 (155)</div>'+rWithholding()+'</div>';else if(id==='trial')tc.innerHTML=rTrialBalance();else go('fs');}
     if(cur==='asset'){if(id==='fa')tc.innerHTML=rFATab();else if(id==='lease')tc.innerHTML=rLeaseTab();else if(id==='contract')tc.innerHTML=rContractTab();}
   }));
 }
