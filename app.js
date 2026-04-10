@@ -1110,7 +1110,8 @@ function exportWord(){
 <tr><td style="${S}">증권예수금</td><td style="${HR}">${fm(c.secDep)}</td><td style="${S}"></td></tr>
 <tr><td style="${S}background:#f5f5f5">유가증권평가액</td><td style="${HR}background:#f5f5f5">${fm(c.allMv)}</td><td style="${S}background:#f5f5f5"></td></tr>
 <tr><td style="${S}font-weight:bold">증권계좌잔액---(2)</td><td style="${HB}">${fm(c.secBal)}</td><td style="${S}color:#888">SMBC닛코증권</td></tr>
-<tr><td style="${S}background:#e8e8e8;font-weight:bold">총보유자산합계</td><td style="${HB}background:#e8e8e8">${fm(c.totA)}</td><td style="${S}background:#e8e8e8;color:#888">(1)+(2)</td></tr></table>
+<tr><td style="${S}background:#e8e8e8;font-weight:bold">총보유자산합계</td><td style="${HB}background:#e8e8e8">${fm(c.bb+c.secBal)}</td><td style="${S}background:#e8e8e8;color:#888">(1)+(2)</td></tr>
+${c.totA!==(c.bb+c.secBal)?`<tr><td style="${S}background:#dbeafe;font-weight:bold;color:#2563eb">총보유자산합계 (소비세환급시)</td><td style="${HB}background:#dbeafe;color:#2563eb">${fm(c.totA)}</td><td style="${S}background:#dbeafe;color:#888;font-size:9pt">가지급소비세 ${fm(c.totA-c.bb-c.secBal)} 포함</td></tr>`:''}</table>
 
 <h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">2. 유가증권 평가 및 손익 현황</h2>
 <table style="margin-bottom:8pt"><tr><td style="padding:4pt 8pt;font-size:10pt">총 평가액: <b>${fm(c.allMv)}</b></td><td style="padding:4pt 8pt;font-size:10pt">총 평가손익: <b style="${c.allPl>=0?G:R}">${fm(c.allPl)}</b></td><td style="padding:4pt 8pt;font-size:10pt">예수금: <b>${fm(c.secDep)}</b></td></tr></table>
@@ -1802,7 +1803,7 @@ function renderAlerts(){
 }
 
 function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보드</div>
-  <div class="cards"><div class="cd bl"><div class="l">총 보유 자산</div><div class="v">${fy(c.totA)}</div></div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
+  <div class="cards"><div class="cd bl"><div class="l">총 보유 자산</div><div class="v">${fy(c.bb+c.secBal)}</div>${c.totA!==(c.bb+c.secBal)?'<div style="font-size:9px;color:#2563eb;margin-top:2px">소비세환급시 '+fy(c.totA)+'</div>':''}</div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
   <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>
   ${renderAlerts()}
   <div class="pn" style="margin-top:14px">
@@ -2047,7 +2048,8 @@ function rRpt(){const c=calc();
     '<tr><td>증권예수금</td><td class="r m">'+fm(c.secDep)+'</td><td></td></tr>'+
     '<tr class="a"><td>유가증권평가액</td><td class="r m">'+fm(c.allMv)+'</td><td></td></tr>'+
     '<tr style="font-weight:700"><td>증권계좌잔액---(2)</td><td class="r m b">'+fm(c.secBal)+'</td><td class="mu">SMBC닛코증권</td></tr>'+
-    '<tr class="t"><td>총보유자산합계</td><td class="r m">'+fm(c.totA)+'</td><td class="mu">(1)+(2)</td></tr>'+
+    '<tr class="t"><td>총보유자산합계</td><td class="r m">'+fm(c.bb+c.secBal)+'</td><td class="mu">(1)+(2)</td></tr>'+
+    (c.totA!==(c.bb+c.secBal)?'<tr style="background:#dbeafe"><td style="font-weight:700;color:#2563eb">총보유자산합계 (소비세환급시)</td><td class="r m b" style="color:#2563eb">'+fm(c.totA)+'</td><td class="mu" style="font-size:10px">가지급소비세 '+fm(c.totA-c.bb-c.secBal)+' 포함</td></tr>':'')+
     '</tbody></table></div>'+
 
     // 2. 유가증권 평가 및 손익 현황
