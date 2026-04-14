@@ -687,7 +687,7 @@ function expDrill(acctCode,mo){
   matched.forEach(function(j,i){
     var amt=j.dr===acctCode?j.amt:-j.amt;
     total+=amt;
-    rows+='<tr class="'+(i%2?'a':'')+'" onclick="closeModal();viewSlip('+j.id+')" style="cursor:pointer"><td class="mu">'+j.dt+'</td><td style="font-size:10px;color:#2563eb">'+j.no+'</td><td>'+j.desc+'</td><td class="r m">'+(amt>=0?'':'-')+fm(Math.abs(amt))+'</td></tr>';
+    rows+='<tr class="'+(i%2?'a':'')+'" onclick="closeModal();viewSlip('+j.id+')" style="cursor:pointer"><td class="mu" style="font-size:10px">'+jDispDate(j)+'</td><td style="font-size:10px;color:#2563eb">'+j.no+'</td><td>'+j.desc+'</td><td class="r m">'+(amt>=0?'':'-')+fm(Math.abs(amt))+'</td></tr>';
   });
   if(matched.length===0) rows='<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">해당 내역 없음</td></tr>';
   showModal('📊 '+acctName+' — '+monthLabel+' 상세',
@@ -878,6 +878,19 @@ const fm=n=>n==null?"-":new Intl.NumberFormat("ja-JP").format(Math.round(n));
 const fy=n=>n==null?"-":"¥"+fm(n);
 const bg=v=>'<span class="bg '+(v>=0?'p':'n')+'">'+(v>=0?'+':'')+fm(v)+'</span>';
 function rptDt(){return SET.reportDate||new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});}
+// 전표 날짜 유틸: dt("3/20") → 연도 포함 풀 날짜
+function jFullDate(j){
+  if(j.edt) return j.edt; // 2026-04-08 형식
+  var m=j.dt.match(/(\d+)\/(\d+)/);if(!m) return '2025-06-01';
+  var mo=parseInt(m[1]),day=parseInt(m[2]);
+  var yr=(mo>=6)?2025:2026; // 회계연도: 6~12=2025, 1~5=2026
+  return yr+'-'+String(mo).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+}
+function jDispDate(j){
+  var fd=jFullDate(j);
+  return fd.replace(/-/g,'/'); // 2025/07/09
+}
+function jSortKey(j){return jFullDate(j);} // ISO format for sorting
 
 function calc(){
   const jpMv=D.holdJP.reduce((s,h)=>s+h.mv,0),jpC=D.holdJP.reduce((s,h)=>s+h.tc,0);
@@ -1030,7 +1043,7 @@ function viewSlip(id){
   showModal('전표 상세 ['+j.no+']',
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px">'+
     '<div><label style="font-size:10px;color:#64748b">전표번호</label><div style="font-weight:700;color:#2563eb">'+j.no+'</div></div>'+
-    '<div><label style="font-size:10px;color:#64748b">일자</label><div>'+j.dt+(j.edt?' (증빙:'+j.edt+')':'')+'</div></div>'+
+    '<div><label style="font-size:10px;color:#64748b">일자</label><div>'+jDispDate(j)+(j.edt?' (증빙:'+j.edt+')':'')+'</div></div>'+
     '<div style="grid-column:1/-1"><label style="font-size:10px;color:#64748b">적요</label><div style="font-weight:600">'+j.desc+'</div></div>'+
     '</div>'+
     '<table style="margin-top:14px"><thead><tr><th>차/대</th><th>계정과목</th><th>코드</th><th class="r">금액</th></tr></thead>'+
@@ -1309,15 +1322,15 @@ function rSlip(){
   // Group journals by year-month
   const grouped={};
   D.journals.forEach(j=>{
-    const ym=j.dt.replace(/\/.*$/,'').replace(/^(\d+)\/(\d+)$/,'$1/$2');
-    // Extract month key
-    let mk='기타';
-    const m=j.dt.match(/(\d+)\//);
-    if(m){const mon=parseInt(m[1]);mk=mon>=6?'2025/'+(mon<10?'0'+mon:mon):'2026/'+(mon<10?'0'+mon:mon);}
-    if(j.dt.includes('5/31'))mk='2026/05(결산)';
+    // Extract month key using jFullDate
+    var fd=jFullDate(j);
+    var mk=fd.slice(0,7).replace('-','/'); // 2025/07
+    if(fd.startsWith('2026-05')&&j.dt&&j.dt.includes('5/31'))mk='2026/05(결산)';
     if(!grouped[mk])grouped[mk]=[];
     grouped[mk].push(j);
   });
+  // Sort entries within each group by date
+  Object.keys(grouped).forEach(function(k){grouped[k].sort(function(a,b){return jSortKey(a).localeCompare(jSortKey(b));});});
   const sortedKeys=Object.keys(grouped).sort();
 
   // Slip list with year/month tabs
@@ -1329,7 +1342,7 @@ function rSlip(){
     grouped[mk].forEach(e=>{
       const drNm=acctNm(e.dr),crNm=acctNm(e.cr);
       allSlips+='<div onclick="viewSlip('+e.id+')" style="padding:6px 14px;border-bottom:1px solid #f1f3f6;font-size:11px;display:flex;gap:8px;align-items:center;cursor:pointer" onmouseenter="this.style.background=\'#f0f9ff\'" onmouseleave="this.style.background=\'\'">'+
-        '<span class="mu" style="width:50px">'+e.dt+'</span>'+
+        '<span class="mu" style="width:70px;font-size:10px">'+jDispDate(e)+'</span>'+
         '<span style="color:#2563eb;width:95px;font-size:10px">'+e.no+'</span>'+
         '<span style="width:180px;overflow:hidden;text-overflow:ellipsis">'+e.desc+'</span>'+
         '<span style="color:#2563eb;width:120px">차 '+drNm+'</span>'+
@@ -1446,8 +1459,8 @@ function rGL(){
   D.journals.forEach(j=>{
     if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
     if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
-    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true});
-    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push({...j,isDr:false});
+    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true,dispDt:jDispDate(j),sortKey:jSortKey(j)});
+    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push({...j,isDr:false,dispDt:jDispDate(j),sortKey:jSortKey(j)});
   });
   const groups={};
   Object.entries(bal).forEach(([code,v])=>{
@@ -1488,14 +1501,14 @@ function showGLDetail(code){
   const a=D.accts.find(x=>x.c===code);if(!a)return;
   const isDb=["자산","비용"].includes(a.g);
   const entries=[];let bal=0;
-  D.journals.filter(j=>j.dr===code||j.cr===code).forEach(j=>{
+  D.journals.filter(j=>j.dr===code||j.cr===code).sort(function(a2,b2){return jSortKey(a2).localeCompare(jSortKey(b2));}).forEach(j=>{
     const isDr=j.dr===code;const dr=isDr?j.amt:0;const cr=isDr?0:j.amt;
     bal+=isDb?(dr-cr):(cr-dr);
-    entries.push({id:j.id,dt:j.dt,no:j.no,desc:j.desc,dr,cr,bal});
+    entries.push({id:j.id,dt:jDispDate(j),no:j.no,desc:j.desc,dr,cr,bal});
   });
   showModal(`【${a.k}】 ${code} (${a.g}) — 残高: ${fm(bal)}円`,`
     <div style="max-height:500px;overflow-y:auto"><table><thead><tr><th>日付</th><th>伝票</th><th>摘要</th><th class="r">借方</th><th class="r">貸方</th><th class="r">残高</th></tr></thead>
-    <tbody>${entries.map((e,i)=>`<tr class="${i%2?'a':''}" onclick="closeModal();viewSlip(${e.id})" style="cursor:pointer" onmouseenter="this.style.background='#f0f9ff'" onmouseleave="this.style.background='${i%2?'#f8f9fb':''}'"><td class="mu m">${e.dt}</td><td style="color:#2563eb;font-size:10px">${e.no}</td><td>${e.desc||''}</td><td class="r m">${e.dr?fm(e.dr):''}</td><td class="r m">${e.cr?fm(e.cr):''}</td><td class="r m b">${fm(e.bal)}</td></tr>`).join('')}</tbody></table></div>
+    <tbody>${entries.map((e,i)=>`<tr class="${i%2?'a':''}" onclick="closeModal();viewSlip(${e.id})" style="cursor:pointer" onmouseenter="this.style.background='#f0f9ff'" onmouseleave="this.style.background='${i%2?'#f8f9fb':''}'"><td class="mu m" style="font-size:10px">${e.dt}</td><td style="color:#2563eb;font-size:10px">${e.no}</td><td>${e.desc||''}</td><td class="r m">${e.dr?fm(e.dr):''}</td><td class="r m">${e.cr?fm(e.cr):''}</td><td class="r m b">${fm(e.bal)}</td></tr>`).join('')}</tbody></table></div>
     <div style="font-size:9px;color:#94a3b8;margin-top:6px">전표를 클릭하면 상세보기로 이동합니다</div>`);
 }
 
@@ -1519,8 +1532,8 @@ function filterGL(){
   filtered.forEach(function(j){
     if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
     if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
-    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push(Object.assign({},j,{isDr:true}));
-    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push(Object.assign({},j,{isDr:false}));
+    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push(Object.assign({},j,{isDr:true,dispDt:jDispDate(j),sortKey:jSortKey(j)}));
+    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push(Object.assign({},j,{isDr:false,dispDt:jDispDate(j),sortKey:jSortKey(j)}));
   });
   var groups={};
   Object.entries(bal).forEach(function(pair){
@@ -1623,11 +1636,13 @@ function rJrn(){
 
 function buildJrnTable(list){
   if(list.length===0)return '<div style="padding:30px;text-align:center;color:#64748b">해당 조건의 전표가 없습니다</div>';
+  // Sort by date
+  var sorted=list.slice().sort(function(a,b){return jSortKey(a).localeCompare(jSortKey(b));});
   let rows='';let totalDr=0;
-  list.forEach((e,i)=>{
+  sorted.forEach((e,i)=>{
     totalDr+=e.amt;
     rows+='<tr class="'+(i%2?'a':'')+'" onclick="viewSlip('+e.id+')" style="cursor:pointer" onmouseenter="this.style.background=\'#f0f9ff\'" onmouseleave="this.style.background=\''+( i%2?'#f8f9fb':'')+'\'">';
-    rows+='<td class="mu m" style="width:50px">'+e.dt+'</td>';
+    rows+='<td class="mu m" style="width:70px;font-size:10px">'+jDispDate(e)+'</td>';
     rows+='<td style="width:95px;color:#2563eb;font-size:10px;white-space:nowrap">'+e.no+'</td>';
     rows+='<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+(e.receipts&&e.receipts.length>0?'📎 ':'')+e.desc+(e.vendor?' <span style="color:#d97706;font-size:9px">['+e.vendor+']</span>':'')+'</td>';
     rows+='<td style="color:#2563eb">'+acctNm(e.dr)+'</td>';
@@ -2241,8 +2256,8 @@ function exportGLExcel(){
   D.journals.forEach(j=>{
     if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
     if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
-    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true});
-    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push({...j,isDr:false});
+    bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true,dispDt:jDispDate(j),sortKey:jSortKey(j)});
+    bal[j.cr].cr+=j.amt;bal[j.cr].entries.push({...j,isDr:false,dispDt:jDispDate(j),sortKey:jSortKey(j)});
   });
   let html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>td,th{mso-number-format:"\@"}</style></head><body>';
   html+='<h2 style="font-size:14pt;color:#1e3a5f">泰成株式会社　総勘定元帳</h2>';
@@ -2258,11 +2273,11 @@ function exportGLExcel(){
     html+='<tr><td colspan="5" style="background:#1e3a5f;color:#fff;font-weight:bold;padding:4pt 8pt;font-size:10pt">【'+jpName+'】 '+code+' ('+jpGroup+') — 残高: '+fm(net)+'円</td></tr>';
     html+='<tr><td style="'+TH+'">日付</td><td style="'+TH+'">伝票</td><td style="'+TH+'">摘要</td><td style="'+THR+'">借方</td><td style="'+THR+'">貸方</td><td style="'+THR+'">残高</td></tr>';
     let runBal=0;
-    v.entries.forEach((e,i)=>{
+    v.entries.sort(function(a,b){return a.sortKey.localeCompare(b.sortKey);}).forEach((e,i)=>{
       const dr=e.isDr?e.amt:0,cr=e.isDr?0:e.amt;
       runBal+=isDb?(dr-cr):(cr-dr);
       const bg=i%2?'background:#f5f5f5;':'';
-      html+='<tr><td style="'+S+bg+'">'+e.dt+'</td><td style="'+S+bg+'color:#2563eb">'+e.no+'</td><td style="'+S+bg+'">'+e.desc+'</td><td style="'+HR+bg+'">'+(dr?fm(dr):'')+'</td><td style="'+HR+bg+'">'+(cr?fm(cr):'')+'</td><td style="'+HB+bg+'">'+fm(runBal)+'</td></tr>';
+      html+='<tr><td style="'+S+bg+'">'+e.dispDt+'</td><td style="'+S+bg+'color:#2563eb">'+e.no+'</td><td style="'+S+bg+'">'+e.desc+'</td><td style="'+HR+bg+'">'+(dr?fm(dr):'')+'</td><td style="'+HR+bg+'">'+(cr?fm(cr):'')+'</td><td style="'+HB+bg+'">'+fm(runBal)+'</td></tr>';
     });
     html+='</table>';
   });
