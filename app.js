@@ -172,10 +172,13 @@ function dynamicFS(){
   const ol=0-sgaT-su; // 매출 0
   const interestPay=acctBal('540'); // 지급이자 from journals
   // Dynamic: unrealized P&L from current holdings
-  const evalLoss=Math.max(0, c.allC - c.allMv); // 보유종목 시가기준 실시간 // positive = loss
+  const evalPL=c.allMv - c.allC; // positive=gain, negative=loss
+  const evalGain=Math.max(0, evalPL); // 평가이익 (영업외수익)
+  const evalLoss=Math.max(0, -evalPL); // 평가손 (영업외비용)
   const secFee=acctBal('537'); // 유가증권매매수수료 (영업외비용)
+  const noiTWithEval=noiT+evalGain;
   const noeT=evalLoss+interestPay+secFee;
-  const oi=ol+noiT-noeT;
+  const oi=ol+noiTWithEval-noeT;
   // Use journal tax if exists, otherwise estimate
   const journalCt=acctBal('550');
   // Detailed tax: 법인세15%+지방법인세10.3%+사업세7%+특별사업세37%+도민세7%+균등할7만
@@ -192,7 +195,7 @@ function dynamicFS(){
   const secBookVal=acctBal('130'); // 전표 장부가
   const secMV=c.allMv;
   const journalEvalLoss=acctBal('542'); // 전표상 평가손
-  const evalAdj=evalLoss-journalEvalLoss; // 시가 조정액
+  const evalAdj=-evalPL-journalEvalLoss; // 시가 조정액 (양수=장부가 감액, 음수=장부가 증액)
   const secForBS=secBookVal-evalAdj; // 시가 반영 유가증권
   const cashT=deposit+secDep;
   // Other assets (fixed assets, prepaid, etc.) — all asset accounts except 110, 191, 130
@@ -208,7 +211,7 @@ function dynamicFS(){
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sgaT,su,ol,noiT,evalLoss,interestPay,secFee,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,eqNI,totE,evalAdj};
+  return {sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,eqNI,totE,evalAdj};
 }
 
 
@@ -1941,10 +1944,12 @@ function rFS(){
   // NOI: dynamically from journals
   // NOI: scan ALL revenue accounts with balance
   const noi=D.accts.filter(ac=>ac.g==='수익').map(ac=>({nm:ac.k,a:acctBal(ac.c)})).filter(x=>x.a!==0);
+  // 평가이익 → 영업외수익에 추가
+  if(d.evalGain>0) noi.push({nm:"유가증권평가이익(미실현)",a:d.evalGain,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"});
   // NOE
   const noe=[
     {nm:"유가증권매매수수료",a:d.secFee},
-    {nm:"유가증권평가손익(미실현)",a:d.evalLoss,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"},
+    {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"},
     {nm:"지급이자",a:d.interestPay}
   ].filter(x=>x.a>0);
 
@@ -2342,14 +2347,13 @@ function exportFSWord(){
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅲ　営業外収益</td></tr>
-'+function(){var r='';D.accts.filter(function(ac){return ac.g==='수익';}).forEach(function(ac){var b=acctBal(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;}()+'
+'+function(){var r='';D.accts.filter(function(ac){return ac.g==='수익';}).forEach(function(ac){var b=acctBal(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});if(d.evalGain>0)r+='<tr><td>　有価証券評価益（未実現）</td><td class="r">'+fm(d.evalGain)+'</td><td></td><td></td></tr><tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>';return r;}()+'
 <tr class="sub"><td>　営業外収益合計</td><td></td><td></td><td class="r b">${fm(d.noiT)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅳ　営業外費用</td></tr>
 <tr><td>　有価証券売買手数料</td><td class="r">${fm(d.secFee)}</td><td></td><td></td></tr>
-<tr><td>　有価証券評価損（未実現）</td><td class="r">${fm(d.evalLoss)}</td><td></td><td></td></tr>
-<tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>
+${d.evalLoss>0?'<tr><td>　有価証券評価損（未実現）</td><td class="r">'+fm(d.evalLoss)+'</td><td></td><td></td></tr><tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>':''}
 <tr><td>　支払利息（役員借入金 年1%）</td><td class="r">${fm(d.interestPay)}</td><td></td><td></td></tr>
 <tr><td colspan="4" class="note">　　※1.5億×1%×289日÷365日</td></tr>
 <tr class="sub"><td>　営業外費用合計</td><td></td><td></td><td class="r b">${fm(d.noeT)}</td></tr>
