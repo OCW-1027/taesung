@@ -282,7 +282,41 @@ const INIT_JOURNALS = [
   {id:902,dt:"3/18",no:"S0900",desc:"매수수수료 취득원가 반영(보유종목분)",dr:"191",cr:"537",amt:419189},
   {id:903,dt:"3/18",no:"S0901",desc:"유가증권 취득원가 정정(수수료분)",dr:"191",cr:"130",amt:439376},
   {id:904,dt:"3/9",no:"S0902",desc:"매각이익 반올림 조정",dr:"191",cr:"403",amt:3},
-{id:680,dt:"12/9",no:"S0680",desc:"SBI新生銀行(1100주) 매수",dr:"130",cr:"191",amt:1595000}
+{id:680,dt:"12/9",no:"S0680",desc:"SBI新生銀行(1100주) 매수",dr:"130",cr:"191",amt:1595000},
+
+// === 3월 법인카드 (2026/4/27 결제, 세빼기 적용) ===
+{id:910,dt:"3/12",no:"S0910",desc:"agoda(숙박)",dr:"520",cr:"110",amt:35016,edt:"2026-03-12",pdt:"",cur:"JPY",exp:"",vendor:"agoda",taxCls:"과세10%"},
+{id:911,dt:"3/13",no:"S0911",desc:"agoda(숙박)",dr:"520",cr:"110",amt:34401,edt:"2026-03-13",pdt:"",cur:"JPY",exp:"",vendor:"agoda",taxCls:"과세10%"},
+{id:912,dt:"3/15",no:"S0912",desc:"三井ガーデンホテル神宮外苑",dr:"520",cr:"110",amt:6182,edt:"2026-03-15",pdt:"",cur:"JPY",exp:"",vendor:"三井ガーデンホテル",taxCls:"과세10%"},
+{id:913,dt:"3/15",no:"S0913",desc:"agoda(숙박)",dr:"520",cr:"110",amt:39987,edt:"2026-03-15",pdt:"",cur:"JPY",exp:"",vendor:"agoda",taxCls:"과세10%"},
+{id:914,dt:"3/15",no:"S0914",desc:"ダイワグループ",dr:"532",cr:"110",amt:7773,edt:"2026-03-15",pdt:"",cur:"JPY",exp:"",vendor:"ダイワグループ",taxCls:"과세10%"},
+{id:915,dt:"3/16",no:"S0915",desc:"タイムズパーキング",dr:"531",cr:"110",amt:1900,edt:"2026-03-16",pdt:"",cur:"JPY",exp:"",vendor:"タイムズパーキング",taxCls:"과세10%"},
+{id:916,dt:"3/18",no:"S0916",desc:"サンクチュアリコート日光",dr:"520",cr:"110",amt:111095,edt:"2026-03-18",pdt:"",cur:"JPY",exp:"",vendor:"サンクチュアリコート日光",taxCls:"과세10%"},
+{id:917,dt:"3/18",no:"S0917",desc:"三井ガーデンホテル神宮外苑",dr:"520",cr:"110",amt:3091,edt:"2026-03-18",pdt:"",cur:"JPY",exp:"",vendor:"三井ガーデンホテル",taxCls:"과세10%"},
+{id:918,dt:"3/18",no:"S0918",desc:"NearMe(送迎)",dr:"520",cr:"110",amt:21182,edt:"2026-03-18",pdt:"",cur:"JPY",exp:"",vendor:"NearMe",taxCls:"과세10%"},
+{id:919,dt:"3/13",no:"S0919",desc:"六本木ヒルズ",dr:"532",cr:"110",amt:8973,edt:"2026-03-13",pdt:"",cur:"JPY",exp:"",vendor:"六本木ヒルズ",taxCls:"과세10%"},
+{id:920,dt:"3/20",no:"S0920",desc:"CICADA",dr:"532",cr:"110",amt:8773,edt:"2026-03-20",pdt:"",cur:"JPY",exp:"",vendor:"CICADA",taxCls:"과세10%"},
+{id:921,dt:"3/23",no:"S0921",desc:"六本木ヒルズ",dr:"532",cr:"110",amt:5264,edt:"2026-03-23",pdt:"",cur:"JPY",exp:"",vendor:"六本木ヒルズ",taxCls:"과세10%"},
+{id:922,dt:"3/24",no:"S0922",desc:"六本木ヒルズ",dr:"532",cr:"110",amt:12382,edt:"2026-03-24",pdt:"",cur:"JPY",exp:"",vendor:"六本木ヒルズ",taxCls:"과세10%"},
+{id:923,dt:"3/25",no:"S0923",desc:"しゃぶしゃぶ温野菜",dr:"532",cr:"110",amt:6975,edt:"2026-03-25",pdt:"",cur:"JPY",exp:"",vendor:"しゃぶしゃぶ温野菜",taxCls:"과세10%"},
+{id:924,dt:"3/27",no:"S0924",desc:"ダイバーシティ東京プラザ",dr:"523",cr:"110",amt:10718,edt:"2026-03-27",pdt:"",cur:"JPY",exp:"",vendor:"ダイバーシティ東京プラザ",taxCls:"과세10%"},
+// 소비세 분리분
+{id:930,dt:"3/12",no:"",desc:"[소비세] agoda(숙박)",dr:"154",cr:"110",amt:3502,edt:"2026-03-12",pdt:"",cur:"JPY",exp:"",vendor:"agoda",taxCls:"과세10%"},
+{id:931,dt:"3/13",no:"",desc:"[소비세] agoda(숙박)",dr:"154",cr:"110",amt:3440,edt:"2026-03-13",pdt:"",cur:"JPY",exp:"",vendor:"agoda",taxCls:"과세10%"},
+{id:932,dt:"3/15",no:"",desc:"[소비세] 三井ガーデンホテル神宮外苑",dr:"154",cr:"110",amt:618,edt:"2026-03-15",pdt:"",cur:"JPY",exp:"",vendor:"三井ガーデンホテル",taxCls:"과세10%"},
+{id:933,dt:"3/15",no:"",desc:"[소비세] agoda(숙박)",dr:"154",cr:"110",amt:3999,edt:"2026-03-15",pdt:"",cur:"JPY",exp:"",vendor:"agoda",taxCls:"과세10%"},
+{id:934,dt:"3/15",no:"",desc:"[소비세] ダイワグループ",dr:"154",cr:"110",amt:777,edt:"2026-03-15",pdt:"",cur:"JPY",exp:"",vendor:"ダイワグループ",taxCls:"과세10%"},
+{id:935,dt:"3/16",no:"",desc:"[소비세] タイムズパーキング",dr:"154",cr:"110",amt:190,edt:"2026-03-16",pdt:"",cur:"JPY",exp:"",vendor:"タイムズパーキング",taxCls:"과세10%"},
+{id:936,dt:"3/18",no:"",desc:"[소비세] サンクチュアリコート日光",dr:"154",cr:"110",amt:11110,edt:"2026-03-18",pdt:"",cur:"JPY",exp:"",vendor:"サンクチュアリコート日光",taxCls:"과세10%"},
+{id:937,dt:"3/18",no:"",desc:"[소비세] 三井ガーデンホテル神宮外苑",dr:"154",cr:"110",amt:309,edt:"2026-03-18",pdt:"",cur:"JPY",exp:"",vendor:"三井ガーデンホテル",taxCls:"과세10%"},
+{id:938,dt:"3/18",no:"",desc:"[소비세] NearMe(送迎)",dr:"154",cr:"110",amt:2118,edt:"2026-03-18",pdt:"",cur:"JPY",exp:"",vendor:"NearMe",taxCls:"과세10%"},
+{id:939,dt:"3/13",no:"",desc:"[소비세] 六本木ヒルズ",dr:"154",cr:"110",amt:897,edt:"2026-03-13",pdt:"",cur:"JPY",exp:"",vendor:"六本木ヒルズ",taxCls:"과세10%"},
+{id:940,dt:"3/20",no:"",desc:"[소비세] CICADA",dr:"154",cr:"110",amt:877,edt:"2026-03-20",pdt:"",cur:"JPY",exp:"",vendor:"CICADA",taxCls:"과세10%"},
+{id:941,dt:"3/23",no:"",desc:"[소비세] 六本木ヒルズ",dr:"154",cr:"110",amt:526,edt:"2026-03-23",pdt:"",cur:"JPY",exp:"",vendor:"六本木ヒルズ",taxCls:"과세10%"},
+{id:942,dt:"3/24",no:"",desc:"[소비세] 六本木ヒルズ",dr:"154",cr:"110",amt:1238,edt:"2026-03-24",pdt:"",cur:"JPY",exp:"",vendor:"六本木ヒルズ",taxCls:"과세10%"},
+{id:943,dt:"3/25",no:"",desc:"[소비세] しゃぶしゃぶ温野菜",dr:"154",cr:"110",amt:697,edt:"2026-03-25",pdt:"",cur:"JPY",exp:"",vendor:"しゃぶしゃぶ温野菜",taxCls:"과세10%"},
+{id:944,dt:"3/27",no:"",desc:"[소비세] ダイバーシティ東京プラザ",dr:"154",cr:"110",amt:1072,edt:"2026-03-27",pdt:"",cur:"JPY",exp:"",vendor:"ダイバーシティ東京プラザ",taxCls:"과세10%"},
+
 ];
 
 // ===== HOLDINGS =====
@@ -330,6 +364,8 @@ const INIT_BK_OUT = [
   {id:14,dt:"2026-02-26",cat:"법인카드(1월)",ja:"法人カード(1月)",amt:538792},
   {id:15,dt:"2026-03-23",cat:"EB수수료(3월)",ja:"EB手数料(3月)",amt:2200},
   {id:16,dt:"2026-03-26",cat:"법인카드(2월)",ja:"法人カード(2月)",amt:14623},
+
+{id:50,dt:"2026-04-27",cat:"법인카드(3월)",amt:345082,type:"expense"},
 ];
 const FS = {
   sga:[{k:'sga_entertainment',a:350036},{k:'sga_vehicle',a:238071},{k:'sga_travel',a:138245},{k:'sga_overseas',a:686794},{k:'sga_supplies',a:201420},{k:'sga_ebfee',a:6600},{k:'sga_secfee',a:1413093,note:'税抜1,284,632+消費税128,461'},{k:'sga_misc',a:3700}],
