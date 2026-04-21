@@ -1213,7 +1213,7 @@ function applyPrices(){
     const el = document.getElementById('upu_'+h.id);
     if(el){
       const newCpUsd = +el.value;
-      if(newCpUsd !== h.cpUsd){
+      if(newCpUsd !== h.cpUsd || newRate !== h.rate){
         h.cpUsd = newCpUsd;
         h.rate = newRate;
         h.mv = Math.round(h.sh * newCpUsd * newRate);
