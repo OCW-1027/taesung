@@ -3320,13 +3320,12 @@ function rTrialBalance(mode,dateVal){
     else dateVal='FY1'; // 연도=회기
   }
   
-  // Parse journals by edt
-  function jEdt(j){return j.edt||('2025-'+String(parseInt((j.dt||'1/1').split('/')[0])).padStart(2,'0')+'-'+String(parseInt((j.dt||'1/1').split('/')[1]||'1')).padStart(2,'0'));}
+  // Parse journals by date (jFullDate handles fiscal year correctly)
   
   // Filter: before period (for carry-forward) and current period
   var beforeJ=[],curJ=[];
   D.journals.forEach(function(j){
-    var ed=jEdt(j);
+    var ed=jFullDate(j);
     if(mode==='daily'){
       if(ed<dateVal) beforeJ.push(j);
       else if(ed===dateVal) curJ.push(j);
