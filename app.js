@@ -1875,9 +1875,83 @@ function todayStr(){
   return (d.getMonth()+1)+'/'+d.getDate();
 }
 
+// ===== XIRR 계산 (수정내부수익률) =====
+function calcXIRR(){
+  // Cash flows: {date: Date, amount: number}
+  // Negative = 투자(매수), Positive = 회수(매도), 마지막에 현재 시가 추가
+  var flows=[];
+  var today=new Date();
+  
+  // 1. 매수 (투자금 유출): DR 130/CR 191 + DR 537/CR 191 + DR 154/CR 191
+  D.journals.forEach(function(j){
+    var fd=jFullDate(j);
+    var dt=new Date(fd);
+    if(isNaN(dt.getTime())) return;
+    // 주식 매수
+    if(j.dr==='130'&&j.cr==='191') flows.push({date:dt,amount:-j.amt});
+    // 매수수수료
+    if(j.dr==='537'&&j.cr==='191') flows.push({date:dt,amount:-j.amt});
+    // 소비세 (증권관련)
+    if(j.dr==='154'&&j.cr==='191') flows.push({date:dt,amount:-j.amt});
+    // 주식 매도 (원가 회수 + 이익)
+    if(j.dr==='191'&&j.cr==='130') flows.push({date:dt,amount:j.amt});
+    if(j.dr==='191'&&j.cr==='403') flows.push({date:dt,amount:j.amt});
+  });
+  
+  // 2. 현재 보유 시가 + 증권예수금 잔액을 최종 유입으로
+  var c=calc();
+  var terminalValue=c.allMv; // 보유종목 시가
+  if(terminalValue>0) flows.push({date:today,amount:terminalValue});
+  
+  if(flows.length<2) return null;
+  
+  // XIRR Newton-Raphson solver
+  function xnpv(rate,flows){
+    var d0=flows[0].date;
+    var sum=0;
+    for(var i=0;i<flows.length;i++){
+      var days=(flows[i].date-d0)/(365.25*86400000);
+      sum+=flows[i].amount/Math.pow(1+rate,days);
+    }
+    return sum;
+  }
+  function xnpvDeriv(rate,flows){
+    var d0=flows[0].date;
+    var sum=0;
+    for(var i=0;i<flows.length;i++){
+      var days=(flows[i].date-d0)/(365.25*86400000);
+      if(days===0) continue;
+      sum+=-days*flows[i].amount/Math.pow(1+rate,days+1);
+    }
+    return sum;
+  }
+  
+  // Sort by date
+  flows.sort(function(a,b){return a.date-b.date;});
+  
+  // Newton-Raphson
+  var guess=0.1;
+  for(var iter=0;iter<100;iter++){
+    var f=xnpv(guess,flows);
+    var df=xnpvDeriv(guess,flows);
+    if(Math.abs(df)<1e-10) break;
+    var newGuess=guess-f/df;
+    if(Math.abs(newGuess-guess)<1e-8) break;
+    guess=newGuess;
+    if(guess<-0.99) guess=-0.99;
+    if(guess>10) guess=10;
+  }
+  
+  if(isNaN(guess)||!isFinite(guess)||guess<-1||guess>10) return null;
+  return {rate:guess, flowCount:flows.length};
+}
+
 function rSec(){const c=calc();const jpT=c.jpMv;
+  var xirrResult=calcXIRR();
+  var xirrDisplay=xirrResult?((xirrResult.rate*100).toFixed(2)+'%'):'—';
+  var xirrColor=xirrResult?(xirrResult.rate>=0?'gn':'rd'):'bl';
   return `<div class="pt">유가증권</div>
-  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div></div>
+  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div><div class="cd ${xirrColor}"><div class="l">XIRR (연환산수익률)</div><div class="v">${xirrDisplay}</div></div></div>
   <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span><button class="bt" onclick="saveDeposit()" style="font-size:10px;padding:3px 10px">💾 저장</button></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정 (평가손익전표)</button></div>
   <div id="TC">
