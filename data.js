@@ -317,6 +317,10 @@ const INIT_JOURNALS = [
 {id:943,dt:"3/25",no:"",desc:"[소비세] しゃぶしゃぶ温野菜",dr:"154",cr:"110",amt:697,edt:"2026-03-25",pdt:"",cur:"JPY",exp:"",vendor:"しゃぶしゃぶ温野菜",taxCls:"과세10%"},
 {id:944,dt:"3/27",no:"",desc:"[소비세] ダイバーシティ東京プラザ",dr:"154",cr:"110",amt:1072,edt:"2026-03-27",pdt:"",cur:"JPY",exp:"",vendor:"ダイバーシティ東京プラザ",taxCls:"과세10%"},
 
+
+// === 4월 EB수수료 (2026/4/21 인출) ===
+{id:950,dt:"4/21",no:"S0950",desc:"EB수수료(4月)",dr:"536",cr:"110",amt:2000,edt:"2026-04-21",pdt:"",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:"과세10%"},
+{id:951,dt:"4/21",no:"",desc:"[소비세] EB수수료(4月)",dr:"154",cr:"110",amt:200,edt:"2026-04-21",pdt:"",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:"과세10%"},
 ];
 
 // ===== HOLDINGS =====
@@ -366,6 +370,8 @@ const INIT_BK_OUT = [
   {id:16,dt:"2026-03-26",cat:"법인카드(2월)",ja:"法人カード(2月)",amt:14623},
 
 {id:50,dt:"2026-04-27",cat:"법인카드(3월)",amt:345082,type:"expense"},
+
+{id:51,dt:"2026-04-21",cat:"EB수수료(4月)",amt:2200,type:"expense"},
 ];
 const FS = {
   sga:[{k:'sga_entertainment',a:350036},{k:'sga_vehicle',a:238071},{k:'sga_travel',a:138245},{k:'sga_overseas',a:686794},{k:'sga_supplies',a:201420},{k:'sga_ebfee',a:6600},{k:'sga_secfee',a:1413093,note:'税抜1,284,632+消費税128,461'},{k:'sga_misc',a:3700}],
