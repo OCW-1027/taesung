@@ -2214,8 +2214,8 @@ function rSet(){return `<div class="pt">설정</div>
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 PC에서 내보내기 → 휴대폰에서 가져오기로 동기화 가능</div></div>
   
-  <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다</div>
-  <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
+  <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다 (자산추이·월차마감 데이터는 보존)</div>
+  <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){try{localStorage.setItem('${DKEY}_preserve',JSON.stringify({snapshots:D.snapshots||[],monthlyClosed:D.monthlyClosed||{}}));}catch(e){}localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
 
 
 
@@ -4116,6 +4116,21 @@ function cP(v){let{d,p,o,f}=cS;if(v==='C'){d="0";p=null;o=null;f=true;}else if([
 
 
 document.addEventListener('DOMContentLoaded',function(){
+  // 초기화 시 보존된 스냅샷/월차마감 복원
+  try{
+    var preserved=localStorage.getItem(DKEY+'_preserve');
+    if(preserved){
+      var pData=JSON.parse(preserved);
+      if(pData.snapshots&&pData.snapshots.length>0&&(!D.snapshots||D.snapshots.length===0)){
+        D.snapshots=pData.snapshots;
+      }
+      if(pData.monthlyClosed&&Object.keys(pData.monthlyClosed).length>0&&(!D.monthlyClosed||Object.keys(D.monthlyClosed).length===0)){
+        D.monthlyClosed=pData.monthlyClosed;
+      }
+      saveD();
+      localStorage.removeItem(DKEY+'_preserve');
+    }
+  }catch(e){}
   go('dash');updateNavLabels();
   // Auto-fix ADJ entries
   if(D.journals.some(function(j){return j.no&&j.no.startsWith('ADJ');})){fixAdjEntries();}
