@@ -1104,10 +1104,10 @@ function exportWord(){
   });
 
   let bkInRows='',cI=0;
-  D.bkIn.forEach((d,i)=>{cI+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
+  D.bkIn.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cI+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
     bkInRows+='<tr><td style="'+S+bg2+'color:#888">'+d.dt+'</td><td style="'+S+bg2+'">'+d.cat+'</td><td style="'+HR+bg2+G+'">'+fm(d.amt)+'</td><td style="'+HB+bg2+'">'+fm(cI)+'</td></tr>';});
   let bkOutRows='',cO=0;
-  D.bkOut.forEach((d,i)=>{cO+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
+  D.bkOut.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cO+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
     bkOutRows+='<tr><td style="'+S+bg2+'color:#888">'+d.dt+'</td><td style="'+S+bg2+'">'+d.cat+'</td><td style="'+HR+bg2+R+'">'+fm(d.amt)+'</td><td style="'+HR+bg2+'">'+fm(cO)+'</td></tr>';});
 
   const T='style="width:100%;border-collapse:collapse;margin-bottom:10pt"';
@@ -1927,12 +1927,14 @@ function bkSummary(){
   return {secOut,expOut,capIn,secIn,incIn,loanIn};
 }
 function rBank(){const c=calc();let cI=0,cO=0;
+  var sortedIn=D.bkIn.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
+  var sortedOut=D.bkOut.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
   return `<div class="pt">법인계좌</div>
   <div class="cards"><div class="cd bl"><div class="l">잔액</div><div class="v">${fy(c.bb)}</div></div><div class="cd gn"><div class="l">총입금</div><div class="v">${fy(c.tI)}</div></div><div class="cd rd"><div class="l">총출금</div><div class="v">${fy(c.tO)}</div></div></div>
   <div class="pn"><div class="ph" style="color:#059669"><span>입금</span><button class="bt gn" onclick="addBkIn()">+ 내역추가</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">입금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
-  <tbody>${D.bkIn.map((d,i)=>{cI+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m gn">${fm(d.amt)}</td><td class="r m b">${fm(cI)}</td><td><button class="del" onclick="delBk('in',${d.id})">✕</button></td></tr>`;}).join('')}</tbody></table></div>
+  <tbody>${sortedIn.map((d,i)=>{cI+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m gn">${fm(d.amt)}</td><td class="r m b">${fm(cI)}</td><td><button class="del" onclick="delBk('in',${d.id})">✕</button></td></tr>`;}).join('')}</tbody></table></div>
   <div class="pn"><div class="ph" style="color:#dc2626"><span>출금</span><button class="bt rd" onclick="addBkOut()">+ 내역추가</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">출금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
-  <tbody>${D.bkOut.map((d,i)=>{cO+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m rd">${fm(d.amt)}</td><td class="r m">${fm(cO)}</td><td><button class="del" onclick="delBk('out',${d.id})">✕</button></td></tr>`;}).join('')}</tbody>
+  <tbody>${sortedOut.map((d,i)=>{cO+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m rd">${fm(d.amt)}</td><td class="r m">${fm(cO)}</td><td><button class="del" onclick="delBk('out',${d.id})">✕</button></td></tr>`;}).join('')}</tbody>
   <tr class="t"><td colspan="2" class="r">잔액</td><td colspan="3" class="r m" style="font-size:15px;color:#2563eb">${fm(c.bb)}</td></tr></table></div>`;}
 
 function rFS(){
@@ -2046,11 +2048,11 @@ function rRpt(){const c=calc();
   D.real.forEach((r,i)=>{
     realRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+r.dt+'</td><td class="b bl">'+r.tk+'</td><td>'+r.nm+'</td><td class="r m">'+fm(r.sh)+'</td><td class="r m">'+fm(r.buyAmt)+'</td><td class="r m mu">'+fm(r.bC+r.bT)+'</td><td class="r m b">'+fm(r.tc)+'</td><td class="r m">'+fm(r.sp)+'</td><td class="r m">'+fm(r.sa)+'</td><td class="r m">'+fm(r.gr)+'</td><td class="r m mu">'+fm(r.sC+r.sT)+'</td><td class="r">'+bg(r.net)+'</td><td class="r m gn">'+r.rr.toFixed(2)+'%</td></tr>';
   });
-  // Bank tables
+  // Bank tables (sorted by date)
   let bkInRows='',cI=0;
-  D.bkIn.forEach((d,i)=>{cI+=d.amt;bkInRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m gn">'+fm(d.amt)+'</td><td class="r m b">'+fm(cI)+'</td></tr>';});
+  D.bkIn.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cI+=d.amt;bkInRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m gn">'+fm(d.amt)+'</td><td class="r m b">'+fm(cI)+'</td></tr>';});
   let bkOutRows='',cO=0;
-  D.bkOut.forEach((d,i)=>{cO+=d.amt;bkOutRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m rd">'+fm(d.amt)+'</td><td class="r m">'+fm(cO)+'</td></tr>';});
+  D.bkOut.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cO+=d.amt;bkOutRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m rd">'+fm(d.amt)+'</td><td class="r m">'+fm(cO)+'</td></tr>';});
 
   return '<div style="max-width:1100px" id="rptContent">'+
     '<div contenteditable="true" style="text-align:center;margin-bottom:20px"><div style="font-size:22px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:13px;color:#64748b;margin-top:4px">'+rptDt()+' 기준</div></div>'+
@@ -2992,17 +2994,10 @@ function rTaxSummary(){
 
   // 소비세 전표 상세 (154/211 entries)
   var taxEntries=D.journals.filter(function(j){return j.dr==='154'||j.cr==='211';});
-  html+='<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">📋 소비세 전표 상세 (154 가지급 / 211 가수)</div>';
-  if(taxEntries.length>0){
-    html+='<table><thead><tr><th>일자</th><th>전표</th><th>적요</th><th>유형</th><th class="r">세액</th></tr></thead><tbody>';
-    taxEntries.forEach(function(j,i){
-      var type=j.dr==='154'?'<span style="color:#2563eb">매입세</span>':'<span style="color:#d97706">매출세</span>';
-      html+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+jDispDate(j)+'</td><td style="color:#2563eb;font-size:10px">'+(j.no||'-')+'</td><td>'+j.desc+'</td><td>'+type+'</td><td class="r m b">'+fm(j.amt)+'</td></tr>';
-    });
-    html+='</tbody></table>';
-  } else {
-    html+='<div style="padding:20px;text-align:center;color:#64748b">소비세 전표가 없습니다. 과세거래 전표 입력 시 자동 생성됩니다.</div>';
-  }
+  html+='<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">📋 소비세 전표 상세 ('+taxEntries.length+'건)</span>';
+  html+='<div style="display:flex;gap:4px"><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'date\')">일자순</button><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'no\')">전표번호순</button><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'amt\')">금액순</button></div></div>';
+  html+='<div id="taxEntryTable">';
+  html+=buildTaxEntryTable(taxEntries,'date');
   html+='</div>';
 
   html+='<div class="ib" style="margin-top:14px;font-size:10px">';
@@ -3014,6 +3009,29 @@ function rTaxSummary(){
 }
 
 // --- 소비세 결산 정산전표 ---
+function buildTaxEntryTable(entries,sortBy){
+  if(!entries||entries.length===0) return '<div style="padding:20px;text-align:center;color:#64748b">소비세 전표가 없습니다.</div>';
+  var sorted=entries.slice();
+  if(sortBy==='date') sorted.sort(function(a,b){return jSortKey(a).localeCompare(jSortKey(b));});
+  else if(sortBy==='no') sorted.sort(function(a,b){return (a.no||'').localeCompare(b.no||'');});
+  else if(sortBy==='amt') sorted.sort(function(a,b){return b.amt-a.amt;});
+  var total=0;
+  var h='<table><thead><tr><th>일자</th><th>전표</th><th>적요</th><th>유형</th><th class="r">세액</th></tr></thead><tbody>';
+  sorted.forEach(function(j,i){
+    var type=j.dr==='154'?'<span style="color:#2563eb">매입세</span>':'<span style="color:#d97706">매출세</span>';
+    h+='<tr class="'+(i%2?'a':'')+'"><td class="mu m" style="font-size:10px">'+jDispDate(j)+'</td><td style="color:#2563eb;font-size:10px">'+(j.no||'-')+'</td><td>'+j.desc+'</td><td>'+type+'</td><td class="r m b">'+fm(j.amt)+'</td></tr>';
+    total+=j.amt;
+  });
+  h+='<tr class="t"><td colspan="4">합계 ('+sorted.length+'건)</td><td class="r m">'+fm(total)+'</td></tr>';
+  h+='</tbody></table>';
+  return h;
+}
+function sortTaxEntries(sortBy){
+  var entries=D.journals.filter(function(j){return j.dr==='154'||j.cr==='211';});
+  var el=document.getElementById('taxEntryTable');
+  if(el) el.innerHTML=buildTaxEntryTable(entries,sortBy);
+}
+
 function genTaxSettlement(){
   var existing=D.journals.filter(function(j){return j.desc&&j.desc.indexOf('[소비세정산]')>=0;});
   if(existing.length>0){
