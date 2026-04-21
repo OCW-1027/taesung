@@ -2631,7 +2631,7 @@ function getOpenItems(acctCode){
       var isLiab=ac&&ac.g==='부채';
       var sign=(isLiab&&!isDr)||(!isLiab&&isDr)?1:-1;
       items.push({
-        id:j.id, dt:j.dt, no:j.no, desc:j.desc, 
+        id:j.id, dt:jDispDate(j), no:j.no, desc:j.desc, 
         amt:j.amt, side:side, sign:sign,
         signedAmt:j.amt*sign,
         tkCode:j.tkCode||'',
@@ -2997,7 +2997,7 @@ function rTaxSummary(){
     html+='<table><thead><tr><th>일자</th><th>전표</th><th>적요</th><th>유형</th><th class="r">세액</th></tr></thead><tbody>';
     taxEntries.forEach(function(j,i){
       var type=j.dr==='154'?'<span style="color:#2563eb">매입세</span>':'<span style="color:#d97706">매출세</span>';
-      html+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+j.dt+'</td><td style="color:#2563eb;font-size:10px">'+(j.no||'-')+'</td><td>'+j.desc+'</td><td>'+type+'</td><td class="r m b">'+fm(j.amt)+'</td></tr>';
+      html+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+jDispDate(j)+'</td><td style="color:#2563eb;font-size:10px">'+(j.no||'-')+'</td><td>'+j.desc+'</td><td>'+type+'</td><td class="r m b">'+fm(j.amt)+'</td></tr>';
     });
     html+='</tbody></table>';
   } else {
@@ -3080,7 +3080,7 @@ function migrateTaxSplit(){
     var taxDr=isExp?'154':j.dr;
     var taxCr=isRev?'211':j.cr;
     D.journals.push({
-      id:nid(),dt:j.dt,no:'',desc:'[소비세] '+j.desc,
+      id:nid(),dt:j.dt,no:genSlipNo(j.edt||'2026-03',taxDr,taxCr),desc:'[소비세] '+j.desc,
       dr:taxDr,cr:taxCr,amt:taxAmt,
       edt:j.edt||'',pdt:j.pdt||'',cur:j.cur||'JPY',exp:'',vendor:j.vendor||'',taxCls:j.taxCls
     });
@@ -3099,7 +3099,7 @@ function rWithholding(){
   D.journals.forEach(function(j){
     if(j.dr==='155'||j.cr==='155'){
       items.push({
-        id:j.id, dt:j.dt, no:j.no, desc:j.desc, amt:j.amt,
+        id:j.id, dt:jDispDate(j), no:j.no, desc:j.desc, amt:j.amt,
         isDr:j.dr==='155',
         source:j.dr==='155'?j.cr:j.dr
       });
