@@ -13,6 +13,7 @@ if(!D.customAccts)D.customAccts=[];
 if(D._oiAccts)OI_ACCTS=D._oiAccts;
 D.accts=ACCT_INIT.concat(D.customAccts);
 if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
+if(!D.fxSecDeposit)D.fxSecDeposit={USD:{amt:0,avgRate:0,curRate:0}};
 if(!D.vendors)D.vendors=INIT_VENDORS;
 if(!D.fixedAssets)D.fixedAssets=[];
 if(!D.leases)D.leases=[];
@@ -1221,6 +1222,10 @@ function applyPrices(){
       }
     }
   });
+  // 외화예수금 평가환율 자동 갱신
+  if(D.fxSecDeposit&&D.fxSecDeposit.USD&&D.fxSecDeposit.USD.amt>0){
+    D.fxSecDeposit.USD.curRate=newRate;
+  }
   saveD();
   closeModal();
   go('sec');
@@ -1444,6 +1449,32 @@ function saveDeposit(){
     alert('증권예수금 저장: ¥'+fm(val));
     go('sec');
   }
+}
+function editFxDeposit(){
+  var fx=D.fxSecDeposit&&D.fxSecDeposit.USD?D.fxSecDeposit.USD:{amt:0,avgRate:0,curRate:SET.rates.USDJPY||0};
+  showModal('💵 외화예수금 (USD)',
+    '<div style="font-size:11px;color:#64748b;margin-bottom:10px">USD 잔고와 평가환율을 입력하세요. 취득환율은 매수 시점 환율입니다.</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    '<div><label>USD 잔고</label><input type="number" id="fx_amt" value="'+(fx.amt||0)+'" step="1" placeholder="125000"></div>'+
+    '<div><label>취득환율 (JPY/USD)</label><input type="number" id="fx_avg" value="'+(fx.avgRate||0)+'" step="0.0001" placeholder="157.40"></div>'+
+    '<div><label>평가환율 (JPY/USD)</label><input type="number" id="fx_cur" value="'+(fx.curRate||SET.rates.USDJPY||0)+'" step="0.0001" placeholder="157.18"></div>'+
+    '<div style="grid-column:1/3"><div style="font-size:10px;color:#94a3b8">취득금액 = USD × 취득환율 (장부가) / 평가금액 = USD × 평가환율 (시가) / 차액 = 평가손익</div></div>'+
+    '</div>'+
+    '<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">'+
+    '<button class="bt gh" onclick="closeModal()">취소</button>'+
+    '<button class="bt gn" onclick="saveFxDeposit()">✓ 저장</button>'+
+    '</div>');
+}
+function saveFxDeposit(){
+  var amt=+document.getElementById('fx_amt').value||0;
+  var avg=+document.getElementById('fx_avg').value||0;
+  var cur=+document.getElementById('fx_cur').value||0;
+  if(!D.fxSecDeposit) D.fxSecDeposit={USD:{}};
+  D.fxSecDeposit.USD={amt:amt,avgRate:avg,curRate:cur};
+  saveD();
+  closeModal();
+  toast('외화예수금 저장 완료');
+  go('sec');
 }
 function calcSlipTax(sel){
   const tr=sel.closest('tr');
@@ -1875,6 +1906,44 @@ function todayStr(){
   return (d.getMonth()+1)+'/'+d.getDate();
 }
 
+// ===== 결산 자동화: 외화예수금 평가손익 조정전표 =====
+function autoFxEvalAdjust(){
+  if(!D.fxSecDeposit||!D.fxSecDeposit.USD||!D.fxSecDeposit.USD.amt){
+    alert('외화예수금 잔고가 없습니다.');return;
+  }
+  var fx=D.fxSecDeposit.USD;
+  var bookJpy=Math.round(fx.amt*fx.avgRate);
+  var mvJpy=Math.round(fx.amt*fx.curRate);
+  var fxPl=mvJpy-bookJpy; // +이익 -손실
+  
+  if(fxPl===0){
+    alert('조정 불필요 (평가환율과 취득환율이 동일)');return;
+  }
+  
+  var info='외화예수금 평가손익 조정전표\n\n'+
+    'USD 잔고: $'+fm(fx.amt)+'\n'+
+    '취득환율: '+fx.avgRate.toFixed(4)+' (장부가 '+fm(bookJpy)+')\n'+
+    '평가환율: '+fx.curRate.toFixed(4)+' (평가액 '+fm(mvJpy)+')\n'+
+    '평가손익: '+(fxPl>=0?'+':'')+fm(fxPl)+'\n\n';
+  
+  if(fxPl<0){
+    // 평가손: DR 542 유가증권평가손 / CR 192 외화증권예수금
+    if(!confirm(info+'평가손 인식 → 전표 생성:\n차변: 유가증권평가손(542) '+fm(-fxPl)+'\n대변: 외화증권예수금(192) '+fm(-fxPl)+'\n\n생성하시겠습니까?'))return;
+    D.journals.push({id:nid(),dt:todayStr(),no:'FXADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 외화예수금 평가손(USD)',dr:'542',cr:'192',amt:-fxPl,edt:new Date().toISOString().slice(0,10)});
+    // 장부가 갱신
+    fx.avgRate=fx.curRate;
+  }else{
+    // 평가이익: DR 192 외화증권예수금 / CR 405 잡수입(또는 별도 외환차익 계정)
+    if(!confirm(info+'평가이익 인식 → 전표 생성:\n차변: 외화증권예수금(192) '+fm(fxPl)+'\n대변: 잡수입(405) '+fm(fxPl)+'\n\n생성하시겠습니까?'))return;
+    D.journals.push({id:nid(),dt:todayStr(),no:'FXADJ'+String(D.journals.length+1).padStart(2,'0'),desc:'결산조정: 외화예수금 평가이익(USD)',dr:'192',cr:'405',amt:fxPl,edt:new Date().toISOString().slice(0,10)});
+    // 장부가 갱신
+    fx.avgRate=fx.curRate;
+  }
+  saveD();
+  alert('조정전표 생성 완료!\n장부환율이 평가환율('+fx.curRate.toFixed(4)+')로 갱신되었습니다.');
+  go('sec');
+}
+
 // ===== XIRR 계산 (수정내부수익률) =====
 function calcXIRR(){
   // 자본 기준: 증권계좌로 입금한 돈 vs 현재 증권계좌 총액
@@ -1940,10 +2009,19 @@ function rSec(){const c=calc();const jpT=c.jpMv;
   var xirrDisplay=xirrResult?((xirrResult.rate*100).toFixed(2)+'%'):'—';
   var xirrColor=xirrResult?(xirrResult.rate>=0?'gn':'rd'):'bl';
   var xirrNote=xirrResult?'투입 '+fm(xirrResult.invested)+' → 현재 '+fm(xirrResult.current)+' (단순 '+xirrResult.simpleReturn.toFixed(1)+'%)':'';
+  // 외화예수금 계산
+  var fxUSD=D.fxSecDeposit&&D.fxSecDeposit.USD?D.fxSecDeposit.USD:{amt:0,avgRate:0,curRate:0};
+  var fxUsdAmt=fxUSD.amt||0;
+  var fxAvgRate=fxUSD.avgRate||0;
+  var fxCurRate=fxUSD.curRate||SET.rates.USDJPY||0;
+  var fxBookJpy=Math.round(fxUsdAmt*fxAvgRate);
+  var fxMvJpy=Math.round(fxUsdAmt*fxCurRate);
+  var fxPl=fxMvJpy-fxBookJpy;
+  
   return `<div class="pt">유가증권</div>
-  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div><div class="cd ${xirrColor}"><div class="l">XIRR (연환산수익률)</div><div class="v">${xirrDisplay}</div>${xirrNote?'<div style="font-size:8px;color:#64748b;margin-top:2px">'+xirrNote+'</div>':''}</div></div>
+  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div><div class="cd ${xirrColor}"><div class="l">XIRR (연환산수익률)</div><div class="v">${xirrDisplay}</div>${xirrNote?'<div style="font-size:8px;color:#64748b;margin-top:2px">'+xirrNote+'</div>':''}</div>${fxUsdAmt>0?'<div class="cd '+(fxPl>=0?'gn':'rd')+'"><div class="l">USD 예수금</div><div class="v">$'+fm(fxUsdAmt)+'</div><div style="font-size:9px;color:#64748b;margin-top:2px">¥'+fm(fxMvJpy)+' (평가손익 '+(fxPl>=0?'+':'')+fm(fxPl)+')</div></div>':''}</div>
   <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span><button class="bt" onclick="saveDeposit()" style="font-size:10px;padding:3px 10px">💾 저장</button></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정 (평가손익전표)</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:6px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정 (평가)</button>${fxUsdAmt>0?'<button class="bt" onclick="autoFxEvalAdjust()" style="background:#0891b2;font-size:11px">💱 외화 결산조정</button>':''}</div></div>
   <div id="TC">
   <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
     <thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">수수료</th><th class="r">취득원가</th><th class="r">BEP</th><th class="r">현재가</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th><th></th></tr></thead>
@@ -1954,6 +2032,7 @@ function rSec(){const c=calc();const jpT=c.jpMv;
     <thead><tr><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">취득원가</th><th class="r">현재가(USD)</th><th class="r">환율</th><th class="r">평가액</th><th class="r">손익</th><th class="r">수익률</th><th></th></tr></thead>
     <tbody>${D.holdUS.map(h=>{const pl=h.mv-h.tc,rr=h.tc?(pl/h.tc*100):0;return`<tr><td class="b bl">${h.tk}</td><td>${h.nm}</td><td class="r m">${fm(h.sh)}</td><td class="r m">${fm(h.tc)}</td><td class="r m">${h.cpUsd}</td><td class="r m">${h.rate||SET.rates.USDJPY}</td><td class="r m b">${fm(h.mv)}</td><td class="r">${bg(pl)}</td><td class="r m rd">${rr.toFixed(2)}%</td><td><button class="del" onclick="editHoldUS(${h.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delHoldUS(${h.id})">✕</button></td></tr>`;}).join('')}</tbody>
   </table></div>
+  <div class="pn"><div class="ph"><span>나-2) 외화예수금 (米国株購入用)</span><button class="bt" onclick="editFxDeposit()" style="font-size:11px">✏️ 편집</button></div>${fxUsdAmt>0?'<table><thead><tr><th>통화</th><th class="r">잔고</th><th class="r">취득환율</th><th class="r">취득금액(JPY)</th><th class="r">평가환율</th><th class="r">평가금액(JPY)</th><th class="r">평가손익</th></tr></thead><tbody><tr><td class="b bl">USD 米ドル</td><td class="r m">$'+fm(fxUsdAmt)+'</td><td class="r m">'+fxAvgRate.toFixed(4)+'</td><td class="r m b">'+fm(fxBookJpy)+'</td><td class="r m">'+fxCurRate.toFixed(4)+'</td><td class="r m b">'+fm(fxMvJpy)+'</td><td class="r">'+bg(fxPl)+'</td></tr></tbody></table>':'<div style="padding:20px;text-align:center;color:#64748b;font-size:12px">외화예수금 잔고가 없습니다. 편집 버튼으로 입력하세요.</div>'}</div>
   <div class="pn"><div class="ph">다) 전체</div><table><thead><tr><th>구분</th><th class="r">취득원가</th><th class="r">평가금액</th><th class="r">비중</th><th class="r">손익</th><th class="r">수익률</th></tr></thead>
     <tbody><tr><td>일본</td><td class="r m">${fm(c.jpC)}</td><td class="r m">${fm(c.jpMv)}</td><td class="r">${c.allMv?Math.round(c.jpMv/c.allMv*100):0}%</td><td class="r">${bg(c.jpMv-c.jpC)}</td><td class="r m">${((c.jpMv-c.jpC)/c.jpC*100).toFixed(2)}%</td></tr>
     <tr class="a"><td>미국</td><td class="r m">${fm(c.usC)}</td><td class="r m">${fm(c.usMv)}</td><td class="r">${c.allMv?Math.round(c.usMv/c.allMv*100):0}%</td><td class="r">${bg(c.usMv-c.usC)}</td><td class="r m rd">${((c.usMv-c.usC)/c.usC*100).toFixed(2)}%</td></tr>
