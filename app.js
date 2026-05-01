@@ -1961,9 +1961,14 @@ function calcXIRR(){
     if(j.dr==='110'&&j.cr==='191') flows.push({date:dt,amount:j.amt});
   });
   
-  // 2. 현재 증권계좌 잔액 (예수금 + 보유종목 시가) = 최종 가치
+  // 2. 현재 증권계좌 잔액 (예수금 + 외화예수금 + 보유종목 시가) = 최종 가치
   var c=calc();
-  var terminalValue=(D.secDeposit||SEC_DEP)+c.allMv;
+  var fxJpy=0;
+  if(D.fxSecDeposit&&D.fxSecDeposit.USD&&D.fxSecDeposit.USD.amt>0){
+    var fx=D.fxSecDeposit.USD;
+    fxJpy=Math.round(fx.amt*(fx.curRate||fx.avgRate||SET.rates.USDJPY));
+  }
+  var terminalValue=(D.secDeposit||SEC_DEP)+c.allMv+fxJpy;
   if(terminalValue>0) flows.push({date:today,amount:terminalValue});
   
   if(flows.length<2) return null;
