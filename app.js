@@ -901,11 +901,17 @@ function calc(){
   const usMv=D.holdUS.reduce((s,h)=>s+h.mv,0),usC=D.holdUS.reduce((s,h)=>s+h.tc,0);
   const tI=D.bkIn.reduce((s,d)=>s+d.amt,0),tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
   const rpl=D.real.reduce((s,r)=>s+r.net,0),rC=D.real.reduce((s,r)=>s+r.tc,0),rS=D.real.reduce((s,r)=>s+r.sa,0);
-  const bb=tI-tO,secDep=D.secDeposit||SEC_DEP,secBal=secDep+jpMv+usMv;
+  // 외화예수금 JPY 환산 (192 전표 미입력 시 화면 표시용)
+  let fxJpy=0;
+  if(D.fxSecDeposit&&D.fxSecDeposit.USD&&D.fxSecDeposit.USD.amt>0){
+    const fx=D.fxSecDeposit.USD;
+    fxJpy=Math.round(fx.amt*(fx.curRate||fx.avgRate||SET.rates.USDJPY||0));
+  }
+  const bb=tI-tO,secDep=D.secDeposit||SEC_DEP,secBal=secDep+jpMv+usMv+fxJpy;
   // Include other asset balances (fixed assets etc.) for complete total
   let otherA=0;
-  D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){otherA+=acctBal(ac.c);});
-  return {jpMv,jpC,usMv,usC,allMv:jpMv+usMv,allC:jpC+usC,allPl:jpMv+usMv-jpC-usC,rpl,rC,rS,tI,tO,bb,secDep,secBal,totA:bb+secBal+otherA};
+  D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130'&&ac.c!=='192';}).forEach(function(ac){otherA+=acctBal(ac.c);});
+  return {jpMv,jpC,usMv,usC,allMv:jpMv+usMv,allC:jpC+usC,allPl:jpMv+usMv-jpC-usC,rpl,rC,rS,tI,tO,bb,secDep,secBal,fxJpy,totA:bb+secBal+otherA};
 }
 
 function showModal(title,html){document.getElementById('modal').innerHTML='<div class="mo" onclick="closeModal()"><div class="mc" onclick="event.stopPropagation()"><h3>'+title+'</h3>'+html+'</div></div>';document.getElementById('modal').classList.remove('hidden');}
@@ -1963,12 +1969,7 @@ function calcXIRR(){
   
   // 2. 현재 증권계좌 잔액 (예수금 + 외화예수금 + 보유종목 시가) = 최종 가치
   var c=calc();
-  var fxJpy=0;
-  if(D.fxSecDeposit&&D.fxSecDeposit.USD&&D.fxSecDeposit.USD.amt>0){
-    var fx=D.fxSecDeposit.USD;
-    fxJpy=Math.round(fx.amt*(fx.curRate||fx.avgRate||SET.rates.USDJPY));
-  }
-  var terminalValue=(D.secDeposit||SEC_DEP)+c.allMv+fxJpy;
+  var terminalValue=c.secBal; // secBal already includes fxJpy
   if(terminalValue>0) flows.push({date:today,amount:terminalValue});
   
   if(flows.length<2) return null;
