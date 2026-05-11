@@ -820,6 +820,9 @@ const INIT_JOURNALS = [
 {id:1497,dt:"4/27",no:"S1248T",desc:"[소비세] NEXCO ETC 三郷→流山",dr:"154",cr:"207",amt:33,edt:"2026-04-27",pdt:"",cur:"JPY",exp:"",vendor:"NEXCO東日本",taxCls:"과세10%"},
 {id:1498,dt:"4/27",no:"S1249",desc:"エコロパーク 平河町A 주차",dr:"520",cr:"207",amt:2955,edt:"2026-04-27",pdt:"",cur:"JPY",exp:"",vendor:"エコロパーク",taxCls:"과세10%"},
 {id:1499,dt:"4/27",no:"S1249T",desc:"[소비세] エコロパーク 平河町A 주차",dr:"154",cr:"207",amt:295,edt:"2026-04-27",pdt:"",cur:"JPY",exp:"",vendor:"エコロパーク",taxCls:"과세10%"},
+
+// === 5/7 USD 매수 (約定 5/1, 受渡 5/7, $125,000 @ 157.40) ===
+{id:1500,dt:"5/7",no:"S0960",desc:"USD $125,000 매수 (受渡 2026/5/7, @157.40)",dr:"192",cr:"191",amt:19675000,edt:"2026-05-07",pdt:"",cur:"JPY",exp:"",vendor:"SMBC日興証券",taxCls:"불과세"},
 ];
 
 // ===== HOLDINGS =====
