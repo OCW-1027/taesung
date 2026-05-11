@@ -4282,13 +4282,6 @@ document.addEventListener('DOMContentLoaded',function(){
   go('dash');updateNavLabels();
   // Auto-fix ADJ entries
   if(D.journals.some(function(j){return j.no&&j.no.startsWith('ADJ');})){fixAdjEntries();}
-  // Auto-fix 531/570→520 reclassification
-  var reclass=0;
-  D.journals.forEach(function(j){
-    if(j.dr==='531'&&j.desc!=='コバヤシタイヤ'){j.dr='520';reclass++;}
-    if(j.dr==='570'){j.dr='520';reclass++;}
-  });
-  if(reclass>0){saveD();toast(reclass+'건 계정 재분류 완료 (→여비교통비)');go('dash');}
   // Auto-delete S0400 (평가손 전표 → 결산 시 생성으로 변경)
   var s0400=D.journals.findIndex(function(j){return j.no==='S0400';});
   if(s0400>=0){D.journals.splice(s0400,1);saveD();toast('평가손익 전표(S0400) 삭제 → 결산 시 생성으로 변경');}
