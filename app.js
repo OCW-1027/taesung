@@ -907,7 +907,7 @@ function calc(){
     const fx=D.fxSecDeposit.USD;
     fxJpy=Math.round(fx.amt*(fx.curRate||fx.avgRate||SET.rates.USDJPY||0));
   }
-  const bb=tI-tO,secDep=D.secDeposit||SEC_DEP,secBal=secDep+jpMv+usMv+fxJpy;
+  const bb=tI-tO,secDep=acctBal('191'),secBal=secDep+jpMv+usMv+fxJpy;
   // Include other asset balances (fixed assets etc.) for complete total
   let otherA=0;
   D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130'&&ac.c!=='192';}).forEach(function(ac){otherA+=acctBal(ac.c);});
@@ -2026,7 +2026,7 @@ function rSec(){const c=calc();const jpT=c.jpMv;
   
   return `<div class="pt">유가증권</div>
   <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div><div class="cd ${xirrColor}"><div class="l">XIRR (연환산수익률)</div><div class="v">${xirrDisplay}</div>${xirrNote?'<div style="font-size:8px;color:#64748b;margin-top:2px">'+xirrNote+'</div>':''}</div>${fxUsdAmt>0?'<div class="cd '+(fxPl>=0?'gn':'rd')+'"><div class="l">USD 예수금</div><div class="v">$'+fm(fxUsdAmt)+'</div><div style="font-size:9px;color:#64748b;margin-top:2px">¥'+fm(fxMvJpy)+' (평가손익 '+(fxPl>=0?'+':'')+fm(fxPl)+')</div></div>':''}</div>
-  <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금: <span id="depEdit" contenteditable="true" style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;cursor:pointer;outline:none">${fm(D.secDeposit||SEC_DEP)}</span> 엔</span><button class="bt" onclick="saveDeposit()" style="font-size:10px;padding:3px 10px">💾 저장</button></div>
+  <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금 (191 전표잔액): <span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:2px 8px;color:#1e3a8a">${fm(acctBal('191'))}</span> 엔</span><span style="font-size:10px;color:#64748b">📊 전표 기반 자동 계산 (수동 입력 불가)</span></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:6px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정 (평가)</button>${fxUsdAmt>0?'<button class="bt" onclick="autoFxEvalAdjust()" style="background:#0891b2;font-size:11px">💱 외화 결산조정</button>':''}</div></div>
   <div id="TC">
   <div class="pn"><div class="ph"><span>가) 일본</span><button class="bt" onclick="addHoldJP()">+ 종목추가</button></div><div style="overflow-x:auto"><table style="min-width:900px">
@@ -2363,8 +2363,8 @@ function rSet(){return `<div class="pt">설정</div>
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 PC에서 내보내기 → 휴대폰에서 가져오기로 동기화 가능</div></div>
   
-  <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다 (자산추이·월차마감 데이터는 보존)</div>
-  <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){try{localStorage.setItem('${DKEY}_preserve',JSON.stringify({snapshots:D.snapshots||[],monthlyClosed:D.monthlyClosed||{}}));}catch(e){}localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
+  <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다 (자산추이·월차마감·외화예수금은 보존)</div>
+  <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){try{localStorage.setItem('${DKEY}_preserve',JSON.stringify({snapshots:D.snapshots||[],monthlyClosed:D.monthlyClosed||{},fxSecDeposit:D.fxSecDeposit||null}));}catch(e){}localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
 
 
 
@@ -2725,7 +2725,7 @@ function rCashFlow(){
   tableHtml+='<td class="r m b" style="color:#2563eb;font-size:12px">'+fm(cumBal)+'</td></tr>';
   
   // 실제보유현금 검증 행
-  var actualCash=acctBal('110')+(D.secDeposit||SEC_DEP);
+  var actualCash=acctBal('110')+acctBal('191');
   var cfDiff=actualCash-cumBal;
   tableHtml+='<tr style="background:#dbeafe"><td style="font-weight:700;color:#1e3a5f">실제보유현금</td>';
   months.forEach(function(){tableHtml+='<td></td>';});
@@ -4264,7 +4264,7 @@ function cP(v){let{d,p,o,f}=cS;if(v==='C'){d="0";p=null;o=null;f=true;}else if([
 
 
 document.addEventListener('DOMContentLoaded',function(){
-  // 초기화 시 보존된 스냅샷/월차마감 복원
+  // 초기화 시 보존된 스냅샷/월차마감/외화예수금 복원
   try{
     var preserved=localStorage.getItem(DKEY+'_preserve');
     if(preserved){
@@ -4274,6 +4274,9 @@ document.addEventListener('DOMContentLoaded',function(){
       }
       if(pData.monthlyClosed&&Object.keys(pData.monthlyClosed).length>0&&(!D.monthlyClosed||Object.keys(D.monthlyClosed).length===0)){
         D.monthlyClosed=pData.monthlyClosed;
+      }
+      if(pData.fxSecDeposit&&pData.fxSecDeposit.USD&&pData.fxSecDeposit.USD.amt>0&&(!D.fxSecDeposit||!D.fxSecDeposit.USD||!D.fxSecDeposit.USD.amt)){
+        D.fxSecDeposit=pData.fxSecDeposit;
       }
       saveD();
       localStorage.removeItem(DKEY+'_preserve');
