@@ -831,7 +831,7 @@ const INIT_HOLD_JP = [
   {id:2,tk:"9401",nm:"TBS홀딩스",ja:"TBSHD",sh:2000,px:5785,buyAmt:11570778,fee:89802,tc:11660580,bep:5830,cp:5832,mv:11664000},
   {id:3,tk:"464A",nm:"QPS홀딩스",ja:"G-QPSHD",sh:5000,px:2149,buyAmt:10743594,fee:99506,tc:10843100,bep:2169,cp:2298,mv:11490000},
   {id:4,tk:"6594",nm:"NIDEC",ja:"ニデック",sh:2000,px:2306,buyAmt:4611929,fee:44311,tc:4656240,bep:2328,cp:2080,mv:4160000},
-  {id:5,tk:"1540",nm:"순금신탁ETF",ja:"純金信託ETF",sh:417,px:23960,buyAmt:9991320,fee:80241,tc:10071561,bep:24152,cp:21440,mv:8940480},
+  {id:5,tk:"1540",nm:"순금신탁ETF",ja:"純金信託ETF",sh:417,px:23960,buyAmt:9991320,fee:80243,tc:10071563,bep:24152,cp:21440,mv:8940480},
   {id:6,tk:"8884",nm:"미국주식인덱스F",ja:"米国株式ｲﾝﾃﾞｯｸｽF",sh:3014882,px:41461,buyAmt:12500002,fee:0,tc:12500002,bep:41461,cp:40215,mv:12124347},
 ];
 const INIT_HOLD_US = [{id:1,tk:"GOOG",nm:"알파벳C",ja:"アルファベットC",sh:250,buyAmt:12568104,fee:0,tc:12568104,bep:50272,cpUsd:280.74,rate:159.63,mv:11203631}];
