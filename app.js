@@ -10,7 +10,7 @@ let D=loadJ(DKEY,DEF_DATA);
 // Migrate: always use fresh accts from ACCT_INIT (fixes JP->KR group name change)
 // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
-if(D._oiAccts)OI_ACCTS=D._oiAccts;
+if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}
 D.accts=ACCT_INIT.concat(D.customAccts);
 if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
 if(!D.fxSecDeposit)D.fxSecDeposit={USD:{amt:0,avgRate:0,curRate:0}};
@@ -567,7 +567,7 @@ async function doFbDownload(){
     for(var key in fbData){if(fbData.hasOwnProperty(key))D[key]=fbData[key];}
     // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
-if(D._oiAccts)OI_ACCTS=D._oiAccts;
+if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}
 D.accts=ACCT_INIT.concat(D.customAccts);
     if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
     if(!D.vendors)D.vendors=INIT_VENDORS||[];
@@ -1378,7 +1378,7 @@ if(!_isEdit){
 toast(_isEdit?'전표 수정 완료':'전표 생성 완료: '+desc+impactMsg);go('slip');window.scrollTo(0,0);}
 function addAcct(){showModal('계정과목 추가',`<div class="fg"><div><label>코드</label><input id="fa_c"></div><div><label>과목명(한국어)</label><input id="fa_k"></div><div><label>과목명(일본어)</label><input id="fa_n"></div><div><label>구분</label><select id="fa_g"><option value="자산">자산</option><option value="부채">부채</option><option value="순자산">순자산</option><option value="수익">수익</option><option value="비용">비용</option></select></div><div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doAddAcct()">추가</button></div><div class="full" style="font-size:10px;color:#64748b">현재 ${D.accts.length}개 과목</div></div>`);}
 function doAddAcct(){const c=document.getElementById('fa_c').value,k=document.getElementById('fa_k').value,n=document.getElementById('fa_n').value||k,g=document.getElementById('fa_g').value;if(!c||!k)return alert('코드와 과목명을 입력하세요');if(D.accts.find(x=>x.c===c))return alert('이미 존재하는 코드입니다');var newAcct={c,n,k,g};D.accts.push(newAcct);if(!D.customAccts)D.customAccts=[];
-if(D._oiAccts)OI_ACCTS=D._oiAccts;D.customAccts.push(newAcct);saveD();closeModal();toast('계정과목 추가: '+c+' '+k);go('slip');}
+if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}D.customAccts.push(newAcct);saveD();closeModal();toast('계정과목 추가: '+c+' '+k);go('slip');}
 
 function rSlip(){
   // Group journals by year-month
@@ -2362,7 +2362,7 @@ function importBackup(){
         D=backup.data;
         // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
-if(D._oiAccts)OI_ACCTS=D._oiAccts;
+if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}
 D.accts=ACCT_INIT.concat(D.customAccts); // Always use fresh accounts
         saveD();
         // Restore settings
@@ -2848,7 +2848,17 @@ function rOI(){
   var summaryHtml='';
   var totalOpen=0, totalCleared=0;
   
-  OI_ACCTS.forEach(function(code){
+  // 자동 포함: 잔액 있는 모든 부채/자산 계정 + 중복 제거
+  var oiSet={};
+  OI_ACCTS.forEach(function(c){oiSet[c]=true;});
+  D.accts.forEach(function(a){
+    if((a.g==='부채'||a.g==='자산')&&Math.abs(acctBal(a.c))>0){
+      oiSet[a.c]=true;
+    }
+  });
+  var displayAccts=Object.keys(oiSet).sort();
+  
+  displayAccts.forEach(function(code){
     var ac=D.accts.find(function(x){return x.c===code;});
     if(!ac)return;
     var items=getOpenItems(code);
@@ -2876,7 +2886,7 @@ function rOI(){
   return '<div class="pt">미결관리</div>'+
     '<div class="ib">💡 부채·자산 계정의 미결(미정산) 항목을 추적하고 반제(상계)합니다. 계정을 클릭하면 상세 내역을 표시합니다.</div>'+
     '<div class="cards">'+
-      '<div class="cd bl"><div class="l">미결관리 계정</div><div class="v">'+OI_ACCTS.length+'개</div></div>'+
+      '<div class="cd bl"><div class="l">미결관리 계정</div><div class="v">'+displayAccts.length+'개</div></div>'+
       '<div class="cd go"><div class="l">미결 항목</div><div class="v">'+totalOpen+'건</div></div>'+
       '<div class="cd gn"><div class="l">반제 완료</div><div class="v">'+totalCleared+'건</div></div>'+
     '</div>'+
@@ -3089,8 +3099,9 @@ function manageOIAccts(){
 
 function saveOIAccts(){
   var newList=[];
+  var seen={};
   document.querySelectorAll('.oi-acct-chk:checked').forEach(function(cb){
-    newList.push(cb.value);
+    if(!seen[cb.value]){seen[cb.value]=true;newList.push(cb.value);}
   });
   OI_ACCTS=newList;
   // Save to D for persistence
