@@ -24,6 +24,53 @@ function saveD(){D._lastSaved=new Date().toISOString();localStorage.setItem(DKEY
 function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));}
 function nid(){return Date.now()+Math.floor(Math.random()*1000);}
 
+// === 법인계좌 자동 추출 (전표 기반, 2026-05-20 추가) ===
+// D.bkIn/D.bkOut를 폐기하고 D.journals에서 dr=110 (입금) / cr=110 (출금) 자동 추출
+function calcBkIn(){
+  return D.journals.filter(function(j){return j.dr==='110';}).map(function(j){
+    var type='income';
+    if(j.cr==='300') type='capital';
+    else if(j.cr==='221') type='loan';
+    else if(j.cr==='191') type='sec';
+    else if(j.cr==='401'||j.cr==='402'||j.cr==='405') type='income';
+    return {
+      id:j.id, dt:j.edt||convertDt(j.dt), cat:j.desc||'', ja:j.desc||'',
+      amt:Number(j.amt), type:type, no:j.no, vendor:j.vendor||''
+    };
+  }).sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
+}
+function calcBkOut(){
+  return D.journals.filter(function(j){return j.cr==='110';}).map(function(j){
+    var type='expense';
+    if(j.dr==='191') type='sec';
+    else if(j.dr==='221') type='loan';
+    else if(j.dr==='230'||j.dr==='231'||j.dr==='203'||j.dr==='207'||j.dr==='208') type='payable';
+    return {
+      id:j.id, dt:j.edt||convertDt(j.dt), cat:j.desc||'', ja:j.desc||'',
+      amt:Number(j.amt), type:type, no:j.no, vendor:j.vendor||''
+    };
+  }).sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
+}
+function convertDt(dt){
+  // dt 형식 "M/D" → "YYYY-MM-DD"
+  if(!dt) return '';
+  if(dt.indexOf('-')>=0) return dt;
+  var parts=dt.split('/');
+  if(parts.length!==2) return dt;
+  var m=parseInt(parts[0]),d=parseInt(parts[1]);
+  // 6~12월은 2025, 1~5월은 2026 (회계연도)
+  var y=m>=6?2025:2026;
+  return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+// D.bkIn/D.bkOut를 동적 getter로 정의 (saveD 시 직렬화 방지)
+function syncBankFromJournals(){
+  var newIn=calcBkIn();
+  var newOut=calcBkOut();
+  D.bkIn=newIn;
+  D.bkOut=newOut;
+}
+
+
 
 // ===== PIN LOCK =====
 const PIN_KEY='taesung_pin';
@@ -897,6 +944,7 @@ function jDispDate(j){
 function jSortKey(j){return jFullDate(j);} // ISO format for sorting
 
 function calc(){
+  syncBankFromJournals(); // 법인계좌 자동 동기화 (전표 기반)
   const jpMv=D.holdJP.reduce((s,h)=>s+h.mv,0),jpC=D.holdJP.reduce((s,h)=>s+h.tc,0);
   const usMv=D.holdUS.reduce((s,h)=>s+h.mv,0),usC=D.holdUS.reduce((s,h)=>s+h.tc,0);
   const tI=D.bkIn.reduce((s,d)=>s+d.amt,0),tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
@@ -919,11 +967,11 @@ function closeModal(){document.getElementById('modal').classList.add('hidden');}
 
 
 // ===== CRUD & PAGES =====
-function addBkIn(){showModal('입금 내역추가',`<div class="fg"><div><label>날짜</label><input type="date" id="f_dt"></div><div><label>구분</label><input id="f_cat" placeholder="구분(내역)"></div><div><label>분류</label><select id="f_type"><option value="income">수익</option><option value="capital">자본금</option><option value="loan">차입금 (부채)</option><option value="sec">증권이체</option></select></div><div><label>금액 (엔)</label><input type="number" id="f_amt" placeholder="0"></div><div style="display:flex;gap:8px;justify-content:flex-end;align-items:end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt gn" onclick="doAddBkIn()">추가</button></div></div>`);}
-function doAddBkIn(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value),type=document.getElementById('f_type').value;if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkIn.push({id:nid(),dt,cat,amt,type});saveD();closeModal();toast('입금 내역 추가 완료');go('bank');}
-function addBkOut(){showModal('출금 내역추가',`<div class="fg"><div><label>날짜</label><input type="date" id="f_dt"></div><div><label>구분</label><input id="f_cat" placeholder="구분(내역)"></div><div><label>분류</label><select id="f_type"><option value="expense">경비</option><option value="sec">증권이체</option><option value="loan">차입금상환 (부채)</option><option value="other">기타</option></select></div><div><label>금액 (엔)</label><input type="number" id="f_amt" placeholder="0"></div><div style="display:flex;gap:8px;justify-content:flex-end;align-items:end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt rd" onclick="doAddBkOut()">추가</button></div></div>`);}
-function doAddBkOut(){const dt=document.getElementById('f_dt').value,cat=document.getElementById('f_cat').value,amt=Number(document.getElementById('f_amt').value),type=document.getElementById('f_type').value;if(!dt||!amt)return alert('날짜와 금액을 입력하세요');D.bkOut.push({id:nid(),dt,cat,amt,type});saveD();closeModal();toast('출금 내역 추가 완료');go('bank');}
-function delBk(type,id){if(!confirm('삭제하시겠습니까?'))return;if(type==='in')D.bkIn=D.bkIn.filter(x=>x.id!==id);else D.bkOut=D.bkOut.filter(x=>x.id!==id);saveD();go('bank');}
+function addBkIn(){toast('입금은 전표 작성(📝)에서 작성하세요\nDR=110 보통예금');setTimeout(function(){go('slip');},800);}
+function doAddBkIn(){toast('전표(📝)로 작성하세요');}
+function addBkOut(){toast('출금은 전표 작성(📝)에서 작성하세요\nCR=110 보통예금');setTimeout(function(){go('slip');},800);}
+function doAddBkOut(){toast('전표(📝)로 작성하세요');}
+function delBk(type,id){toast('삭제는 전표(📝)에서 하세요');}
 
 // ===== CRUD: Securities Holdings =====
 function addHoldJP(){showModal('일본 종목 추가',`<div class="fg">
@@ -2079,11 +2127,12 @@ function rBank(){const c=calc();let cI=0,cO=0;
   var sortedIn=D.bkIn.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
   var sortedOut=D.bkOut.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
   return `<div class="pt">법인계좌</div>
+  <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:10px 14px;margin:8px 0;font-size:12px;color:#1e40af">💡 이 내역은 <b>전표(📝)에서 자동 추출</b>됩니다. 입금/출금을 추가하려면 전표 작성에서 DR=110 또는 CR=110으로 입력하세요.</div>
   <div class="cards"><div class="cd bl"><div class="l">잔액</div><div class="v">${fy(c.bb)}</div></div><div class="cd gn"><div class="l">총입금</div><div class="v">${fy(c.tI)}</div></div><div class="cd rd"><div class="l">총출금</div><div class="v">${fy(c.tO)}</div></div></div>
-  <div class="pn"><div class="ph" style="color:#059669"><span>입금</span><button class="bt gn" onclick="addBkIn()">+ 내역추가</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">입금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
-  <tbody>${sortedIn.map((d,i)=>{cI+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m gn">${fm(d.amt)}</td><td class="r m b">${fm(cI)}</td><td><button class="del" onclick="delBk('in',${d.id})">✕</button></td></tr>`;}).join('')}</tbody></table></div>
-  <div class="pn"><div class="ph" style="color:#dc2626"><span>출금</span><button class="bt rd" onclick="addBkOut()">+ 내역추가</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">출금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
-  <tbody>${sortedOut.map((d,i)=>{cO+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m rd">${fm(d.amt)}</td><td class="r m">${fm(cO)}</td><td><button class="del" onclick="delBk('out',${d.id})">✕</button></td></tr>`;}).join('')}</tbody>
+  <div class="pn"><div class="ph" style="color:#059669"><span>입금</span><button class="bt gn" onclick="go('slip')">📝 전표 작성</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">입금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
+  <tbody>${sortedIn.map((d,i)=>{cI+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m gn">${fm(d.amt)}</td><td class="r m b">${fm(cI)}</td><td><button class="del" onclick="editSlip(${d.id})" title="전표 편집" style="background:#eff6ff;color:#2563eb">📝</button></td></tr>`;}).join('')}</tbody></table></div>
+  <div class="pn"><div class="ph" style="color:#dc2626"><span>출금</span><button class="bt rd" onclick="go('slip')">📝 전표 작성</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">출금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
+  <tbody>${sortedOut.map((d,i)=>{cO+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m rd">${fm(d.amt)}</td><td class="r m">${fm(cO)}</td><td><button class="del" onclick="editSlip(${d.id})" title="전표 편집" style="background:#eff6ff;color:#2563eb">📝</button></td></tr>`;}).join('')}</tbody>
   <tr class="t"><td colspan="2" class="r">잔액</td><td colspan="3" class="r m" style="font-size:15px;color:#2563eb">${fm(c.bb)}</td></tr></table></div>`;}
 
 function rFS(){
