@@ -172,7 +172,7 @@ const INIT_JOURNALS = [
 {id:170,dt:"1/30",no:"S0170",desc:"한국 HOTELS.COM",dr:"521",cr:"230",amt:88210},
 {id:171,dt:"2/14",no:"S0171",desc:"한국 HOTELS.COM",dr:"521",cr:"230",amt:102847},
 {id:172,dt:"2/16",no:"S0172",desc:"한국 HOTELS.COM(환불)",dr:"521",cr:"230",amt:-102514},
-{id:180,dt:"9/4",no:"S0180",desc:"LG gram PC(업무용)",dr:"523",cr:"110",amt:200000},
+{id:180,dt:"9/4",no:"S0180",desc:"LG gram PC(업무용/세전)",dr:"523",cr:"110",amt:181818,taxCls:"課税10%"},
 {id:181,dt:"9/4",no:"S0181",desc:"PC구입 송금수수료",dr:"523",cr:"110",amt:220},
 {id:182,dt:"2/3",no:"S0182",desc:"吉見商事(비품)",dr:"523",cr:"230",amt:1200},
 {id:185,dt:"12/31",no:"S0185",desc:"SMBC EB수수료 1월",dr:"536",cr:"231",amt:2200},
@@ -826,10 +826,10 @@ const INIT_JOURNALS = [
 {id:1500,dt:"5/7",no:"S0960",desc:"USD $125,000 매수 (受渡 2026/5/7, @157.40)",dr:"192",cr:"191",amt:19675000,edt:"2026-05-07",pdt:"",cur:"JPY",exp:"",vendor:"SMBC日興証券",taxCls:"불과세"},
 // ===== 카드 미지급금 도입 + 신규 거래 (2026-05-20 작업) =====
 // ===== EB 수수료 결제 entries (4건) =====
-{id:1501,dt:"1/21",no:"S0190",desc:"SMBC EB수수료 (12월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-01-21",pdt:"2026-01-21",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
-{id:1502,dt:"2/24",no:"S0191",desc:"SMBC EB수수료 (1월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-02-24",pdt:"2026-02-24",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
-{id:1503,dt:"3/23",no:"S0192",desc:"SMBC EB수수료 (2월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-03-23",pdt:"2026-03-23",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
-{id:1504,dt:"4/21",no:"S0193",desc:"SMBC EB수수료 (3월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-04-21",pdt:"2026-04-21",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
+{id:1501,dt:"1/21",no:"S0194",desc:"SMBC EB수수료 (12월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-01-21",pdt:"2026-01-21",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
+{id:1502,dt:"2/24",no:"S0195",desc:"SMBC EB수수료 (1월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-02-24",pdt:"2026-02-24",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
+{id:1503,dt:"3/23",no:"S0196",desc:"SMBC EB수수료 (2월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-03-23",pdt:"2026-03-23",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
+{id:1504,dt:"4/21",no:"S0197",desc:"SMBC EB수수료 (3월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-04-21",pdt:"2026-04-21",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
 
 // ===== 법인카드 결제 entries (9건, 1기 7~3월분) =====
 {id:1505,dt:"8/26",no:"S0961",desc:"법인카드(VISA) 7월분 결제",dr:"230",cr:"110",amt:228946,edt:"2025-08-26",pdt:"2025-08-26",cur:"JPY",exp:"",vendor:"三井住友カード",taxCls:""},
@@ -845,7 +845,7 @@ const INIT_JOURNALS = [
 // ===== 5월 EB 수수료 (4월분, 5/21 인출 예정) =====
 {id:1514,dt:"4/30",no:"S0188",desc:"SMBC EB수수료 (4월분)",dr:"536",cr:"231",amt:2000,edt:"2026-04-30",pdt:"",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:"과세10%"},
 {id:1515,dt:"4/30",no:"S0188T",desc:"[소비세] SMBC EB수수료 (4월분)",dr:"154",cr:"231",amt:200,edt:"2026-04-30",pdt:"",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:"과세10%"},
-{id:1516,dt:"5/21",no:"S0189",desc:"SMBC EB수수료 (4월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-05-21",pdt:"2026-05-21",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
+{id:1516,dt:"5/21",no:"S0198",desc:"SMBC EB수수료 (4월분) 인출",dr:"231",cr:"110",amt:2200,edt:"2026-05-21",pdt:"2026-05-21",cur:"JPY",exp:"",vendor:"三井住友銀行",taxCls:""},
 
 // ===== 4월 법인카드 사용분 20건 =====
 {id:1517,dt:"4/5",no:"S0925",desc:"여비출장비 (ELAND PARK 고성)",dr:"521",cr:"230",amt:63768,edt:"2026-04-05",pdt:"",cur:"JPY",exp:"",vendor:"ELAND PARK",taxCls:"불과세"},
@@ -888,7 +888,7 @@ const INIT_JOURNALS = [
 
 // ===== 회장님 항공권 2건 (5/8) =====
 {id:1550,dt:"5/8",no:"S0974",desc:"여비출장비 (이종철 회장 항공권 김포-하네다-김포)",dr:"521",cr:"208",amt:138514,edt:"2026-05-08",pdt:"",cur:"KRW",exp:"",vendor:"대한항공",taxCls:"불과세"},
-{id:1551,dt:"5/8",no:"S0975",desc:"여비출장비 (임윤신 이사 항공권 김포-하네다-김포)",dr:"521",cr:"208",amt:138514,edt:"2026-05-08",pdt:"",cur:"KRW",exp:"",vendor:"대한항공",taxCls:"불과세"},
+{id:1551,dt:"5/8",no:"S0975",desc:"여비출장비 (임윤신 이사 항공권 김포-하네다-김포)",dr:"521",cr:"203",amt:138514,edt:"2026-05-08",pdt:"",cur:"KRW",exp:"",vendor:"대한항공",taxCls:"불과세"},
 
 // ===== 회장님 JPY 영수증 5건 =====
 {id:1552,dt:"5/13",no:"S0976",desc:"접대교제 (たいせい 레스토랑)",dr:"532",cr:"208",amt:4482,edt:"2026-05-13",pdt:"",cur:"JPY",exp:"",vendor:"たいせい",taxCls:"과세10%"},
@@ -901,6 +901,20 @@ const INIT_JOURNALS = [
 {id:1559,dt:"5/16",no:"S0979T",desc:"[소비세] 접대교제 (MARGARET HOWELL GINZA SIX 의복)",dr:"154",cr:"208",amt:24620,edt:"2026-05-16",pdt:"",cur:"JPY",exp:"",vendor:"MARGARET HOWELL",taxCls:"과세10%"},
 {id:1560,dt:"5/17",no:"S0980",desc:"접대교제 (TOKYO BAYCOURT 호텔)",dr:"532",cr:"208",amt:199200,edt:"2026-05-17",pdt:"",cur:"JPY",exp:"",vendor:"TOKYO BAYCOURT",taxCls:"과세10%"},
 {id:1561,dt:"5/17",no:"S0980T",desc:"[소비세] 접대교제 (TOKYO BAYCOURT 호텔)",dr:"154",cr:"208",amt:19800,edt:"2026-05-17",pdt:"",cur:"JPY",exp:"",vendor:"TOKYO BAYCOURT",taxCls:"과세10%"},
+  {id:1779760069543, no:"S0903", dt:"5/31", desc:"[결산조정] 창립비 과대계상 정정 (영수증 일치)", dr:"203", cr:"560", amt:1100, edt:"2026-05-31", cur:"JPY"},
+  {id:1779760069544, no:"S0180T", dt:"9/4", desc:"[소비세] LG gram PC(업무용)", dr:"154", cr:"110", amt:18182, edt:"2025-09-04", cur:"JPY", taxCls:"課税10%"},
+  {id:1779761806596, no:"S0904", dt:"5/18", desc:"더일 (해산물 회식/회장님 IBK)", dr:"532", cr:"208", amt:64070, edt:"2026-05-18", cur:"JPY", taxCls:"不課税(海外)", vendor:"더일"},
+  {id:1779761806597, no:"S0905", dt:"5/19", desc:"로즈힐 역삼점/CPK (점심/회장님 하나)", dr:"532", cr:"208", amt:21918, edt:"2026-05-19", cur:"JPY", taxCls:"不課税(海外)", vendor:"로즈힐"},
+  {id:1779761806598, no:"S0906", dt:"5/20", desc:"오사청담 (회식/회장님 KB국민)", dr:"532", cr:"208", amt:103292, edt:"2026-05-20", cur:"JPY", taxCls:"不課税(海外)", vendor:"오사청담"},
+  {id:1779761806599, no:"S0907", dt:"5/21", desc:"로즈힐 역삼점/CPK (점심/회장님 하나)", dr:"532", cr:"208", amt:16370, edt:"2026-05-21", cur:"JPY", taxCls:"不課税(海外)", vendor:"로즈힐"},
+  {id:1779761806600, no:"S0908", dt:"5/21", desc:"메이비 선사인호텔 (접대/회장님 IBK,봉사료포함)", dr:"532", cr:"208", amt:574020, edt:"2026-05-21", cur:"JPY", taxCls:"不課税(海外)", vendor:"메이비"},
+  {id:1779761806601, no:"S0909", dt:"5/22", desc:"더제이케이키친박스 청담 (점심/회장님 NH)", dr:"532", cr:"208", amt:6822, edt:"2026-05-22", cur:"JPY", taxCls:"不課税(海外)", vendor:"더제이케이키친박스"},
+  {id:1779761806602, no:"S0946", dt:"5/24", desc:"수하동 본점 테헤란 (회식/회장님 NH)", dr:"532", cr:"208", amt:9926, edt:"2026-05-24", cur:"JPY", taxCls:"不課税(海外)", vendor:"수하동"},
+  {id:1779761806603, no:"S0947", dt:"5/22", desc:"임윤신 이사 항공권 GMP-HND-GMP 추가 (대한항공/Naver Pay)", dr:"521", cr:"203", amt:78957, edt:"2026-05-22", cur:"JPY", taxCls:"不課税(海外)", vendor:"대한항공"},
+  {id:1779765604474, no:"S0948", dt:"5/9", desc:"THE HYUNDAI 압구정점 (Creed 향수 2개/회장님 백화점카드)", dr:"532", cr:"208", amt:112126, edt:"2026-05-09", cur:"JPY", taxCls:"不課税(海外)", vendor:"THE HYUNDAI"},
+  {id:1779765604475, no:"S0949", dt:"5/11", desc:"메이비 선사인호텔 (회장님 KB국민기업카드/봉사료1.8M포함)", dr:"532", cr:"208", amt:300160, edt:"2026-05-11", cur:"JPY", taxCls:"不課税(海外)", vendor:"메이비"},
+  {id:1779765604476, no:"S0951", dt:"5/11", desc:"메이비 선사인호텔 (회장님 휴대폰결제2호/봉사료1.7M포함)", dr:"532", cr:"208", amt:321600, edt:"2026-05-11", cur:"JPY", taxCls:"不課税(海外)", vendor:"메이비"},
+  {id:1779765604477, no:"S0952", dt:"5/12", desc:"메이비 선사인호텔 (회장님 KEBHANA AMEX/봉사료2.0M포함)", dr:"532", cr:"208", amt:368460, edt:"2026-05-12", cur:"JPY", taxCls:"不課税(海外)", vendor:"메이비"}
 ];
 
 // ===== HOLDINGS =====
