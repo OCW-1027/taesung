@@ -2010,15 +2010,15 @@ function calcXIRR(){
     var dt=new Date(fd);
     if(isNaN(dt.getTime())) return;
     // 은행에서 증권으로 이체 (자본 투입)
-    if(j.dr==='191'&&j.cr==='110') flows.push({date:dt,amount:-j.amt});
-    // 증권에서 은행으로 이체 (자본 회수) - 현재 없지만 향후 대비
-    if(j.dr==='110'&&j.cr==='191') flows.push({date:dt,amount:j.amt});
+    if(j.dr==='191'&&j.cr==='110') flows.push({date:dt,amount:-j.amt,type:'投入(銀行→証券)',no:j.no});
+    // 증권에서 은행으로 이체 (자본 회수)
+    if(j.dr==='110'&&j.cr==='191') flows.push({date:dt,amount:j.amt,type:'回収(証券→銀行)',no:j.no});
   });
   
   // 2. 현재 증권계좌 잔액 (예수금 + 외화예수금 + 보유종목 시가) = 최종 가치
   var c=calc();
   var terminalValue=c.secBal; // secBal already includes fxJpy
-  if(terminalValue>0) flows.push({date:today,amount:terminalValue});
+  if(terminalValue>0) flows.push({date:today,amount:terminalValue,type:'期末評価額',no:'-'});
   
   if(flows.length<2) return null;
   
@@ -2051,11 +2051,70 @@ function calcXIRR(){
   
   if(isNaN(guess)||!isFinite(guess)||guess<-1||guess>10) return null;
   
-  // 단순수익률도 계산
+  // 단순수익률도 계산 (중간 회수액 반영)
   var totalInvested=flows.filter(function(f){return f.amount<0;}).reduce(function(s,f){return s+f.amount;},0);
-  var simpleReturn=totalInvested!==0?(terminalValue+totalInvested)/(-totalInvested)*100:0;
+  var totalRecovered=flows.filter(function(f){return f.type==='回収(証券→銀行)';}).reduce(function(s,f){return s+f.amount;},0);
+  // 실질수익 = 기말평가액 + 회수 − 투입 / 단순수익률 = 실질수익 ÷ 투입
+  var simpleReturn=totalInvested!==0?(terminalValue+totalRecovered+totalInvested)/(-totalInvested)*100:0;
   
-  return {rate:guess, flowCount:flows.length, simpleReturn:simpleReturn, invested:-totalInvested, current:terminalValue};
+  return {rate:guess, flowCount:flows.length, simpleReturn:simpleReturn, invested:-totalInvested, recovered:totalRecovered, current:terminalValue, flows:flows};
+}
+
+// XIRR 상세 계산내역 모달 (XIRR 카드 클릭 시)
+function showXIRRDetail(){
+  var r=calcXIRR();
+  if(!r){ (typeof toast==='function'?toast('XIRR 계산 불가','err'):alert('XIRR 계산 불가')); return; }
+  function fmtDate(d){
+    if(!(d instanceof Date)) return d;
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  var flows=r.flows.slice().sort(function(a,b){return a.date-b.date;});
+  var rows=flows.map(function(f){
+    var isTerminal=(f.type==='期末評価額');
+    var col=f.amount<0?'#dc2626':'#16a34a';
+    var amt=(f.amount<0?'':'+')+fm(f.amount)+'円';
+    var dt=isTerminal?'期末 (현재)':fmtDate(f.date);
+    return '<tr><td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">'+dt+'</td>'+
+      '<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:13px">'+f.type+'</td>'+
+      '<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:'+col+';font-weight:600">'+amt+'</td>'+
+      '<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#aaa;font-size:11px">'+f.no+'</td></tr>';
+  }).join('');
+  var profit=r.current+r.recovered-r.invested;
+  var box=function(label,val,col){
+    return '<div style="flex:1;min-width:120px;background:#f8fafc;border-radius:8px;padding:12px">'+
+      '<div style="font-size:12px;color:#64748b;margin-bottom:4px">'+label+'</div>'+
+      '<div style="font-size:16px;font-weight:700;color:'+(col||'#0f172a')+'">'+val+'</div></div>';
+  };
+  var html='<div style="background:#fff;border-radius:14px;padding:24px;max-width:640px;width:92%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'+
+    '<h2 style="margin:0;font-size:19px;color:#0f172a">📈 XIRR 상세 계산 내역</h2>'+
+    '<button onclick="document.getElementById(\'xirrModal\').remove()" style="border:none;background:#f1f5f9;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px">×</button></div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+
+    box('총 투입원금',fm(r.invested)+'円')+
+    box('중간 회수','+'+fm(r.recovered)+'円','#16a34a')+
+    box('기말 평가액',fm(r.current)+'円')+'</div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">'+
+    box('실질 총수익','+'+fm(profit)+'円','#16a34a')+
+    box('단순 수익률',r.simpleReturn.toFixed(2)+'%','#16a34a')+
+    box('XIRR(연환산)',(r.rate*100).toFixed(2)+'%','#2563eb')+'</div>'+
+    '<div style="font-size:13px;font-weight:600;color:#475569;margin-bottom:6px">현금흐름 (CashFlow) '+r.flowCount+'건</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+    '<thead><tr style="background:#f8fafc">'+
+    '<th style="padding:8px 10px;text-align:left;color:#64748b">일자</th>'+
+    '<th style="padding:8px 10px;text-align:left;color:#64748b">구분</th>'+
+    '<th style="padding:8px 10px;text-align:right;color:#64748b">금액</th>'+
+    '<th style="padding:8px 10px;text-align:left;color:#64748b">전표</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>'+
+    '<div style="margin-top:16px;padding:12px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;line-height:1.6">'+
+    '※ XIRR은 자금이 실제 투자된 기간을 반영한 <b>연환산 내부수익률</b>입니다.<br>'+
+    '※ 단순수익률 = (기말평가액 + 회수 − 투입) ÷ 투입 = '+r.simpleReturn.toFixed(2)+'%<br>'+
+    '※ XIRR(연환산) = '+(r.rate*100).toFixed(2)+'%</div></div>';
+  var overlay=document.createElement('div');
+  overlay.id='xirrModal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML=html;
+  overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
 }
 
 function rSec(){const c=calc();const jpT=c.jpMv;
@@ -2073,7 +2132,7 @@ function rSec(){const c=calc();const jpT=c.jpMv;
   var fxPl=fxMvJpy-fxBookJpy;
   
   return `<div class="pt">유가증권</div>
-  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div><div class="cd ${xirrColor}"><div class="l">XIRR (연환산수익률)</div><div class="v">${xirrDisplay}</div>${xirrNote?'<div style="font-size:8px;color:#64748b;margin-top:2px">'+xirrNote+'</div>':''}</div>${fxUsdAmt>0?'<div class="cd '+(fxPl>=0?'gn':'rd')+'"><div class="l">USD 예수금</div><div class="v">$'+fm(fxUsdAmt)+'</div><div style="font-size:9px;color:#64748b;margin-top:2px">¥'+fm(fxMvJpy)+' (평가손익 '+(fxPl>=0?'+':'')+fm(fxPl)+')</div></div>':''}</div>
+  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd gn"><div class="l">실현손익</div><div class="v">+${fy(c.rpl)}</div></div><div class="cd ${xirrColor}" onclick="showXIRRDetail()" style="cursor:pointer" title="클릭하면 상세 계산내역 보기"><div class="l">XIRR (연환산수익률)</div><div class="v">${xirrDisplay}</div>${xirrNote?'<div style="font-size:8px;color:#64748b;margin-top:2px">'+xirrNote+'</div>':''}</div>${fxUsdAmt>0?'<div class="cd '+(fxPl>=0?'gn':'rd')+'"><div class="l">USD 예수금</div><div class="v">$'+fm(fxUsdAmt)+'</div><div style="font-size:9px;color:#64748b;margin-top:2px">¥'+fm(fxMvJpy)+' (평가손익 '+(fxPl>=0?'+':'')+fm(fxPl)+')</div></div>':''}</div>
   <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금 (191 전표잔액): <span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:2px 8px;color:#1e3a8a">${fm(acctBal('191'))}</span> 엔</span><span style="font-size:10px;color:#64748b">📊 전표 기반 자동 계산 (수동 입력 불가)</span></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:6px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정 (평가)</button>${fxUsdAmt>0?'<button class="bt" onclick="autoFxEvalAdjust()" style="background:#0891b2;font-size:11px">💱 외화 결산조정</button>':''}</div></div>
   <div id="TC">
