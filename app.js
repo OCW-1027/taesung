@@ -2281,6 +2281,16 @@ function clearRptEdits(){
 }
 
 function rRpt(){const c=calc();
+  // 운용보고서 자금흐름: 普通預金(110) 기준 (자본금·役員借入金·증권이체 제외, 증권→법인 이체는 별도행)
+  var rptIn=0,rptOut=0,secToCorp=0,loanIn=0;
+  var _exclC={'300':1,'221':1,'191':1};
+  D.journals.forEach(function(j){
+    var dr=String(j.dr),cr=String(j.cr);
+    if(dr==='110'&&cr==='191'){secToCorp+=j.amt;return;}   // 증권계좌→법인 이체
+    if(dr==='110'&&cr==='221'){loanIn+=j.amt;return;}       // 役員借入金 입금
+    if(dr==='110'&&!_exclC[cr]){rptIn+=j.amt;}              // 운영수입
+    if(cr==='110'&&!_exclC[dr]){rptOut+=j.amt;}             // 운영지출
+  });
   const tI=D.bkIn.reduce((s,d)=>s+d.amt,0);
   const tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
   // Operating only (exclude capital + securities transfers)
@@ -2317,13 +2327,14 @@ function rRpt(){const c=calc();
 
     // 1. 총자산내역
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">1. 총자산내역</div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'총자산\')">+ 행추가</button></div>'+
+    '<div style="font-size:10px;color:#64748b;margin:-2px 0 6px">※ 수입·지출은 普通預金(110) 자금흐름 기준 · 증권계좌 매매손익은 별도 표기 · 검산: 자본금 + 수입 − 지출 + 증권→법인이체 = 법인계좌 잔액</div>'+
     '<div class="pn"><table><thead><tr><th>구분</th><th class="r">내역(엔)</th><th>비고</th></tr></thead><tbody>'+
-    '<tr><td>자본금</td><td class="r m">'+fm(acctBal('300'))+'</td><td></td></tr>'+
-    '<tr class="a"><td>수입</td><td class="r m">'+fm(opIn)+'</td><td class="mu">경비 수입 (이자·배당 등)</td></tr>'+
-    '<tr><td>지출</td><td class="r m" style="color:#dc2626">('+fm(opOut)+')</td><td class="mu">경비 지출</td></tr>'+
-    '<tr class="a" style="font-size:10px;color:#64748b"><td>　참고) 총입금 (증권이체 포함)</td><td class="r m" style="color:#64748b">'+fm(tI-acctBal('300'))+'</td><td class="mu" style="color:#64748b">자본금 외 전체</td></tr>'+
-    '<tr style="font-size:10px;color:#64748b"><td>　참고) 총출금 (증권이체 포함)</td><td class="r m" style="color:#64748b">('+fm(tO)+')</td><td></td></tr>'+
-    '<tr class="a" style="font-weight:700"><td>법인계좌잔액---(1)</td><td class="r m b">'+fm(c.bb)+'</td><td class="mu">미츠이스미토모</td></tr>'+
+    '<tr><td>자본금</td><td class="r m">'+fm(acctBal('300'))+'</td><td class="mu" style="font-size:10px">普通預金 입금</td></tr>'+
+    '<tr class="a"><td>수입</td><td class="r m gn">'+fm(rptIn)+'</td><td class="mu" style="font-size:10px">운영수입 (이자 등, 자본금·借入金·증권이체 제외)</td></tr>'+
+    '<tr><td>지출</td><td class="r m" style="color:#dc2626">('+fm(rptOut)+')</td><td class="mu" style="font-size:10px">카드·정산·役員報酬·EB·수수료 등</td></tr>'+
+    '<tr class="a"><td>증권계좌→법인 이체</td><td class="r m gn">'+fm(secToCorp)+'</td><td class="mu" style="font-size:10px">증권계좌에서 法人계좌로 이체분</td></tr>'+
+    (loanIn>0?'<tr style="font-size:10px;color:#64748b"><td>　참고) 役員借入金 '+fm(loanIn)+'</td><td class="r m" style="color:#64748b">0</td><td class="mu" style="color:#64748b;font-size:10px">法人계좌→증권계좌 즉시 이체 (110 잔액 영향 0)</td></tr>':'')+
+    '<tr class="a" style="font-weight:700"><td>법인계좌잔액---(1)</td><td class="r m b">'+fm(c.bb)+'</td><td class="mu" style="font-size:10px">미츠이스미토모 · 자본금+수입−지출+이체</td></tr>'+
     '<tr><td>증권예수금</td><td class="r m">'+fm(c.secDep)+'</td><td></td></tr>'+
     '<tr class="a"><td>유가증권평가액</td><td class="r m">'+fm(c.allMv)+'</td><td></td></tr>'+
     '<tr style="font-weight:700"><td>증권계좌잔액---(2)</td><td class="r m b">'+fm(c.secBal)+'</td><td class="mu">SMBC닛코증권</td></tr>'+
