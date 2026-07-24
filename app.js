@@ -4419,8 +4419,10 @@ document.addEventListener('DOMContentLoaded',function(){
   var s0400=D.journals.findIndex(function(j){return j.no==='S0400';});
   if(s0400>=0){D.journals.splice(s0400,1);saveD();toast('평가손익 전표(S0400) 삭제 → 결산 시 생성으로 변경');}
 
-  // === 소비세 세빼기 마이그레이션 (1회만 실행) ===
-  if(!D._taxMigrated){
+  // === 소비세 세빼기 마이그레이션 (제1기 税込経理 확정신고 완료로 2026-07-24 영구 폐기) ===
+  // 주의: 재실행 시 결산조정전표(S0800~S0828)가 재분리되어 세리사 확정치와 어긋납니다.
+  if(!D._taxMigrated){D._taxMigrated=true;try{saveD();}catch(e){}}
+  if(false){
     var taxChanges=0;
     var newTaxEntries=[];
     // Helper: check if account is expense
