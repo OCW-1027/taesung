@@ -219,13 +219,16 @@ function dynamicFS(){
   const su=suT;
   const ol=0-sgaT-su; // 매출 0
   const interestPay=acctBal('540'); // 지급이자 from journals
-  // Dynamic: unrealized P&L from current holdings
+  // 평가손익: 결산확정 전표(414 평가익/542 평가손)가 있으면 전표 우선, 없으면 보유종목 시가로 동적 계산
+  const jEvalGain=acctBal('414'),jEvalLoss=acctBal('542');
+  const useJEval=(jEvalGain!==0||jEvalLoss!==0);
   const evalPL=c.allMv - c.allC; // positive=gain, negative=loss
-  const evalGain=Math.max(0, evalPL); // 평가이익 (영업외수익)
-  const evalLoss=Math.max(0, -evalPL); // 평가손 (영업외비용)
+  const evalGain=useJEval?jEvalGain:Math.max(0, evalPL); // 평가이익 (영업외수익)
+  const evalLoss=useJEval?jEvalLoss:Math.max(0, -evalPL); // 평가손 (영업외비용)
   const secFee=acctBal('537'); // 유가증권매매수수료 (영업외비용)
+  const noeEtc=['541','543','544','545','546'].reduce(function(s,c2){return s+acctBal(c2);},0); // 매각손·환차손·잡손실
   const noiTWithEval=noiT+evalGain;
-  const noeT=evalLoss+interestPay+secFee;
+  const noeT=evalLoss+interestPay+secFee+noeEtc;
   const oi=ol+noiTWithEval-noeT;
   // Use journal tax if exists, otherwise estimate
   const journalCt=acctBal('550');
@@ -243,7 +246,7 @@ function dynamicFS(){
   const secBookVal=acctBal('130'); // 전표 장부가
   const secMV=c.allMv;
   const journalEvalLoss=acctBal('542'); // 전표상 평가손
-  const evalAdj=-evalPL-journalEvalLoss; // 시가 조정액 (양수=장부가 감액, 음수=장부가 증액)
+  const evalAdj=useJEval?0:(-evalPL-journalEvalLoss); // 결산확정 시 장부가=시가 → 추가조정 없음
   const secForBS=secBookVal-evalAdj; // 시가 반영 유가증권
   const cashT=deposit+secDep;
   // Other assets (fixed assets, prepaid, etc.) — all asset accounts except 110, 191, 130
@@ -251,15 +254,14 @@ function dynamicFS(){
   D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){otherAssets+=acctBal(ac.c);});
   const totA=cashT+secForBS+otherAssets;
   // Liabilities + Equity: all from journals
-  const liabCodes=['200','201','202','203','204','205','206','207','208','209','210','211','212','213','214','215','216','217','220','221','222','223','224','225','226','227','228'];
-  let totL=0;liabCodes.forEach(c2=>{totL+=acctBal(c2);});
+  let totL=0;D.accts.filter(function(ac){return ac.g==='부채';}).forEach(function(ac){totL+=acctBal(ac.c);});
   // Equity: from journals
   const capitalBal=acctBal('300')+acctBal('301')+acctBal('302');
   const retainedBal=acctBal('310')+acctBal('311')+acctBal('312');
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,eqNI,totE,evalAdj};
+  return {sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,eqNI,totE,evalAdj,useJEval,noeEtc};
 }
 
 
@@ -2204,9 +2206,11 @@ function rFS(){
   // NOI: scan ALL revenue accounts with balance
   const noi=D.accts.filter(ac=>ac.g==='수익').map(ac=>({nm:ac.k,a:acctBal(ac.c)})).filter(x=>x.a!==0);
   // 평가이익 → 영업외수익에 추가
-  if(d.evalGain>0) noi.push({nm:"유가증권평가이익(미실현)",a:d.evalGain,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"});
+  if(!d.useJEval&&d.evalGain>0) noi.push({nm:"유가증권평가이익(미실현)",a:d.evalGain,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"});
   // NOE
-  const noe=[
+  const noe=d.useJEval
+    ? D.accts.filter(function(ac){return ac.g==='비용'&&['537','540','541','542','543','544','545','546'].indexOf(ac.c)>=0;}).map(function(ac){return {nm:ac.k,a:acctBal(ac.c)};}).filter(function(x){return x.a!==0;})
+    : [
     {nm:"유가증권매매수수료",a:d.secFee},
     {nm:"유가증권평가손(미실현)",a:d.evalLoss,n:"시가기준 자동반영 · 결산 시 📋결산조정 필요"},
     {nm:"지급이자",a:d.interestPay}
