@@ -731,7 +731,9 @@ function expDrill(acctCode,mo){
   var acctName=acct?acct.k:acctCode;
   var moNum=parseInt(mo);
   var monthLabel=moNum+'월';
+  var _fyCur=curFY();
   var matched=D.journals.filter(function(j){
+    if(jFY(j)!==_fyCur)return false; // 회기 필터
     var m=j.dt.match(/(\d+)\//);if(!m)return false;
     var jmo=String(parseInt(m[1])).padStart(2,'0');
     return jmo===mo&&(j.dr===acctCode||j.cr===acctCode);
@@ -754,7 +756,7 @@ function showExpenseTab(btn){
   document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on');});
   btn.classList.add('on');
   var tc=document.getElementById('TC');
-  if(tc) tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📊 월별 비용분석</div>'+rExpenseAnalysis()+'</div>';
+  if(tc) tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">📊 월별 비용분석</div>'+fySelector()+'</div>'+rExpenseAnalysis()+'</div>';
 }
 function showMonthlyTab(btn){
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
@@ -806,7 +808,7 @@ function genSlipNo(edt,drCode,crCode){
   var yr=parseInt(parts[0]||'2026');
   var mo=parseInt(parts[1]||'1');
   // Fiscal year: 6월~5월
-  var ki=(mo>=6&&yr===2025)?1:(mo<=5&&yr===2026)?1:2;
+  var ki=fyOf(edt||''); // 회기 자동판정
   var moStr=String(mo).padStart(2,'0');
   // Type: determine from accounts
   var type='GL';
@@ -829,11 +831,11 @@ function rExpenseAnalysis(){
   // Get all expense accounts with any balance
   var expAccts=[];
   D.accts.filter(function(ac){return ac.g==='비용';}).forEach(function(ac){
-    var total=acctBal(ac.c);
+    var total=acctBalFY(ac.c);
     if(total!==0)expAccts.push({c:ac.c,k:ac.k,total:total});
   });
   // 154 가지급소비세도 표시 (환급 대상 자산이지만 비용분석에서 참고용)
-  var tax154=acctBal('154');
+  var tax154=acctBalFY('154');
   if(tax154!==0) expAccts.push({c:'154',k:'가지급소비세 (매입세액)',total:tax154});
   expAccts.sort(function(a,b){return b.total-a.total;});
   
@@ -843,7 +845,9 @@ function rExpenseAnalysis(){
   var acctMonthly={};
   expAccts.forEach(function(ac){acctMonthly[ac.c]={};months.forEach(function(m){acctMonthly[ac.c][m]=0;});});
   
+  var _fyCur=curFY();
   D.journals.forEach(function(j){
+    if(jFY(j)!==_fyCur)return; // 회기 필터
     var m=j.dt.match(/(\d+)\//);if(!m)return;
     var mo=String(parseInt(m[1])).padStart(2,'0');
     if(months.indexOf(mo)<0)return;
@@ -932,11 +936,51 @@ const fy=n=>n==null?"-":"¥"+fm(n);
 const bg=v=>'<span class="bg '+(v>=0?'p':'n')+'">'+(v>=0?'+':'')+fm(v)+'</span>';
 function rptDt(){return SET.reportDate||new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});}
 // 전표 날짜 유틸: dt("3/20") → 연도 포함 풀 날짜
+// ===== 회계연도(회기) 관리 =====
+var FY_BASE=2025; // 제1기 개시 = 2025-06-01 (회기: 6월~5월)
+function fyOf(iso){
+  if(!iso) return 1;
+  var y=parseInt(String(iso).slice(0,4)),m=parseInt(String(iso).slice(5,7));
+  if(!y||!m) return 1;
+  return (m>=6)?(y-FY_BASE+1):(y-FY_BASE);
+}
+function fyRange(fy){var st=FY_BASE+(fy||1)-1;return {start:st+'-06-01',end:(st+1)+'-05-31'};}
+function curFY(){var v=parseInt(SET.curFY);return (v&&v>0)?v:1;}
+function setCurFY(fy){SET.curFY=parseInt(fy)||1;saveS();if(typeof toast==='function')toast('제'+curFY()+'기로 전환했습니다','info');if(typeof cur!=='undefined'&&cur&&typeof go==='function')go(cur);}
+function jFY(j){return fyOf(jFullDate(j));}
+function fyJournals(fy){var f=fy||curFY();return D.journals.filter(function(j){return jFY(j)===f;});}
+function acctBalFY(code,fy){
+  var f=fy||curFY();
+  var ac=D.accts.find(function(x){return x.c===code;});
+  var isDb=ac&&['자산','비용'].indexOf(ac.g)>=0;
+  var dr=0,cr=0;
+  D.journals.forEach(function(j){if(jFY(j)!==f)return;if(j.dr===code)dr+=j.amt;if(j.cr===code)cr+=j.amt;});
+  return isDb?dr-cr:cr-dr;
+}
+function fyList(){
+  var set={};D.journals.forEach(function(j){set[jFY(j)]=1;});set[curFY()]=1;
+  return Object.keys(set).map(Number).sort(function(a,b){return a-b;});
+}
+function fySelector(){
+  var c=curFY();
+  return '<select onchange="setCurFY(this.value)" title="회계연도 선택" style="padding:3px 8px;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;background:#fff">'+
+    fyList().map(function(f){var r=fyRange(f);
+      return '<option value="'+f+'"'+(f===c?' selected':'')+'>제'+f+'기 ('+r.start.slice(2,7).replace('-','.')+'~'+r.end.slice(2,7).replace('-','.')+')</option>';
+    }).join('')+'</select>';
+}
+function cfInFY(dt,fy){
+  var f=fy||curFY();
+  if(!dt) return f===1;
+  var m=String(dt).match(/^(\d{4})[\/\-](\d{1,2})/);
+  if(!m) return f===1;
+  return fyOf(m[1]+'-'+String(parseInt(m[2])).padStart(2,'0')+'-01')===f;
+}
 function jFullDate(j){
   if(j.edt) return j.edt; // 2026-04-08 형식
-  var m=j.dt.match(/(\d+)\/(\d+)/);if(!m) return '2025-06-01';
+  var m=j.dt.match(/(\d+)\/(\d+)/);if(!m) return FY_BASE+'-06-01';
   var mo=parseInt(m[1]),day=parseInt(m[2]);
-  var yr=(mo>=6)?2025:2026; // 회계연도: 6~12=2025, 1~5=2026
+  var _fy=j.fy||1; // 회기 미지정 전표는 제1기 (legacy)
+  var yr=(mo>=6)?(FY_BASE+_fy-1):(FY_BASE+_fy);
   return yr+'-'+String(mo).padStart(2,'0')+'-'+String(day).padStart(2,'0');
 }
 function jDispDate(j){
@@ -1366,7 +1410,7 @@ if(tC==='과세10%'||tC==='경감8%'){
   taxAmt=Math.round(amt*rate/(100+rate));
   mainAmt=amt-taxAmt;
 }
-var newJ={id:_newSlipId,dt,no,desc,dr:d.ac,cr:c.ac,amt:mainAmt,edt,pdt,cur,exp:d.exp||c.exp,vendor:vendor,taxCls:tC};D.journals.push(newJ);saveUndo('create',newJ);
+var newJ={id:_newSlipId,dt,no,desc,dr:d.ac,cr:c.ac,amt:mainAmt,edt,pdt,cur,exp:d.exp||c.exp,vendor:vendor,taxCls:tC,fy:fyOf(edt)};D.journals.push(newJ);saveUndo('create',newJ);
 // 소비세 분리 전표 자동생성
 if(taxAmt>0){
   var drAcct=D.accts.find(function(a){return a.c===d.ac;});
@@ -2706,7 +2750,9 @@ function rCashFlow(){
     cfData[m]={opIn:0,opOut:0,invIn:0,invOut:0,finIn:0,finOut:0};
   });
   
+  var _fyCur=curFY();
   D.bkIn.forEach(function(d){
+    if(!cfInFY(d.dt,_fyCur))return; // 회기 필터
     var mo=cfExtractMonth(d.dt);
     if(!mo||!cfData[mo])return;
     var t=d.type||cfGuessType(d,'in');
@@ -2717,6 +2763,7 @@ function rCashFlow(){
   });
   
   D.bkOut.forEach(function(d){
+    if(!cfInFY(d.dt,_fyCur))return; // 회기 필터
     var mo=cfExtractMonth(d.dt);
     if(!mo||!cfData[mo])return;
     var t=d.type||cfGuessType(d,'out');
@@ -2728,6 +2775,7 @@ function rCashFlow(){
   
   // 증권 매매 + 증권계좌 직접거래 (전표 기반)
   D.journals.forEach(function(j){
+    if(jFY(j)!==_fyCur)return; // 회기 필터
     var m=j.dt.match(/(\d+)\//);
     if(!m)return;
     var mo=String(parseInt(m[1])).padStart(2,'0');
@@ -4307,7 +4355,7 @@ function go(p){
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));this.classList.add('on');
     const tc=document.getElementById('TC'),id=this.dataset.tab;if(!tc)return;
     if(cur==='sec'){if(id==='real')tc.innerHTML=rRealTab();else go('sec');}
-    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📊 월별 비용분석</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else if(id==='cashflow')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 월별 현금흐름표</div>'+rCashFlow()+'</div>';else if(id==='taxsum')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">🧾 소비세 집계표</div>'+rTaxSummary()+'</div>';else if(id==='withholding')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 원천징수세 관리 (155)</div>'+rWithholding()+'</div>';else if(id==='trial')tc.innerHTML=rTrialBalance();else go('fs');}
+    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">📊 월별 비용분석</div>'+fySelector()+'</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else if(id==='cashflow')tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">💰 월별 현금흐름표</div>'+fySelector()+'</div>'+rCashFlow()+'</div>';else if(id==='taxsum')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">🧾 소비세 집계표</div>'+rTaxSummary()+'</div>';else if(id==='withholding')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 원천징수세 관리 (155)</div>'+rWithholding()+'</div>';else if(id==='trial')tc.innerHTML=rTrialBalance();else go('fs');}
     if(cur==='asset'){if(id==='fa')tc.innerHTML=rFATab();else if(id==='lease')tc.innerHTML=rLeaseTab();else if(id==='contract')tc.innerHTML=rContractTab();}
   }));
 }
