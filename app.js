@@ -624,6 +624,8 @@ async function fbInit(){
 
 // ===== 월차 마감 =====
 function saveMonthlyClose(){
+  var _FJ=fyJournals();
+
   if(!D.monthlyClosed) D.monthlyClosed={};
   const now=new Date();
   const key=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -634,7 +636,7 @@ function saveMonthlyClose(){
     totA:c.totA,bb:c.bb,secDep:c.secDep,allMv:c.allMv,
     sgaT:d.sgaT,noiT:d.noiT,noeT:d.noeT,oi:d.oi,ni:d.ni,
     totL:d.totL,totE:d.totE,
-    journals:D.journals.length
+    journals:_FJ.length
   };
   saveD();
   alert('월차 마감 저장 완료!\n'+key+'\n총자산: '+fm(c.totA)+'\n경상이익: '+fm(d.oi));
@@ -685,8 +687,10 @@ function updateTaxJournal(){
 
 
 function rVendorSummary(){
+  var _FJ=fyJournals();
+
   const summary={};
-  D.journals.forEach(j=>{
+  _FJ.forEach(j=>{
     const v=j.vendor||'(미지정)';
     if(!summary[v])summary[v]={count:0,drTotal:0,crTotal:0,accounts:new Set()};
     summary[v].count++;
@@ -1677,9 +1681,11 @@ function acctNm(c){return tAcct(c);}
 
 // ===== GENERAL LEDGER (총계정원장) =====
 function rGL(){
+  var _FJ=fyJournals();
+
   // Compute balances from journals
   const bal={};
-  D.journals.forEach(j=>{
+  _FJ.forEach(j=>{
     if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
     if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
     bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true,dispDt:jDispDate(j),sortKey:jSortKey(j)});
@@ -1694,12 +1700,12 @@ function rGL(){
     groups[a.g].push({code,name:a.k,...v});
   });
 
-  if(D.journals.length===0){
-    return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div><button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 엑셀 내보내기 (日本語)</button></div>
+  if(_FJ.length===0){
+    return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div>${fySelector()}<button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 엑셀 내보내기 (日本語)</button></div>
     <div class="ib">💡 전표를 기표하면 여기에 계정별로 자동 집계됩니다</div>
     <div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:40px;margin-bottom:12px">📒</div><div>아직 기표된 전표가 없습니다.<br>[전표작성] 메뉴에서 전표를 입력하세요.</div></div>`;}
 
-  return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div><button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 엑셀 내보내기 (日本語)</button></div>
+  return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">총계정원장</div>${fySelector()}<button class="bt" onclick="exportGLExcel()" style="background:#059669;font-size:11px">📥 엑셀 내보내기 (日本語)</button></div>
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:10px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">
     <span style="font-size:12px;font-weight:600">📅 기간:</span>
     <select id="gl_mo" onchange="filterGL()" style="padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">
@@ -1709,10 +1715,10 @@ function rGL(){
       <option value="12">12월</option><option value="01">1월</option><option value="02">2월</option>
       <option value="03">3월</option><option value="04">4월</option><option value="05">5월 (결산)</option>
     </select>
-    <span id="gl_info" style="font-size:11px;color:#64748b">${D.journals.length}건</span>
+    <span id="gl_info" style="font-size:11px;color:#64748b">${_FJ.length}건</span>
   </div>
   <div id="glBody">
-  <div class="ib">💡 전표 ${D.journals.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
+  <div class="ib">💡 전표 ${_FJ.length}건에서 자동 집계. 계정을 클릭하면 상세 내역을 표시합니다.</div>
   ${["자산","부채","순자산","수익","비용"].filter(g=>groups[g]).map(g=>`
     <div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:6px;padding:3px 8px;background:#dbeafe;border-radius:5px;display:inline-block">${g}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px">
@@ -1721,10 +1727,12 @@ function rGL(){
   </div>`;}
 
 function showGLDetail(code){
+  var _FJ=fyJournals();
+
   const a=D.accts.find(x=>x.c===code);if(!a)return;
   const isDb=["자산","비용"].includes(a.g);
   const entries=[];let bal=0;
-  D.journals.filter(j=>j.dr===code||j.cr===code).sort(function(a2,b2){return jSortKey(a2).localeCompare(jSortKey(b2));}).forEach(j=>{
+  _FJ.filter(j=>j.dr===code||j.cr===code).sort(function(a2,b2){return jSortKey(a2).localeCompare(jSortKey(b2));}).forEach(j=>{
     const isDr=j.dr===code;const dr=isDr?j.amt:0;const cr=isDr?0:j.amt;
     bal+=isDb?(dr-cr):(cr-dr);
     entries.push({id:j.id,dt:jDispDate(j),no:j.no,desc:j.desc,dr,cr,bal});
@@ -1736,14 +1744,16 @@ function showGLDetail(code){
 }
 
 function filterGL(){
+  var _FJ=fyJournals();
+
   var sel=document.getElementById('gl_mo');
   if(!sel)return;
   var mo=sel.value;
   
   // Filter journals by month
-  var filtered=D.journals;
+  var filtered=_FJ;
   if(mo!=='all'){
-    filtered=D.journals.filter(function(j){
+    filtered=_FJ.filter(function(j){
       var m=j.dt.match(/(\d+)\//);
       if(!m)return mo==='05';
       return String(parseInt(m[1])).padStart(2,'0')===mo;
@@ -1814,19 +1824,21 @@ function journalMatchMonth(j,mo){
 }
 
 function rJrn(){
+  var _FJ=fyJournals();
+
   // Get all unique year-months
   const yms=new Set();
-  D.journals.forEach(j=>{
+  _FJ.forEach(j=>{
     const m=j.dt.match(/(\d+)\//);
     if(m){const mon=parseInt(m[1]);const yr=mon>=6?'2025':'2026';yms.add(yr+'/'+String(mon).padStart(2,'0'));}
   });
-  if(D.journals.some(j=>j.dt.includes('5/31')))yms.add('2026/05');
+  if(_FJ.some(j=>j.dt.includes('5/31')))yms.add('2026/05');
   const sortedYMs=[...yms].sort();
 
   // Build year-month selector
   const ymOpts=sortedYMs.map(ym=>'<option value="'+ym+'">'+ym+'</option>').join('');
 
-  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">전표조회</div><div style="display:flex;gap:6px"><button class="bt gh" onclick="doUndo()" style="font-size:11px">↩ 되돌리기</button></div><button class="bt gh" onclick="document.getElementById(\'vendorSummary\').classList.toggle(\'hidden\')" style="font-size:11px">👤 거래처별 집계</button></div>'+
+  return '<div style="display:flex;justify-content:space-between;align-items:center"><div class="pt">전표조회</div>'+fySelector()+'<div style="display:flex;gap:6px"><button class="bt gh" onclick="doUndo()" style="font-size:11px">↩ 되돌리기</button></div><button class="bt gh" onclick="document.getElementById(\'vendorSummary\').classList.toggle(\'hidden\')" style="font-size:11px">👤 거래처별 집계</button></div>'+
     '<div id="vendorSummary" class="hidden"><div class="pn" style="margin-bottom:10px;padding:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">👤 거래처별 집계</div>'+rVendorSummary()+'</div></div>'+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">'+
     '<span style="font-size:12px;font-weight:600">회기:</span>'+
@@ -1852,9 +1864,9 @@ function rJrn(){
     '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding:8px 14px;background:#fff;border:1px solid #e2e6ed;border-radius:9px">'+
     '<span style="font-size:12px;font-weight:600">🔍 검색:</span>'+
     '<input id="jrn_search" oninput="filterJrn()" placeholder="적요, 전표번호 검색..." style="flex:1;padding:5px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:12px">'+
-    '<span id="jrn_count" style="font-size:11px;color:#64748b">'+D.journals.length+'건</span>'+
+    '<span id="jrn_count" style="font-size:11px;color:#64748b">'+_FJ.length+'건</span>'+
     '</div>'+
-    '<div class="pn"><div id="jrnBody" style="max-height:600px;overflow-y:auto">'+buildJrnTable(D.journals)+'</div></div>';
+    '<div class="pn"><div id="jrnBody" style="max-height:600px;overflow-y:auto">'+buildJrnTable(_FJ)+'</div></div>';
 }
 
 function buildJrnTable(list){
@@ -1881,11 +1893,13 @@ function onKiChange(){
   filterJrn();
 }
 function filterJrn(){
+  var _FJ=fyJournals();
+
   const mo=document.getElementById('jrn_mo').value;
   const acct=document.getElementById('jrn_acct').value;
   const vendor=document.getElementById('jrn_vendor')?document.getElementById('jrn_vendor').value:'all';
   const search=(document.getElementById('jrn_search')?document.getElementById('jrn_search').value:'').toLowerCase();
-  let filtered=D.journals;
+  let filtered=_FJ;
   if(mo!=='all'){
     filtered=filtered.filter(j=>journalMatchMonth(j,mo));
   }
@@ -2135,12 +2149,14 @@ function autoFxEvalAdjust(){
 
 // ===== XIRR 계산 (수정내부수익률) =====
 function calcXIRR(){
+  var _FJ=fyJournals();
+
   // 자본 기준: 증권계좌로 입금한 돈 vs 현재 증권계좌 총액
   var flows=[];
   var today=new Date();
   
   // 1. 증권계좌 입금 (은행→증권 이체): DR 191/CR 110
-  D.journals.forEach(function(j){
+  _FJ.forEach(function(j){
     var fd=jFullDate(j);
     var dt=new Date(fd);
     if(isNaN(dt.getTime())) return;
@@ -2418,7 +2434,8 @@ function clearRptEdits(){
 }
 
 function rRpt(){
-  var RL2=D.real.filter(function(r){return (r.fy||1)===curFY();}); // 회기 필터const c=calc();
+  var RL2=D.real.filter(function(r){return (r.fy||1)===curFY();}); // 회기 필터
+  const c=calc();
   // 운용보고서 자금흐름: 普通預金(110) 기준 (자본금·役員借入金·증권이체 제외, 증권→법인 이체는 별도행)
   var rptIn=0,rptOut=0,secToCorp=0,loanIn=0;
   var _exclC={'300':1,'221':1,'191':1};
@@ -2660,13 +2677,15 @@ function rptAddRow(section){
 
 // ===== EXPORT: GL to Excel (Japanese) =====
 function exportGLExcel(){
+  var _FJ=fyJournals();
+
   const S='border:1px solid #999;padding:3pt 5pt;font-size:9pt;';
   const HR=S+'text-align:right;';const HB=HR+'font-weight:bold;';
   const TH='background:#dbeafe;font-weight:bold;font-size:8pt;padding:3pt 5pt;border:1px solid #999;';
   const THR=TH+'text-align:right;';
   // Build GL from journals
   const bal={};
-  D.journals.forEach(j=>{
+  _FJ.forEach(j=>{
     if(!bal[j.dr])bal[j.dr]={dr:0,cr:0,entries:[]};
     if(!bal[j.cr])bal[j.cr]={dr:0,cr:0,entries:[]};
     bal[j.dr].dr+=j.amt;bal[j.dr].entries.push({...j,isDr:true,dispDt:jDispDate(j),sortKey:jSortKey(j)});
@@ -3327,16 +3346,18 @@ function saveOIAccts(){
 
 // ===== 소비세 집계표 (일반과세·세빼기경리) =====
 function rTaxSummary(){
+  var _FJ=fyJournals();
+
   // 154(가지급소비세) and 211(가수소비세) balances from journals
-  var inputTax=acctBal('154');  // 매입세액 (지급한 소비세)
-  var outputTax=acctBal('211'); // 매출세액 (받은 소비세)
+  var inputTax=acctBalFY('154');  // 매입세액 (지급한 소비세)
+  var outputTax=acctBalFY('211'); // 매출세액 (받은 소비세)
   var netTax=outputTax-inputTax; // 양수=납부, 음수=환급
 
   // Breakdown by taxCls
   var expCodes={};D.accts.filter(function(ac){return ac.g==='비용';}).forEach(function(ac){expCodes[ac.c]=true;});
   var revCodes={};D.accts.filter(function(ac){return ac.g==='수익';}).forEach(function(ac){revCodes[ac.c]=true;});
   var cats={'과세10%':{exp:0,rev:0,tax154:0,tax211:0,cnt:0},'경감8%':{exp:0,rev:0,tax154:0,tax211:0,cnt:0},'비과세':{exp:0,rev:0,cnt:0},'불과세':{exp:0,rev:0,cnt:0},'미분류':{exp:0,rev:0,cnt:0}};
-  D.journals.forEach(function(j){
+  _FJ.forEach(function(j){
     var cls=j.taxCls||'미분류';
     if(!cats[cls]) cats[cls]={exp:0,rev:0,tax154:0,tax211:0,cnt:0};
     if(expCodes[j.dr]) cats[cls].exp+=j.amt;
@@ -3347,14 +3368,14 @@ function rTaxSummary(){
   });
 
   // Check for un-migrated entries
-  var unmigrated=D.journals.filter(function(j){
+  var unmigrated=_FJ.filter(function(j){
     if(j.taxCls!=='과세10%'&&j.taxCls!=='경감8%') return false;
     if(j.dr==='154'||j.cr==='211') return false;
     if(j.dr==='537') return false; // 537 already has separate tax entries
     if(j.desc&&j.desc.indexOf('[소비세]')>=0) return false;
     if(!expCodes[j.dr]&&!revCodes[j.cr]) return false;
     var desc=j.desc;
-    var hasCompanion=D.journals.some(function(j2){
+    var hasCompanion=_FJ.some(function(j2){
       return j2.desc==='[소비세] '+desc&&j2.dt===j.dt;
     });
     return !hasCompanion;
@@ -3405,7 +3426,7 @@ function rTaxSummary(){
   }
   html+='<button class="bt '+(isRefund?'gn':'rd')+'" onclick="genTaxSettlement()" '+(netTax===0?'disabled':'')+'>정산전표 생성 (결산 시)</button>';
   html+=' <span style="font-size:10px;color:#64748b">중복 체크 있음</span>';
-  var taxJournals=D.journals.filter(function(j){return j.desc&&j.desc.indexOf('[소비세정산]')>=0;});
+  var taxJournals=_FJ.filter(function(j){return j.desc&&j.desc.indexOf('[소비세정산]')>=0;});
   if(taxJournals.length>0){
     html+='<div style="margin-top:8px;font-size:10px;color:#d97706">⚠️ 이미 정산전표 '+taxJournals.length+'건: ';
     taxJournals.forEach(function(j){html+=j.no+' '+fm(j.amt)+'엔 ';});
@@ -3414,7 +3435,7 @@ function rTaxSummary(){
   html+='</div>';
 
   // 소비세 전표 상세 (154/211 entries)
-  var taxEntries=D.journals.filter(function(j){return j.dr==='154'||j.cr==='211';});
+  var taxEntries=_FJ.filter(function(j){return j.dr==='154'||j.cr==='211';});
   html+='<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">📋 소비세 전표 상세 ('+taxEntries.length+'건)</span>';
   html+='<div style="display:flex;gap:4px"><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'date\')">일자순</button><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'no\')">전표번호순</button><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'amt\')">금액순</button></div></div>';
   html+='<div id="taxEntryTable">';
@@ -3448,18 +3469,20 @@ function buildTaxEntryTable(entries,sortBy){
   return h;
 }
 function sortTaxEntries(sortBy){
-  var entries=D.journals.filter(function(j){return j.dr==='154'||j.cr==='211';});
+  var _FJ=fyJournals();
+
+  var entries=_FJ.filter(function(j){return j.dr==='154'||j.cr==='211';});
   var el=document.getElementById('taxEntryTable');
   if(el) el.innerHTML=buildTaxEntryTable(entries,sortBy);
 }
 
 function genTaxSettlement(){
-  var existing=D.journals.filter(function(j){return j.desc&&j.desc.indexOf('[소비세정산]')>=0;});
+  var existing=fyJournals().filter(function(j){return j.desc&&j.desc.indexOf('[소비세정산]')>=0;});
   if(existing.length>0){
     if(!confirm('⚠️ 이미 정산전표가 '+existing.length+'건 있습니다. 중복 생성하시겠습니까?')) return;
   }
-  var inputTax=acctBal('154');
-  var outputTax=acctBal('211');
+  var inputTax=acctBalFY('154');
+  var outputTax=acctBalFY('211');
   if(inputTax===0&&outputTax===0){toast('정산할 소비세가 없습니다','warn');return;}
   var netTax=outputTax-inputTax;
   var isRefund=netTax<0;
@@ -3533,9 +3556,11 @@ function migrateTaxSplit(){
 
 // ===== 원천징수세 관리 (155 가지급법인세) =====
 function rWithholding(){
+  var _FJ=fyJournals();
+
   // 155계정(가지급법인세) 관련 전표 조회
   var items=[];
-  D.journals.forEach(function(j){
+  _FJ.forEach(function(j){
     if(j.dr==='155'||j.cr==='155'){
       items.push({
         id:j.id, dt:jDispDate(j), no:j.no, desc:j.desc, amt:j.amt,
@@ -3545,8 +3570,8 @@ function rWithholding(){
     }
   });
   
-  var bal155=acctBal('155');
-  var taxBal=acctBal('550'); // 법인세등
+  var bal155=acctBalFY('155');
+  var taxBal=acctBalFY('550'); // 법인세등(당기)
   var netTax=taxBal-bal155;
   
   // Summary
@@ -3668,6 +3693,8 @@ function doAddWithholding(type){
 
 // ===== 시산표 (일계표/월계표/합계잔액시산표) =====
 function rTrialBalance(mode,dateVal){
+  var _FJ=fyJournals();
+
   mode=mode||'monthly';
   // Default date
   if(!dateVal){
@@ -3681,7 +3708,7 @@ function rTrialBalance(mode,dateVal){
   
   // Filter: before period (for carry-forward) and current period
   var beforeJ=[],curJ=[];
-  D.journals.forEach(function(j){
+  _FJ.forEach(function(j){
     var ed=jFullDate(j);
     if(mode==='daily'){
       if(ed<dateVal) beforeJ.push(j);
@@ -3692,7 +3719,7 @@ function rTrialBalance(mode,dateVal){
       else if(ym===dateVal) curJ.push(j);
     }else{
       // Annual: FY1=2025-06~2026-05
-      curJ=D.journals.slice(); // 전체
+      curJ=_FJ.slice(); // 전체
     }
   });
   
