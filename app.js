@@ -1072,12 +1072,13 @@ function calc(){
   const jpMv=D.holdJP.reduce((s,h)=>s+h.mv,0),jpC=D.holdJP.reduce((s,h)=>s+h.tc,0);
   const usMv=D.holdUS.reduce((s,h)=>s+h.mv,0),usC=D.holdUS.reduce((s,h)=>s+h.tc,0);
   const tI=D.bkIn.reduce((s,d)=>s+d.amt,0),tO=D.bkOut.reduce((s,d)=>s+d.amt,0);
-  const rpl=D.real.reduce((s,r)=>s+r.net,0),rC=D.real.reduce((s,r)=>s+r.tc,0),rS=D.real.reduce((s,r)=>s+r.sa,0);
+  const _rf=D.real.filter(function(r){return (r.fy||1)===curFY();}); // 회기 필터
+  const rpl=_rf.reduce((s,r)=>s+r.net,0),rC=_rf.reduce((s,r)=>s+r.tc,0),rS=_rf.reduce((s,r)=>s+r.sa,0);
   // 외화예수금 JPY 환산 (192 전표 미입력 시 화면 표시용)
   let fxJpy=0;
   if(D.fxSecDeposit&&D.fxSecDeposit.USD&&D.fxSecDeposit.USD.amt>0){
     const fx=D.fxSecDeposit.USD;
-    fxJpy=Math.round(fx.amt*(fx.curRate||fx.avgRate||SET.rates.USDJPY||0));
+    fxJpy=Math.floor(fx.amt*(fx.curRate||fx.avgRate||SET.rates.USDJPY||0)); // 증권사와 동일하게 절사
   }
   const bb=tI-tO,secDep=acctBal('191'),secBal=secDep+jpMv+usMv+fxJpy;
   // Include other asset balances (fixed assets etc.) for complete total
@@ -1135,7 +1136,7 @@ function addReal(){showModal('수익실현 추가',`<div class="fg">
   <div class="full" id="f_rp"></div>
   <div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt gn" onclick="doAddReal()">추가</button></div></div>
   <script>['f_ba','f_bc','f_bt','f_sa','f_sc','f_st'].forEach(id=>document.getElementById(id).addEventListener('input',updRP));function updRP(){const ba=+document.getElementById('f_ba').value||0,bc=+document.getElementById('f_bc').value||0,bt=+document.getElementById('f_bt').value||0,sa=+document.getElementById('f_sa').value||0,sc=+document.getElementById('f_sc').value||0,st=+document.getElementById('f_st').value||0;const tc=ba+bc+bt,net=sa-tc-sc-st;document.getElementById('f_rp').innerHTML=ba&&sa?'<div class=\"preview\"><span>취득원가: <b>'+fm(tc)+'</b></span><span>순수익: <b style=\"color:'+(net>=0?'#059669':'#dc2626')+'\">'+fm(net)+'</b></span><span>수익률: <b>'+(tc?(net/tc*100).toFixed(2):'0')+'%</b></span></div>':'';}<\/script>`);}
-function doAddReal(){const dt=document.getElementById('f_dt').value,tk=document.getElementById('f_tk').value,nm=document.getElementById('f_nm').value,sh=+document.getElementById('f_sh').value,ba=+document.getElementById('f_ba').value,bC=+document.getElementById('f_bc').value||0,bT=+document.getElementById('f_bt').value||0,sa=+document.getElementById('f_sa').value,sC=+document.getElementById('f_sc').value||0,sT=+document.getElementById('f_st').value||0;if(!tk||!sa)return alert('필수항목을 입력하세요');const tc=ba+bC+bT,gr=sa-tc,net=gr-sC-sT,rr=tc?(net/tc*100):0;D.real.push({id:nid(),dt,tk,nm,sh,px:sh?Math.round(ba/sh):0,buyAmt:ba,bC,bT,tc,sp:sh?Math.round(sa/sh):0,sa,gr,sC,sT,net,rr:Math.round(rr*100)/100});saveD();closeModal();go('sec');}
+function doAddReal(){const dt=document.getElementById('f_dt').value,tk=document.getElementById('f_tk').value,nm=document.getElementById('f_nm').value,sh=+document.getElementById('f_sh').value,ba=+document.getElementById('f_ba').value,bC=+document.getElementById('f_bc').value||0,bT=+document.getElementById('f_bt').value||0,sa=+document.getElementById('f_sa').value,sC=+document.getElementById('f_sc').value||0,sT=+document.getElementById('f_st').value||0;if(!tk||!sa)return alert('필수항목을 입력하세요');const tc=ba+bC+bT,gr=sa-tc,net=gr-sC-sT,rr=tc?(net/tc*100):0;D.real.push({id:nid(),dt,tk,nm,sh,px:sh?Math.round(ba/sh):0,buyAmt:ba,bC,bT,tc,sp:sh?Math.round(sa/sh):0,sa,gr,sC,sT,net,rr:Math.round(rr*100)/100,fy:fyOf(dt)});saveD();closeModal();go('sec');}
 function delReal(id){if(!confirm('삭제하시겠습니까?'))return;D.real=D.real.filter(x=>x.id!==id);saveD();go('sec');}
 
 
@@ -1223,7 +1224,7 @@ function editReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;showModal('
   '<div><label>매수소비세</label><input type="number" id="f_bt" value="'+r.bT+'"></div><div><label>매도금액</label><input type="number" id="f_sa" value="'+r.sa+'"></div>'+
   '<div><label>매도수수료</label><input type="number" id="f_sc" value="'+r.sC+'"></div><div><label>매도소비세</label><input type="number" id="f_st" value="'+r.sT+'"></div>'+
   '<div class="full" style="display:flex;gap:8px;justify-content:flex-end"><button class="bt gh" onclick="closeModal()">취소</button><button class="bt" onclick="doEditReal('+id+')">저장</button></div></div>');}
-function doEditReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;r.dt=document.getElementById('f_dt').value;r.tk=document.getElementById('f_tk').value;r.nm=document.getElementById('f_nm').value;r.sh=+document.getElementById('f_sh').value;r.buyAmt=+document.getElementById('f_ba').value;r.bC=+document.getElementById('f_bc').value;r.bT=+document.getElementById('f_bt').value;r.sa=+document.getElementById('f_sa').value;r.sC=+document.getElementById('f_sc').value;r.sT=+document.getElementById('f_st').value;r.tc=r.buyAmt+r.bC+r.bT;r.sp=r.sh?Math.round(r.sa/r.sh):0;r.gr=r.sa-r.tc;r.net=r.gr-r.sC-r.sT;r.rr=r.tc?Math.round(r.net/r.tc*10000)/100:0;saveD();closeModal();go('sec');}
+function doEditReal(id){const r=D.real.find(x=>x.id===id);if(!r)return;r.dt=document.getElementById('f_dt').value;r.tk=document.getElementById('f_tk').value;r.nm=document.getElementById('f_nm').value;r.sh=+document.getElementById('f_sh').value;r.buyAmt=+document.getElementById('f_ba').value;r.bC=+document.getElementById('f_bc').value;r.bT=+document.getElementById('f_bt').value;r.sa=+document.getElementById('f_sa').value;r.sC=+document.getElementById('f_sc').value;r.sT=+document.getElementById('f_st').value;r.tc=r.buyAmt+r.bC+r.bT;r.sp=r.sh?Math.round(r.sa/r.sh):0;r.gr=r.sa-r.tc;r.net=r.gr-r.sC-r.sT;r.rr=r.tc?Math.round(r.net/r.tc*10000)/100:0;r.fy=fyOf(r.dt);saveD();closeModal();go('sec');}
 
 
 
@@ -2285,11 +2286,11 @@ function rSec(){const c=calc();const jpT=c.jpMv;
     <tr class="t"><td>합계</td><td class="r m">${fm(c.allC)}</td><td class="r m">${fm(c.allMv)}</td><td class="r">100%</td><td class="r">${bg(c.allPl)}</td><td class="r m ${c.allPl>=0?'gn':'rd'}">${(c.allPl/c.allC*100).toFixed(2)}%</td></tr></tbody></table></div>
   </div>`;}
 
-function rRealTab(){const c=calc();
-  return `<div class="pn"><div class="ph"><span>수익실현 내역 (${D.real.length}건)</span><button class="bt gn" onclick="addReal()">+ 내역추가</button></div>
+function rRealTab(){const c=calc();const _fy=curFY();const RL=D.real.filter(function(r){return (r.fy||1)===_fy;});
+  return `<div class="pn"><div class="ph"><span>수익실현 내역 (제${_fy}기 ${RL.length}건)</span>${fySelector()}<button class="bt gn" onclick="addReal()">+ 내역추가</button></div>
   <div style="overflow-x:auto"><table style="min-width:1150px"><thead><tr><th>확정일</th><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">매수수수료</th><th class="r">매수소비세</th><th class="r">취득원가</th><th class="r">매도금액</th><th class="r">매도수수료</th><th class="r">매도소비세</th><th class="r">순수익</th><th class="r">수익률</th><th></th></tr></thead>
-  <tbody>${D.real.map((r,i)=>`<tr class="${i%2?'a':''}"><td class="mu m">${r.dt}</td><td class="b bl">${r.tk}</td><td>${r.nm}</td><td class="r m">${fm(r.sh)}</td><td class="r m">${fm(r.buyAmt)}</td><td class="r m mu">${fm(r.bC)}</td><td class="r m rd">${fm(r.bT)}</td><td class="r m b">${fm(r.tc)}</td><td class="r m">${fm(r.sa)}</td><td class="r m mu">${fm(r.sC)}</td><td class="r m rd">${fm(r.sT)}</td><td class="r">${bg(r.net)}</td><td class="r m gn">${r.rr.toFixed(2)}%</td><td><button class="del" onclick="editReal(${r.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delReal(${r.id})">✕</button></td></tr>`).join('')}</tbody>
-  <tr class="t"><td colspan="4" class="r">합계</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.buyAmt,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.bC,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.bT,0))}</td><td class="r m">${fm(c.rC)}</td><td class="r m">${fm(c.rS)}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.sC,0))}</td><td class="r m">${fm(D.real.reduce((s,r)=>s+r.sT,0))}</td><td class="r">${bg(c.rpl)}</td><td class="r m gn">${(c.rpl/c.rC*100).toFixed(2)}%</td><td></td></tr>
+  <tbody>${RL.map((r,i)=>`<tr class="${i%2?'a':''}"><td class="mu m">${r.dt}</td><td class="b bl">${r.tk}</td><td>${r.nm}</td><td class="r m">${fm(r.sh)}</td><td class="r m">${fm(r.buyAmt)}</td><td class="r m mu">${fm(r.bC)}</td><td class="r m rd">${fm(r.bT)}</td><td class="r m b">${fm(r.tc)}</td><td class="r m">${fm(r.sa)}</td><td class="r m mu">${fm(r.sC)}</td><td class="r m rd">${fm(r.sT)}</td><td class="r">${bg(r.net)}</td><td class="r m gn">${r.rr.toFixed(2)}%</td><td><button class="del" onclick="editReal(${r.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delReal(${r.id})">✕</button></td></tr>`).join('')}</tbody>
+  <tr class="t"><td colspan="4" class="r">합계</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.buyAmt,0))}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.bC,0))}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.bT,0))}</td><td class="r m">${fm(c.rC)}</td><td class="r m">${fm(c.rS)}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.sC,0))}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.sT,0))}</td><td class="r">${bg(c.rpl)}</td><td class="r m gn">${c.rC?(c.rpl/c.rC*100).toFixed(2):'0.00'}%</td><td></td></tr>
   </table></div></div>`;}
 
 function bkTagByType(d){
