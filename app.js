@@ -56,8 +56,20 @@ var ACCT_TAX_DEFAULT = {
   '540':'非課税','541':'対象外','542':'対象外','543':'対象外','544':'対象外','545':'対象外','546':'対象外',
   '550':'対象外','551':'対象外','552':'対象外','553':'対象外',
   // ── 창립비 (등록면허세 対象外 + 사법서사보수 課税 혼재 → 안전측) ──
-  '560':'対象外','561':'対象外','562':'対象外','563':'対象外','564':'対象外','565':'対象外'
+  '560':'対象外','561':'対象外','562':'対象外','563':'対象外','564':'対象外','565':'対象外',
+  // ── 자산 취득도 課税仕入 대상 (소비세법 §2①十二 課税仕入れ = 자산의 譲受け 포함) ──
+  //    ※ 미등록 자산계정(예금·매출채권·유가증권 등)은 집계 대상에서 자동 제외
+  '140':'課税仕入10%','141':'課税仕入10%','142':'課税仕入10%','143':'課税仕入10%','144':'課税仕入10%','145':'課税仕入10%',
+  '160':'課税仕入10%','161':'課税仕入10%','162':'課税仕入10%','163':'課税仕入10%','164':'課税仕入10%',
+  '165':'課税仕入10%','166':'非課税','167':'課税仕入10%','168':'課税仕入10%',
+  '170':'課税仕入10%','171':'課税仕入10%','172':'課税仕入10%','173':'課税仕入10%',
+  '174':'非課税','175':'非課税','176':'課税仕入10%','181':'課税仕入10%'
 };
+// 課税仕入 집계 대상 자산계정 (위에 등록된 것만)
+function isTaxableAsset(code){
+  var a=D.accts.find(function(x){return x.c===code;});
+  return !!(a && a.g==='자산' && ACCT_TAX_DEFAULT[code]);
+}
 // 매출계정 신설 (data.js 미변경 — 여기서 병합)
 var ACCT_EXTRA = [
   {c:'415',n:'売上高-輸出免税',k:'매출-수출면세',g:'수익'},
@@ -3520,38 +3532,53 @@ function taxAggregate(fy){
   // 税込経理 전제: 전표의 금액이 세포함. 비용/수익 계정이 걸린 전표만 집계.
   var f=fy||curFY(), FJ=D.journals.filter(function(j){return jFY(j)===f;});
   var isExp={},isRev={};
-  D.accts.forEach(function(a){ if(a.g==='비용')isExp[a.c]=1; else if(a.g==='수익')isRev[a.c]=1; });
-  var buckets={}; TAXCLS_ALL.forEach(function(c){buckets[c]={amt:0,tax:0,cnt:0};});
-  buckets['미분류']={amt:0,tax:0,cnt:0};
+  D.accts.forEach(function(a){
+    if(a.g==='비용') isExp[a.c]=1;
+    else if(a.g==='수익') isRev[a.c]=1;
+    else if(a.g==='자산'&&ACCT_TAX_DEFAULT[a.c]) isExp[a.c]=1;   // 재고·고정자산 취득도 課税仕入
+  });
+  // 매입·매출 버킷을 분리. 「対象外」는 양측 모두에 존재하므로 합치면 매입측 합계가 오염됨.
+  var bBuy={}, bSell={};
+  TAXCLS_BUY.forEach(function(c){bBuy[c]={amt:0,tax:0,cnt:0};});
+  TAXCLS_SELL.concat(['対象外']).forEach(function(c){bSell[c]={amt:0,tax:0,cnt:0};});
+  bBuy['미분류']={amt:0,tax:0,cnt:0}; bSell['미분류']={amt:0,tax:0,cnt:0};
   function put(side,j,code,amt,useCls){
     // 복합전표의 비대표측은 전표 라벨이 아닌 계정 기본값을 사용
     var cls=useCls?normTaxCls(j,side,code):(ACCT_TAX_DEFAULT[code]||'対象外');
-    if(!buckets[cls]) buckets[cls]={amt:0,tax:0,cnt:0};
-    buckets[cls].amt+=amt; buckets[cls].cnt++;
+    // 자산계정은 「차변=취득」만 課税仕入. 대변(감가상각·처분·재고감소)은 課税仕入이 아님
+    if(amt<0 && isTaxableAsset(code)) cls='対象外';
+    var B=(side==='buy')?bBuy:bSell;
+    if(!B[cls]) B[cls]={amt:0,tax:0,cnt:0};
+    B[cls].amt+=amt; B[cls].cnt++;
     var rt=taxRateOf(cls);
-    if(rt>0) buckets[cls].tax+=Math.floor(amt*rt/(100+rt));   // 税込 → 세액 역산
+    if(rt>0) B[cls].tax+=Math.floor(amt*rt/(100+rt));   // 税込 → 세액 역산
   }
   // 한 전표가 비용·수익 양쪽에 걸리면 (예: DR550/CR401 원천세 총액계상) 양측 모두 집계
   FJ.forEach(function(j){
-    var rep=null;                                          // 전표 taxCls가 가리키는 대표측 (비용 우선)
-    if(isExp[j.dr]||isExp[j.cr]) rep='buy'; else if(isRev[j.cr]||isRev[j.dr]) rep='sell';
-    if(isExp[j.dr]) put('buy',j,j.dr,j.amt,rep==='buy');
-    else if(isExp[j.cr]) put('buy',j,j.cr,-j.amt,rep==='buy');   // 비용 취소·대체
-    if(isRev[j.cr]) put('sell',j,j.cr,j.amt,rep==='sell');
-    else if(isRev[j.dr]) put('sell',j,j.dr,-j.amt,rep==='sell'); // 수익 취소·값인
+    // 전표 taxCls가 가리키는 대표 계정 (taxNormPlan과 동일 우선순위: 차변비용 > 대변비용 > 대변수익 > 차변수익)
+    var repCode = isExp[j.dr] ? j.dr : (isExp[j.cr] ? j.cr : (isRev[j.cr] ? j.cr : (isRev[j.dr] ? j.dr : null)));
+    // 양변이 모두 손익계정인 경우(비용↔비용 대체, 원천세 총액계상 등)를 위해 else 없이 각각 판정
+    if(isExp[j.dr]) put('buy', j, j.dr,  j.amt, repCode===j.dr);
+    if(isExp[j.cr]) put('buy', j, j.cr, -j.amt, repCode===j.cr);   // 비용 취소·과목대체
+    if(isRev[j.cr]) put('sell',j, j.cr,  j.amt, repCode===j.cr);
+    if(isRev[j.dr]) put('sell',j, j.dr, -j.amt, repCode===j.dr);   // 수익 취소·값인
   });
   // 課税売上割合
-  var taxSale = buckets['課税売上10%'].amt + buckets['課税売上8%'].amt + buckets['輸出免税0%'].amt;
-  var nonTaxSale = buckets['非課税売上'].amt;
+  var taxSale = bSell['課税売上10%'].amt + bSell['課税売上8%'].amt + bSell['輸出免税0%'].amt;
+  var nonTaxSale = bSell['非課税売上'].amt;
   // 유가증권 양도는 대가의 5%만 분모 산입 (소비세법시행령 §48③)
   var secSale = (D.real||[]).filter(function(r){return (r.fy||1)===f;}).reduce(function(t,r){return t+(r.sa||0);},0);
   var secDen = Math.round(secSale*0.05);
   var num = taxSale;
   var den = taxSale + nonTaxSale + secDen;
   var ratio = den>0 ? (num/den) : 0;
-  var inTax = buckets['課税仕入10%'].tax + buckets['課税仕入8%'].tax;
-  var outTax = buckets['課税売上10%'].tax + buckets['課税売上8%'].tax;
-  return {fy:f,buckets:buckets,taxSale:taxSale,nonTaxSale:nonTaxSale,secSale:secSale,secDen:secDen,
+  var inTax = bBuy['課税仕入10%'].tax + bBuy['課税仕入8%'].tax;
+  var outTax = bSell['課税売上10%'].tax + bSell['課税売上8%'].tax;
+  // 하위호환용 통합 버킷 (표시에는 쓰지 않음)
+  var buckets={}; [bBuy,bSell].forEach(function(B){Object.keys(B).forEach(function(k){
+    if(!buckets[k]) buckets[k]={amt:0,tax:0,cnt:0};
+    buckets[k].amt+=B[k].amt; buckets[k].tax+=B[k].tax; buckets[k].cnt+=B[k].cnt;});});
+  return {fy:f,bBuy:bBuy,bSell:bSell,buckets:buckets,taxSale:taxSale,nonTaxSale:nonTaxSale,secSale:secSale,secDen:secDen,
           num:num,den:den,ratio:ratio,inTax:inTax,outTax:outTax,
           ippan:Math.round(inTax*ratio),        // 一括比例配分方式 공제액
           fullDeduct:(ratio>=0.95&&den>0)};     // 課税売上割合 95% 이상 → 전액공제
@@ -3587,12 +3614,12 @@ function rTaxSummary(){
   h+='</div>';
 
   // ── 税区分별 집계 ──
-  function tbl(title,list,color){
+  function tbl(title,list,color,B){
     var r='<div style="font-size:12px;font-weight:700;margin:10px 0 4px;color:'+color+'">'+title+'</div>';
     r+='<table style="font-size:11px"><thead><tr><th>税区分</th><th class="r">세율</th><th class="r">금액(税込)</th><th class="r">세액</th><th class="r">건수</th></tr></thead><tbody>';
     var tA=0,tT=0,tC=0,i=0;
     list.forEach(function(c){
-      var b=A.buckets[c]; if(!b||(b.amt===0&&b.cnt===0))return;
+      var b=B[c]; if(!b||(b.amt===0&&b.cnt===0))return;
       var rt=taxRateOf(c);
       r+='<tr class="'+(i++%2?'a':'')+'"><td>'+c+'</td><td class="r">'+(rt>0?rt+'%':'—')+'</td><td class="r m">'+fm(b.amt)+'</td><td class="r m">'+(rt>0?fm(b.tax):'—')+'</td><td class="r">'+b.cnt+'</td></tr>';
       tA+=b.amt; tT+=b.tax; tC+=b.cnt;
@@ -3602,8 +3629,9 @@ function rTaxSummary(){
     return r+'</tbody></table>';
   }
   h+='<div class="pn" style="padding:14px;margin-bottom:14px">';
-  h+=tbl('◆ 매출측 (売上)',TAXCLS_SELL,'#d97706');
-  h+=tbl('◆ 매입측 (仕入)',TAXCLS_BUY,'#2563eb');
+  h+=tbl('◆ 매출측 (売上) — 수익 계정',TAXCLS_SELL.concat(['対象外']),'#d97706',A.bSell);
+  h+=tbl('◆ 매입측 (仕入) — 비용 계정',TAXCLS_BUY,'#2563eb',A.bBuy);
+  h+='<div style="font-size:10px;color:#64748b;margin-top:6px">※ 「対象外」는 매출·매입 양측에 존재하므로 각 표에 따로 집계됩니다 (매출측: 유가증권매각익·환차익·평가익 등 / 매입측: 급여·법인세·감가상각 등)</div>';
   if(A.buckets['미분류'].cnt>0)
     h+='<div style="margin-top:8px;padding:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px">⚠️ 미분류 '+A.buckets['미분류'].cnt+'건 ('+fm(A.buckets['미분류'].amt)+') — 아래 정규화 버튼을 실행하세요</div>';
   h+='</div>';
@@ -3708,7 +3736,11 @@ function normTaxCls(j,side,code){
 
 function taxNormPlan(){
   var isExp={},isRev={};
-  D.accts.forEach(function(a){ if(a.g==='비용')isExp[a.c]=1; else if(a.g==='수익')isRev[a.c]=1; });
+  D.accts.forEach(function(a){
+    if(a.g==='비용') isExp[a.c]=1;
+    else if(a.g==='수익') isRev[a.c]=1;
+    else if(a.g==='자산'&&ACCT_TAX_DEFAULT[a.c]) isExp[a.c]=1;
+  });
   var plan=[];
   D.journals.forEach(function(j){
     var side=null,code=null;
