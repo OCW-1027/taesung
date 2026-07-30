@@ -1262,6 +1262,7 @@ function delSlip(id){
 
 
 function exportWord(){
+  var RL2=D.real.filter(function(r){return (r.fy||1)===curFY();}); // 회기 필터
   const c=calc();
   const tI2=D.bkIn.reduce((s,d)=>s+d.amt,0);const tO2=D.bkOut.reduce((s,d)=>s+d.amt,0);
   const isSec2=cat=>{const c2=cat.toLowerCase();return c2.includes('증권')||c2.includes('주식')||c2.includes('매수')||c2.includes('매도')||c2.includes('이체')||c2.includes('ipo')||c2.includes('증거금');};
@@ -1338,7 +1339,7 @@ ${jpRows}
 <h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">3. 수익실현내역</h2>
 <table ${T}><tr><td style="${TH}">확정일</td><td style="${TH}">코드</td><td style="${TH}">종목명</td><td style="${THR}">수량</td><td style="${THR}">매수금액</td><td style="${THR}">수수료</td><td style="${THR}">취득원가</td><td style="${THR}">매도금액</td><td style="${THR}">매도수수료</td><td style="${THR}">순수익</td><td style="${THR}">수익률</td></tr>
 ${realRows}
-<tr><td colspan="4" style="${S}background:#e8e8e8;font-weight:bold;text-align:right">합계</td><td style="${HB}background:#e8e8e8">${fm(D.real.reduce((s,r)=>s+r.buyAmt,0))}</td><td style="${HB}background:#e8e8e8">${fm(D.real.reduce((s,r)=>s+r.bC+r.bT,0))}</td><td style="${HB}background:#e8e8e8">${fm(c.rC)}</td><td style="${HB}background:#e8e8e8">${fm(c.rS)}</td><td style="${HB}background:#e8e8e8">${fm(D.real.reduce((s,r)=>s+r.sC+r.sT,0))}</td><td style="${HB}background:#e8e8e8;${G}">${fm(c.rpl)}</td><td style="${HB}background:#e8e8e8;${G}">${(c.rpl/c.rC*100).toFixed(2)}%</td></tr></table>
+<tr><td colspan="4" style="${S}background:#e8e8e8;font-weight:bold;text-align:right">합계</td><td style="${HB}background:#e8e8e8">${fm(RL2.reduce((s,r)=>s+r.buyAmt,0))}</td><td style="${HB}background:#e8e8e8">${fm(RL2.reduce((s,r)=>s+r.bC+r.bT,0))}</td><td style="${HB}background:#e8e8e8">${fm(c.rC)}</td><td style="${HB}background:#e8e8e8">${fm(c.rS)}</td><td style="${HB}background:#e8e8e8">${fm(RL2.reduce((s,r)=>s+r.sC+r.sT,0))}</td><td style="${HB}background:#e8e8e8;${G}">${fm(c.rpl)}</td><td style="${HB}background:#e8e8e8;${G}">${(c.rpl/c.rC*100).toFixed(2)}%</td></tr></table>
 
 <h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">4. 은행 법인 계좌 상세 내역</h2>
 <table style="width:48%;border-collapse:collapse;float:left;margin-right:2%"><tr><td colspan="4" style="${TH}${G}">입금 상세내역</td></tr><tr><td style="${TH}">일자</td><td style="${TH}">구분</td><td style="${THR}">입금액</td><td style="${THR}">누적</td></tr>${bkInRows}</table>
@@ -2416,7 +2417,8 @@ function clearRptEdits(){
   go('rpt');
 }
 
-function rRpt(){const c=calc();
+function rRpt(){
+  var RL2=D.real.filter(function(r){return (r.fy||1)===curFY();}); // 회기 필터const c=calc();
   // 운용보고서 자금흐름: 普通預金(110) 기준 (자본금·役員借入金·증권이체 제외, 증권→법인 이체는 별도행)
   var rptIn=0,rptOut=0,secToCorp=0,loanIn=0;
   var _exclC={'300':1,'221':1,'191':1};
@@ -2510,7 +2512,7 @@ function rRpt(){const c=calc();
     '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">3. 수익실현내역</div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'수익실현\')">+ 행추가</button></div>'+
     '<div class="pn"><div style="overflow-x:auto"><table style="min-width:1050px"><thead><tr><th>확정일</th><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">매수수수료</th><th class="r">취득원가</th><th class="r">매도가</th><th class="r">매도금액</th><th class="r">실현순익</th><th class="r">매도수수료</th><th class="r">순수익</th><th class="r">수익률</th></tr></thead>'+
     '<tbody>'+realRows+'</tbody>'+
-    '<tr class="t"><td colspan="4" class="r">합계</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.buyAmt,0))+'</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.bC+r.bT,0))+'</td><td class="r m">'+fm(c.rC)+'</td><td></td><td class="r m">'+fm(c.rS)+'</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.gr,0))+'</td><td class="r m">'+fm(D.real.reduce((s,r)=>s+r.sC+r.sT,0))+'</td><td class="r">'+bg(c.rpl)+'</td><td class="r m gn">'+(c.rpl/c.rC*100).toFixed(2)+'%</td></tr>'+
+    '<tr class="t"><td colspan="4" class="r">합계</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.buyAmt,0))+'</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.bC+r.bT,0))+'</td><td class="r m">'+fm(c.rC)+'</td><td></td><td class="r m">'+fm(c.rS)+'</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.gr,0))+'</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.sC+r.sT,0))+'</td><td class="r">'+bg(c.rpl)+'</td><td class="r m gn">'+(c.rpl/c.rC*100).toFixed(2)+'%</td></tr>'+
     '</table></div></div>'+
 
     // 4. 은행 법인 계좌 상세 내역
