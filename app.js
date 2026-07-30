@@ -65,6 +65,18 @@ var ACCT_TAX_DEFAULT = {
   '170':'課税仕入10%','171':'課税仕入10%','172':'課税仕入10%','173':'課税仕入10%',
   '174':'非課税','175':'非課税','176':'課税仕入10%','181':'課税仕入10%'
 };
+// ── 個別対応方式 用途区分 ──
+// 課税売上対応: 과세매출을 올리기 위한 매입 (매출원가·직접경비)
+// 非課税売上対応: 비과세매출 전용 매입 (유가증권 양도를 위한 매매수수료 등) → 공제 불가
+// 共通対応: 양쪽에 공통 (일반관리비) → 課税売上割合만큼 공제
+var ACCT_TAX_USE = {
+  '500':'課税売上対応','501':'課税売上対応','502':'課税売上対応','504':'課税売上対応',
+  '537':'非課税売上対応'   // 有価証券売買手数料 — 유가증권 양도(非課税売上)를 위한 매입
+};
+function taxUseOf(code,j){
+  if(j&&j.taxUse) return j.taxUse;          // 전표별 수동 지정 우선
+  return ACCT_TAX_USE[code]||'共通対応';
+}
 // 課税仕入 집계 대상 자산계정 (위에 등록된 것만)
 function isTaxableAsset(code){
   var a=D.accts.find(function(x){return x.c===code;});
@@ -3542,6 +3554,8 @@ function taxAggregate(fy){
   TAXCLS_BUY.forEach(function(c){bBuy[c]={amt:0,tax:0,cnt:0};});
   TAXCLS_SELL.concat(['対象外']).forEach(function(c){bSell[c]={amt:0,tax:0,cnt:0};});
   bBuy['미분류']={amt:0,tax:0,cnt:0}; bSell['미분류']={amt:0,tax:0,cnt:0};
+  var useTax={'課税売上対応':0,'非課税売上対応':0,'共通対応':0};
+  var useAmt={'課税売上対応':0,'非課税売上対応':0,'共通対応':0};
   function put(side,j,code,amt,useCls){
     // 복합전표의 비대표측은 전표 라벨이 아닌 계정 기본값을 사용
     var cls=useCls?normTaxCls(j,side,code):(ACCT_TAX_DEFAULT[code]||'対象外');
@@ -3551,7 +3565,11 @@ function taxAggregate(fy){
     if(!B[cls]) B[cls]={amt:0,tax:0,cnt:0};
     B[cls].amt+=amt; B[cls].cnt++;
     var rt=taxRateOf(cls);
-    if(rt>0) B[cls].tax+=Math.floor(amt*rt/(100+rt));   // 税込 → 세액 역산
+    if(rt>0){
+      var tx=Math.floor(amt*rt/(100+rt));               // 税込 → 세액 역산
+      B[cls].tax+=tx;
+      if(side==='buy'){ var u=taxUseOf(code,j); useTax[u]+=tx; useAmt[u]+=amt; }
+    }
   }
   // 한 전표가 비용·수익 양쪽에 걸리면 (예: DR550/CR401 원천세 총액계상) 양측 모두 집계
   FJ.forEach(function(j){
@@ -3580,7 +3598,9 @@ function taxAggregate(fy){
     buckets[k].amt+=B[k].amt; buckets[k].tax+=B[k].tax; buckets[k].cnt+=B[k].cnt;});});
   return {fy:f,bBuy:bBuy,bSell:bSell,buckets:buckets,taxSale:taxSale,nonTaxSale:nonTaxSale,secSale:secSale,secDen:secDen,
           num:num,den:den,ratio:ratio,inTax:inTax,outTax:outTax,
-          ippan:Math.round(inTax*ratio),        // 一括比例配分方式 공제액
+          useTax:useTax,useAmt:useAmt,
+          ippan:Math.round(inTax*ratio),                                        // 一括比例配分方式
+          kobetsu:useTax['課税売上対応']+Math.round(useTax['共通対応']*ratio),   // 個別対応方式
           fullDeduct:(ratio>=0.95&&den>0)};     // 課税売上割合 95% 이상 → 전액공제
 }
 
@@ -3645,13 +3665,26 @@ function rTaxSummary(){
   h+='</div>';
 
   // ── 방식 비교 ──
-  if(A.den>0&&!A.fullDeduct){
-    h+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">⚖️ 공제방식 비교 (課税売上割合 95% 미만)</div>';
-    h+='<table style="font-size:11px"><thead><tr><th>방식</th><th class="r">공제 매입세액</th><th>비고</th></tr></thead><tbody>';
-    h+='<tr><td>一括比例配分方式</td><td class="r m">'+fm(A.ippan)+'</td><td class="mu" style="font-size:10px">매입세액 전체 × 課税売上割合. 2년 계속 적용 의무</td></tr>';
-    h+='<tr class="a"><td>個別対応方式</td><td class="r m">用途区分 필요</td><td class="mu" style="font-size:10px">課税/非課税/共通 3구분. 통상 유리하나 구분 관리 필요</td></tr>';
+  {
+    var U=A.useTax, better=(A.ippan>=A.kobetsu)?'一括比例配分方式':'個別対応方式';
+    h+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">⚖️ 공제방식 비교 '+(A.fullDeduct?'(割合 95% 이상 — 전액공제라 방식 무관)':'(割合 95% 미만 — 안분 필요)')+'</div>';
+    h+='<div style="font-size:11px;color:#64748b;margin-bottom:8px">課税売上割合이 95% 미만이면 매입세액을 전액 공제할 수 없고, 아래 두 방식 중 하나로 안분합니다.</div>';
+    h+='<div style="font-size:12px;font-weight:700;margin:8px 0 4px">① 用途区分별 매입세액 (個別対応方式 기준)</div>';
+    h+='<table style="font-size:11px"><thead><tr><th>用途区分</th><th class="r">매입세액</th><th class="r">공제율</th><th class="r">공제액</th><th>대상</th></tr></thead><tbody>';
+    h+='<tr><td>課税売上対応</td><td class="r m">'+fm(U['課税売上対応'])+'</td><td class="r">100%</td><td class="r m">'+fm(U['課税売上対応'])+'</td><td class="mu" style="font-size:10px">매출원가 등 과세매출 직접대응</td></tr>';
+    h+='<tr class="a"><td>非課税売上対応</td><td class="r m">'+fm(U['非課税売上対応'])+'</td><td class="r">0%</td><td class="r m">0</td><td class="mu" style="font-size:10px">537 유가증권매매수수료 — 유가증권 양도는 非課税売上</td></tr>';
+    h+='<tr><td>共通対応</td><td class="r m">'+fm(U['共通対応'])+'</td><td class="r">'+(A.ratio*100).toFixed(2)+'%</td><td class="r m">'+fm(Math.round(U['共通対応']*A.ratio))+'</td><td class="mu" style="font-size:10px">일반관리비 (교통비·수수료 등)</td></tr>';
     h+='</tbody></table>';
-    h+='<div style="font-size:10px;color:#d97706;margin-top:6px">※ 방식 선택은 세리사 확인 필요. 태성은 유가증권 양도(非課税売上)가 크므로 個別対応方式이 유리할 수 있습니다.</div></div>';
+    h+='<div style="font-size:12px;font-weight:700;margin:12px 0 4px">② 방식별 공제액</div>';
+    h+='<table style="font-size:11px"><thead><tr><th>방식</th><th class="r">공제 매입세액</th><th>산식</th></tr></thead><tbody>';
+    h+='<tr'+(better==='一括比例配分方式'?' style="background:#d1fae5;font-weight:700"':'')+'><td>一括比例配分方式</td><td class="r m">'+fm(A.ippan)+'</td><td class="mu" style="font-size:10px">매입세액 전체 '+fm(A.inTax)+' × '+(A.ratio*100).toFixed(2)+'%</td></tr>';
+    h+='<tr'+(better==='個別対応方式'?' style="background:#d1fae5;font-weight:700"':' class="a"')+'><td>個別対応方式</td><td class="r m">'+fm(A.kobetsu)+'</td><td class="mu" style="font-size:10px">課税対応 '+fm(U['課税売上対応'])+' + 共通 '+fm(U['共通対応'])+' × '+(A.ratio*100).toFixed(2)+'%</td></tr>';
+    h+='</tbody></table>';
+    if(A.den>0&&!A.fullDeduct&&Math.abs(A.ippan-A.kobetsu)>0){
+      h+='<div style="margin-top:8px;padding:8px;background:#eff6ff;border-radius:6px;font-size:11px"><b>→ '+better+'가 '+fm(Math.abs(A.ippan-A.kobetsu))+'엔 유리</b><br>'+
+         '태성은 매입세액의 '+(A.inTax?Math.round(U['非課税売上対応']/A.inTax*100):0)+'%가 537 증권매매수수료(非課税売上対応)라 個別対応方式에서는 이 부분이 <b>전액 공제 불가</b>가 됩니다. 一括比例配分方式은 전체에 割合을 곱하므로 537분도 일부 공제됩니다.</div>';
+    }
+    h+='<div style="font-size:10px;color:#d97706;margin-top:6px">※ 一括比例配分方式은 <b>2년 계속 적용 의무</b>가 있습니다. 증권 매매가 줄고 과세매출이 커지면 유불리가 뒤집힐 수 있으니 채택 전 2년치를 전망해보세요.<br>※ 割合이 95% 이상이면 안분 없이 전액공제이므로 방식 선택 자체가 불필요합니다.</div></div>';
   }
 
   // ── 税区分 정규화 ──
