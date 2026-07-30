@@ -245,14 +245,15 @@ function dynamicFS(){
   const deposit=acctBalAsOf('110',_bsEnd);
   const secDep=acctBalAsOf('191',_bsEnd);
   const secBookVal=acctBalAsOf('130',_bsEnd); // 전표 장부가
+  const fxDep=acctBalAsOf('192',_bsEnd); // 외화증권예수금 (예수금 → 현금성자산)
   const secMV=c.allMv;
   const journalEvalLoss=acctBalFY('542'); // 전표상 평가손 (당기)
   const evalAdj=useJEval?0:(-evalPL-journalEvalLoss); // 결산확정 시 장부가=시가 → 추가조정 없음
   const secForBS=secBookVal-evalAdj; // 시가 반영 유가증권
-  const cashT=deposit+secDep;
+  const cashT=deposit+secDep+fxDep;
   // Other assets (fixed assets, prepaid, etc.) — all asset accounts except 110, 191, 130
   let otherAssets=0;
-  D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){otherAssets+=acctBalAsOf(ac.c,_bsEnd);});
+  D.accts.filter(function(ac){return ac.g==='자산'&&['110','191','130','192'].indexOf(ac.c)<0;}).forEach(function(ac){otherAssets+=acctBalAsOf(ac.c,_bsEnd);});
   const totA=cashT+secForBS+otherAssets;
   // Liabilities + Equity: all from journals
   let totL=0;D.accts.filter(function(ac){return ac.g==='부채';}).forEach(function(ac){totL+=acctBalAsOf(ac.c,_bsEnd);});
@@ -262,7 +263,7 @@ function dynamicFS(){
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,estTax:estTaxVal,ni,deposit,secDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,retainedBal,eqNI,totE,evalAdj,useJEval,noeEtc,bsEnd:_bsEnd};
+  return {sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,estTax:estTaxVal,ni,deposit,secDep,fxDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,retainedBal,eqNI,totE,evalAdj,useJEval,noeEtc,bsEnd:_bsEnd};
 }
 
 
@@ -706,7 +707,7 @@ function updateTaxJournal(){
   const tomin=Math.round(houjinzei*0.07);
   const kintou=70000;
   const newTax=houjinzei+chihou+jigyou+tokubetsu+tomin+kintou;
-  const currentTax=acctBal('550');
+  const currentTax=acctBalFY('550');
   
   const info='법인세 전표 갱신\n\n'+
     '현재 전표: '+fm(currentTax)+'\n'+
@@ -1015,6 +1016,14 @@ function acctBalFY(code,fy){
 function fyList(){
   var set={};D.journals.forEach(function(j){set[jFY(j)]=1;});set[curFY()]=1;
   return Object.keys(set).map(Number).sort(function(a,b){return a-b;});
+}
+function isCurFYOpen(){ // 선택 회기가 아직 진행 중인가 (과거 회기면 false)
+  var t=new Date().toISOString().slice(0,10);
+  return curFY()>=fyOf(t);
+}
+function warekiDate(iso){ // ISO → 令和N年M月D日
+  var y=parseInt(iso.slice(0,4)),m=parseInt(iso.slice(5,7)),d=parseInt(iso.slice(8,10));
+  return '令和'+(y-2018)+'年'+m+'月'+d+'日';
 }
 function fyWareki(fy){ // 회기 → 일본 和暦 기간 문자열
   var f=fy||curFY(), r=fyRange(f);
@@ -1374,7 +1383,7 @@ function exportWord(){
 
 <h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">1. 총자산내역</h2>
 <table ${T}><tr><td style="${TH}">구분</td><td style="${THR}">내역(엔)</td><td style="${TH}">비고</td></tr>
-<tr><td style="${S}">자본금</td><td style="${HR}">${fm(acctBal("300"))}</td><td style="${S}"></td></tr>
+<tr><td style="${S}">자본금</td><td style="${HR}">${fm(acctBalAsOf("300",fyRange(curFY()).end))}</td><td style="${S}"></td></tr>
 <tr><td style="${S}background:#f5f5f5">수입</td><td style="${HR}background:#f5f5f5">${fm(opIn2)}</td><td style="${S}background:#f5f5f5"></td></tr>
 <tr><td style="${S}">지출</td><td style="${HR}color:#dc2626">(${fm(opOut2)})</td><td style="${S}"></td></tr>
 <tr><td style="${S}background:#f5f5f5;font-weight:bold">법인계좌잔액---(1)</td><td style="${HB}background:#f5f5f5">${fm(c.bb)}</td><td style="${S}background:#f5f5f5;color:#888">미츠이스미토모</td></tr>
@@ -2079,7 +2088,7 @@ function renderAlerts(){
 }
 
 function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보드</div>
-  <div class="cards"><div class="cd bl"><div class="l">총 보유 자산</div><div class="v">${fy(c.bb+c.secBal)}</div>${c.totA!==(c.bb+c.secBal)?'<div style="font-size:9px;color:#2563eb;margin-top:2px" title="'+otherAssetDesc()+' 포함">총자산(B/S) '+fy(c.totA)+'</div>':''}</div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd ${c.rpl>=0?'gn':'rd'}"><div class="l">실현손익</div><div class="v">${fys(c.rpl)}</div></div></div>
+  <div class="cards"><div class="cd bl"><div class="l">총 보유 자산 (시가)</div><div class="v">${fy(c.totA)}</div>${(function(){var _d=dynamicFS();var _gap=_d.totA-c.totA;return '<div style="font-size:9px;color:#64748b;margin-top:2px" title="B/S는 취득원가(장부가) 기준 — 洗替方式이므로 평가는 결산 시에만 반영. 기타자산: '+otherAssetDesc()+'">제'+curFY()+'기 B/S 장부가 '+fy(_d.totA)+(_gap!==0?' <span style="color:'+(_gap>0?'#dc2626':'#059669')+'">미실현 '+fys(-_gap)+'</span>':'')+'</div>';})()}</div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd ${c.rpl>=0?'gn':'rd'}"><div class="l">실현손익</div><div class="v">${fys(c.rpl)}</div></div></div>
   <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>
   ${renderAlerts()}
   <div class="pn" style="margin-top:14px">
@@ -2508,7 +2517,7 @@ function rRpt(){
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">1. 총자산내역</div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'총자산\')">+ 행추가</button></div>'+
     '<div style="font-size:10px;color:#64748b;margin:-2px 0 6px">※ 수입·지출은 普通預金(110) 자금흐름 기준 · 증권계좌 매매손익은 별도 표기 · 검산: 자본금 + 수입 − 지출 + 증권→법인이체 = 법인계좌 잔액</div>'+
     '<div class="pn"><table><thead><tr><th>구분</th><th class="r">내역(엔)</th><th>비고</th></tr></thead><tbody>'+
-    '<tr><td>자본금</td><td class="r m">'+fm(acctBal('300'))+'</td><td class="mu" style="font-size:10px">普通預金 입금</td></tr>'+
+    '<tr><td>자본금</td><td class="r m">'+fm(acctBalAsOf('300',fyRange(curFY()).end))+'</td><td class="mu" style="font-size:10px">普通預金 입금</td></tr>'+
     '<tr class="a"><td>수입</td><td class="r m gn">'+fm(rptIn)+'</td><td class="mu" style="font-size:10px">운영수입 (이자 등, 자본금·借入金·증권이체 제외)</td></tr>'+
     '<tr><td>지출</td><td class="r m" style="color:#dc2626">('+fm(rptOut)+')</td><td class="mu" style="font-size:10px">카드·정산·役員報酬·EB·수수료 등</td></tr>'+
     '<tr class="a"><td>증권계좌→법인 이체</td><td class="r m gn">'+fm(secToCorp)+'</td><td class="mu" style="font-size:10px">증권계좌에서 法人계좌로 이체분</td></tr>'+
@@ -2795,14 +2804,14 @@ function exportFSWord(){
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅱ　販売費及び一般管理費</td></tr>
-'+function(){var excl=['537','540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];var r='';D.accts.filter(function(ac){return ac.g==='비용'&&excl.indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBalFY(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;}()+'
+${(function(){var excl=['537','540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];var r='';D.accts.filter(function(ac){return ac.g==='비용'&&excl.indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBalFY(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;})()}
 <tr class="sub"><td>　販管費合計</td><td></td><td class="r b">${fm(d.sgaT)}</td><td></td></tr>
 <tr><td>　創立費</td><td></td><td class="r">${fm(d.su)}</td><td></td></tr>
 <tr class="sub"><td>営業損失</td><td></td><td></td><td class="r b" style="color:#c0392b">${fm(d.ol)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">Ⅲ　営業外収益</td></tr>
-'+function(){var r='';D.accts.filter(function(ac){return ac.g==='수익'&&ac.c!=='414';}).forEach(function(ac){var b=acctBalFY(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});if(d.evalGain>0)r+='<tr><td>　有価証券評価益（未実現）</td><td class="r">'+fm(d.evalGain)+'</td><td></td><td></td></tr><tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>';return r;}()+'
+${(function(){var r='';D.accts.filter(function(ac){return ac.g==='수익'&&ac.c!=='414';}).forEach(function(ac){var b=acctBalFY(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});if(d.evalGain>0)r+='<tr><td>　有価証券評価益（未実現）</td><td class="r">'+fm(d.evalGain)+'</td><td></td><td></td></tr><tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>';return r;})()}
 <tr class="sub"><td>　営業外収益合計</td><td></td><td></td><td class="r b">${fm(d.noiT)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
@@ -2824,7 +2833,7 @@ ${d.evalLoss>0?'<tr><td>　有価証券評価損（未実現）</td><td class="r
 
 <div class="stamp"><div class="s1">決裁</div><div class="s2">本人専決</div></div>
 <h1>貸 借 対 照 表</h1>
-<div class="sub">泰成株式会社<br>令和8年4月2日現在（暫定）<br>（単位：円）</div>
+<div class="sub">泰成株式会社<br>第${curFY()}期　${warekiDate(d.bsEnd)}現在<br>（単位：円）</div>
 
 <table>
 <tr><th style="width:40%">科目</th><th class="r" style="width:20%">内訳</th><th class="r" style="width:20%">小計</th><th class="r" style="width:20%">合計</th></tr>
@@ -2832,29 +2841,29 @@ ${d.evalLoss>0?'<tr><td>　有価証券評価損（未実現）</td><td class="r
 <tr class="sec"><td colspan="4">【資産の部】</td></tr>
 <tr><td>　普通預金</td><td class="r">${fm(d.deposit)}</td><td></td><td></td></tr>
 <tr><td>　証券預り金</td><td class="r">${fm(d.secDep)}</td><td></td><td></td></tr>
+${d.fxDep!==0?'<tr><td>　外貨証券預り金</td><td class="r">'+fm(d.fxDep)+'</td><td></td><td></td></tr>':''}
 <tr class="sub"><td>　現金・預金計</td><td></td><td class="r b">${fm(d.cashT)}</td><td></td></tr>
-<tr class="sub"><td>　有価証券（時価）</td><td></td><td class="r b">${fm(d.secMV)}</td><td></td></tr>
-${(function(){var rows='';D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){var b=acctBal(ac.c);if(b!==0)rows+='<tr><td>　'+ac.n+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return rows;})()}
+<tr class="sub"><td>　有価証券（帳簿価額）</td><td></td><td class="r b">${fm(d.secForBS)}</td><td></td></tr>
+${(isCurFYOpen()&&d.secMV!==d.secForBS)?'<tr><td colspan="4" class="note">　　※時価 '+fm(d.secMV)+'（未実現評価損益 '+fys(d.secMV-d.secForBS)+'）洗替方式により決算時に評価</td></tr>':''}
+${(function(){var rows='';D.accts.filter(function(ac){return ac.g==='자산'&&['110','191','130','192'].indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBalAsOf(ac.c,d.bsEnd);if(b!==0)rows+='<tr><td>　'+ac.n+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return rows;})()}
 <tr class="total"><td>資産合計</td><td></td><td></td><td class="r" style="font-size:11pt">${fm(d.totA)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">【負債の部】</td></tr>
-<tr><td>　役員借入金</td><td class="r">${fm(acctBal("221")+acctBal("220"))}</td><td></td><td></td></tr>
-<tr><td>　未払利息（年1%、289日）</td><td class="r">${fm(d.interestPay)}</td><td></td><td></td></tr>
-<tr><td>　未払金（設立費）</td><td class="r">${fm(371400)}</td><td></td><td></td></tr>
-<tr><td>　未払法人税等</td><td class="r">${fm(d.ct)}</td><td></td><td></td></tr>
+${(function(){var rows='';D.accts.filter(function(ac){return ac.g==='부채';}).forEach(function(ac){var b=acctBalAsOf(ac.c,d.bsEnd);if(b!==0)rows+='<tr><td>　'+ac.n+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return rows||'<tr><td colspan="4" class="note">　　負債なし</td></tr>';})()}
 <tr class="total"><td>負債合計</td><td></td><td></td><td class="r">${fm(d.totL)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
 <tr class="sec"><td colspan="4">【純資産の部】</td></tr>
-<tr><td>　資本金</td><td class="r">${fm(acctBal("300"))}</td><td></td><td></td></tr>
-<tr><td>　利益剰余金（当期純利益）</td><td class="r">${fm(d.eqNI)}</td><td></td><td></td></tr>
+${(function(){var rows='';D.accts.filter(function(ac){return ac.g==='순자산';}).forEach(function(ac){var b=acctBalAsOf(ac.c,d.bsEnd);if(b!==0)rows+='<tr><td>　'+ac.n+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return rows;})()}
+${d.retainedBal!==0?'<tr><td>　前期繰越利益剰余金</td><td class="r">'+fm(d.retainedBal)+'</td><td></td><td></td></tr>':''}
+<tr><td>　当期純利益</td><td class="r">${fm(d.eqNI)}</td><td></td><td></td></tr>
 <tr class="total"><td>純資産合計</td><td></td><td></td><td class="r">${fm(d.totE)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 <tr class="total" style="background:#0d1b3e"><td>負債・純資産合計</td><td></td><td></td><td class="r" style="font-size:12pt">${fm(d.totL+d.totE)}</td></tr>
 </table>
 
-<div class="footer">泰成株式会社 財務管理システム ｜ 出力日: ${dateStr} ｜ 本書は暫定値に基づく参考資料です</div>
+<div class="footer">泰成株式会社 財務管理システム ｜ 出力日: ${dateStr} ｜ 第${curFY()}期 ${fyWareki()}</div>
 </body></html>`;
 
   const blob=new Blob([html],{type:'application/msword'});
@@ -4440,7 +4449,7 @@ function rBSTab(){
   // Dynamic asset items (exclude 110, 191, 130 which are shown separately)
   var _e=d.bsEnd;
   var extraAssets='';
-  D.accts.filter(function(ac){return ac.g==='자산'&&ac.c!=='110'&&ac.c!=='191'&&ac.c!=='130';}).forEach(function(ac){var b=acctBalAsOf(ac.c,_e);if(b!==0)extraAssets+='<div class="fr"><span>'+ac.k+'</span><span class="m">'+fm(b)+'</span></div>';});
+  D.accts.filter(function(ac){return ac.g==='자산'&&['110','191','130','192'].indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBalAsOf(ac.c,_e);if(b!==0)extraAssets+='<div class="fr"><span>'+ac.k+'</span><span class="m">'+fm(b)+'</span></div>';});
   // Dynamic liability items
   var liabItems='';
   D.accts.filter(function(ac){return ac.g==='부채';}).forEach(function(ac){var b=acctBalAsOf(ac.c,_e);if(b!==0)liabItems+='<div class="fr"><span>'+ac.k+'</span><span class="m">'+fm(b)+'</span></div>';});
@@ -4452,9 +4461,10 @@ function rBSTab(){
   '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#2563eb;margin-bottom:10px">【자산】</div>'+
   '<div class="fr"><span>보통예금</span><span class="m">'+fm(d.deposit)+'</span></div>'+
   '<div class="fr"><span>증권예수금</span><span class="m">'+fm(d.secDep)+'</span></div>'+
+  (d.fxDep!==0?'<div class="fr"><span>외화증권예수금</span><span class="m">'+fm(d.fxDep)+'</span></div>':'')+
   '<div class="fr b tl"><span>현금·예금계</span><span class="m">'+fm(d.cashT)+'</span></div>'+
   '<div class="fr"><span>유가증권(장부가)</span><span class="m">'+fm(d.secBookVal)+'</span></div>'+
-  '<div class="fr" style="font-size:10px;color:#64748b"><span>　※시가평가: '+fm(d.secMV)+'</span><span></span></div>'+
+  (isCurFYOpen()?'<div class="fr" style="font-size:10px;color:#64748b"><span>　※시가평가 '+fm(d.secMV)+' (미실현 '+fys(d.secMV-d.secBookVal)+')</span><span></span></div>':'<div class="fr" style="font-size:10px;color:#64748b"><span>　※결산확정 장부가 (과거 회기)</span><span></span></div>')+
   extraAssets+'<div class="fr b tl" style="color:#2563eb;font-size:14px"><span>자산합계</span><span class="m">'+fm(d.totA)+'</span></div></div>'+
   '<div class="pn" style="padding:14px"><div style="text-align:center;font-size:14px;font-weight:700;color:#d97706;margin-bottom:10px">【부채】</div>'+
   liabItems+
