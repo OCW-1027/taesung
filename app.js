@@ -1,5 +1,76 @@
 // ===== STORAGE =====
 const DKEY='taesung_data', SKEY='taesung_settings';
+
+// ═══════════ 消費税 税区分 체계 (소비세법) ═══════════
+var TAXCLS_BUY  = ['課税仕入10%','課税仕入8%','非課税','不課税','対象外'];
+var TAXCLS_SELL = ['課税売上10%','課税売上8%','輸出免税0%','非課税売上','不課税売上'];
+var TAXCLS_ALL  = TAXCLS_BUY.concat(TAXCLS_SELL);
+// 個別対応方式 用途区分 (세리사 채택 시 사용)
+var TAXUSE = ['課税売上対応','非課税売上対応','共通対応'];
+// 税区分 → 세율
+var _RN=['Ⅰ','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ','Ⅶ','Ⅷ'];
+function _rn(){ window._plN=(window._plN||0)+1; return _RN[window._plN-1]||('('+window._plN+')'); }
+function taxClsOptions(sel){
+  var v=sel||'';
+  var o='<option value="">-</option>';
+  o+='<optgroup label="── 매입 (仕入) ──">';
+  TAXCLS_BUY.forEach(function(c){o+='<option value="'+c+'"'+(c===v?' selected':'')+'>'+c+'</option>';});
+  o+='</optgroup><optgroup label="── 매출 (売上) ──">';
+  TAXCLS_SELL.forEach(function(c){o+='<option value="'+c+'"'+(c===v?' selected':'')+'>'+c+'</option>';});
+  o+='</optgroup>';
+  return o;
+}
+// 계정 선택 시 税区分 자동 설정
+function autoTaxCls(tr){
+  if(!tr) return;
+  var ac=tr.querySelector('.sl_acct'), tc=tr.querySelector('.sl_taxcls');
+  if(!ac||!tc||!ac.value) return;
+  if(tc.value) return;                       // 사용자가 이미 고른 값은 유지
+  var def=ACCT_TAX_DEFAULT[ac.value];
+  if(def) tc.value=def;
+}
+function taxRateOf(cls){
+  if(cls==='課税仕入10%'||cls==='課税売上10%') return 10;
+  if(cls==='課税仕入8%'||cls==='課税売上8%') return 8;
+  return 0;
+}
+// 계정별 기본 税区分 (전표 입력 시 자동 선택 · 마이그레이션 기준)
+var ACCT_TAX_DEFAULT = {
+  // ── 매출 ──
+  '400':'課税売上10%','415':'輸出免税0%','416':'不課税売上','417':'課税売上10%',
+  '401':'非課税売上','402':'不課税売上','403':'対象外','404':'対象外','405':'不課税売上',
+  '406':'課税売上10%','407':'課税売上10%','408':'非課税売上','409':'課税売上10%',
+  '410':'課税仕入10%','411':'対象外','412':'対象外','413':'対象外','414':'対象外',
+  // ── 매출원가 ──
+  '500':'課税仕入10%','501':'課税仕入10%','502':'課税仕入10%','503':'対象外','504':'課税仕入10%',
+  // ── 인건비 (급여·보수는 불과세이나 실무상 対象外) ──
+  '510':'対象外','511':'対象外','512':'対象外','513':'対象外','515':'対象外','514':'課税仕入10%',
+  // ── 판관비 ──
+  '516':'課税仕入10%','520':'課税仕入10%','521':'不課税','522':'課税仕入10%','523':'課税仕入10%',
+  '524':'課税仕入10%','525':'課税仕入10%','526':'課税仕入10%','527':'課税仕入10%','528':'課税仕入10%',
+  '529':'対象外','530':'対象外','531':'課税仕入10%','532':'課税仕入10%','533':'課税仕入10%',
+  '534':'課税仕入10%','535':'課税仕入10%','536':'課税仕入10%','537':'課税仕入10%',
+  '538':'課税仕入10%','539':'課税仕入10%','547':'課税仕入10%','548':'課税仕入10%','549':'課税仕入10%',
+  '570':'課税仕入10%','580':'課税仕入10%','581':'課税仕入10%','582':'課税仕入10%','583':'課税仕入10%','584':'課税仕入10%',
+  // ── 영업외·법인세 ──
+  '540':'非課税','541':'対象外','542':'対象外','543':'対象外','544':'対象外','545':'対象外','546':'対象外',
+  '550':'対象外','551':'対象外','552':'対象外','553':'対象外',
+  // ── 창립비 (등록면허세 対象外 + 사법서사보수 課税 혼재 → 안전측) ──
+  '560':'対象外','561':'対象外','562':'対象外','563':'対象外','564':'対象外','565':'対象外'
+};
+// 매출계정 신설 (data.js 미변경 — 여기서 병합)
+var ACCT_EXTRA = [
+  {c:'415',n:'売上高-輸出免税',k:'매출-수출면세',g:'수익'},
+  {c:'416',n:'売上高-国外不課税',k:'매출-국외불과세',g:'수익'},
+  {c:'417',n:'売上値引・返品',k:'매출할인·환입',g:'수익'}
+];
+function mergeAccts(){
+  var base=ACCT_INIT.concat(ACCT_EXTRA||[]).concat(D.customAccts||[]).filter(function(a){return a&&a.c;});
+  var seen={},out=[];
+  base.forEach(function(a){ if(!seen[a.c]){seen[a.c]=1;out.push(a);} });
+  return out.sort(function(x,y){return x.c.localeCompare(y.c);});
+}
+
 // DEF_SET defined above
 function loadJ(k,def){try{const v=localStorage.getItem(k);return v?{...def,...JSON.parse(v)}:def;}catch(e){return def;}}
 // SET defined above
@@ -11,7 +82,7 @@ let D=loadJ(DKEY,DEF_DATA);
 // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
 if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}
-D.accts=ACCT_INIT.concat(D.customAccts);
+D.accts=mergeAccts();
 if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
 if(!D.fxSecDeposit)D.fxSecDeposit={USD:{amt:0,avgRate:0,curRate:0}};
 if(!D.vendors)D.vendors=INIT_VENDORS;
@@ -243,7 +314,27 @@ function dynamicFS(){
   noiCodes.forEach(c2=>{noiT+=acctBalFY(c2);});
   specCodes.forEach(c2=>{suT+=acctBalFY(c2);});
   const su=suT;
-  const ol=0-sgaT-su; // 매출 0
+  // ── Ⅰ 売上高 (400 국내 + 415 수출면세 + 416 국외불과세 + 417 값인·반품(음수)) ──
+  const salesCodes=['400','415','416','417'];
+  let sales=0; const salesDetail=[];
+  salesCodes.forEach(function(c2){var v=acctBalFY(c2);sales+=v;if(v!==0)salesDetail.push({c:c2,v:v});});
+  // ── Ⅱ 売上原価 = 期首棚卸 + 当期仕入 − 期末棚卸 ──
+  const invCodes=['140','141','142','143','144','145'];
+  const _fyN=curFY();
+  const _prevEnd=_fyN>1?fyRange(_fyN-1).end:null;
+  const _thisEnd=fyRange(_fyN).end;
+  let invBegin=0,invEnd=0;
+  invCodes.forEach(function(c2){
+    if(_prevEnd) invBegin+=acctBalAsOf(c2,_prevEnd);
+    invEnd+=acctBalAsOf(c2,_thisEnd);
+  });
+  const cogsCodes=['500','501','502','503','504'];
+  let purchase=0; const cogsDetail=[];
+  cogsCodes.forEach(function(c2){var v=acctBalFY(c2);purchase+=v;if(v!==0)cogsDetail.push({c:c2,v:v});});
+  const cogs=invBegin+purchase-invEnd;
+  const gross=sales-cogs;                  // 売上総利益
+  const opInc=gross-sgaT-su;               // 営業利益 (기존 ol과 동일 산식, 매출 반영)
+  const ol=opInc;                          // 하위호환
   const interestPay=acctBalFY('540'); // 지급이자 (당기)
   // 평가손익: 결산확정 전표(414 평가익/542 평가손)가 있으면 전표 우선, 없으면 보유종목 시가로 동적 계산
   const jEvalGain=acctBalFY('414'),jEvalLoss=acctBalFY('542');
@@ -286,7 +377,7 @@ function dynamicFS(){
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,estTax:estTaxVal,ni,deposit,secDep,fxDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,retainedBal,eqNI,totE,evalAdj,useJEval,noeEtc,bsEnd:_bsEnd};
+  return {sales,salesDetail,cogs,cogsDetail,purchase,invBegin,invEnd,gross,opInc,sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,estTax:estTaxVal,ni,deposit,secDep,fxDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,retainedBal,eqNI,totE,evalAdj,useJEval,noeEtc,bsEnd:_bsEnd};
 }
 
 
@@ -641,7 +732,7 @@ async function doFbDownload(){
     // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
 if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}
-D.accts=ACCT_INIT.concat(D.customAccts);
+D.accts=mergeAccts();
     if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
     if(!D.vendors)D.vendors=INIT_VENDORS||[];
     D._lastSaved=new Date().toISOString();
@@ -1519,7 +1610,7 @@ function applyPrices(){
 }
 
 // ===== SLIP (전표작성) =====
-function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend','<tr id="sr_'+id+'"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%" onchange="slipAutoFill(this.closest(&quot;tr&quot;))">'+acctOptions()+'</select></td><td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td><td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="과세10%">과세10%</option><option value="경감8%">경감8%</option><option value="비과세">비과세</option><option value="불과세">불과세</option></select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td><button class="del" onclick="document.getElementById(\'sr_'+id+'\').remove();updSlipBal()">✕</button></td></tr>');}
+function addSlipRow(){const tb=document.getElementById('slipRows');const id=nid();tb.insertAdjacentHTML('beforeend','<tr id="sr_'+id+'"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px"><option value="dr">차변</option><option value="cr">대변</option></select></td><td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%" onchange="slipAutoFill(this.closest(&quot;tr&quot;));autoTaxCls(this.closest(&quot;tr&quot;))">'+acctOptions()+'</select></td><td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td><td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px">'+taxClsOptions()+'</select></td><td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td><td><button class="del" onclick="document.getElementById(\'sr_'+id+'\').remove();updSlipBal()">✕</button></td></tr>');}
 
 // ===== 전표 자동완성 (계정 선택 시 반대편 추천) =====
 var ACCT_PAIRS={
@@ -1648,16 +1739,16 @@ function rSlip(){
     '<table><thead><tr><th>차/대</th><th>계정과목</th><th>원가구분</th><th>소비세</th><th class="r">금액</th><th></th></tr></thead>'+
     '<tbody id="slipRows">'+
       '<tr id="sr_1"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#dbeafe"><option value="dr">차변</option><option value="cr">대변</option></select></td>'+
-      '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%" onchange="slipAutoFill(this.closest(&quot;tr&quot;))">'+acctOptions()+'</select></td>'+
+      '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%" onchange="slipAutoFill(this.closest(&quot;tr&quot;));autoTaxCls(this.closest(&quot;tr&quot;))">'+acctOptions()+'</select></td>'+
       '<td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td>'+
-      '<td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="과세10%">과세10%</option><option value="경감8%">경감8%</option><option value="비과세">비과세</option><option value="불과세">불과세</option></select></td>'+
+      '<td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px">'+taxClsOptions()+'</select></td>'+
       '<td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td>'+
       
       '<td></td></tr>'+
       '<tr id="sr_2"><td><select class="sl_side" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;background:#fee2e2"><option value="cr">대변</option><option value="dr">차변</option></select></td>'+
-      '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%" onchange="slipAutoFill(this.closest(&quot;tr&quot;))">'+acctOptions()+'</select></td>'+
+      '<td><select class="sl_acct" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;width:100%" onchange="slipAutoFill(this.closest(&quot;tr&quot;));autoTaxCls(this.closest(&quot;tr&quot;))">'+acctOptions()+'</select></td>'+
       '<td><select class="sl_exp" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="c">매출원가</option><option value="s">판관비</option><option value="o">영업외</option><option value="x">특별</option></select></td>'+
-      '<td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px"><option value="">-</option><option value="과세10%">과세10%</option><option value="경감8%">경감8%</option><option value="비과세">비과세</option><option value="불과세">불과세</option></select></td>'+
+      '<td><select class="sl_taxcls" style="padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:10px">'+taxClsOptions()+'</select></td>'+
       '<td class="r"><input type="number" class="sl_amt" placeholder="0" style="width:100px;padding:3px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;text-align:right" oninput="updSlipBal()"></td>'+
       
       '<td></td></tr>'+
@@ -1703,7 +1794,7 @@ function doAddV(){var n=document.getElementById('vn_n').value,t=document.getElem
 function delV(id){D.vendors=D.vendors.filter(v=>v.id!==id);saveD();manageVendors();refreshVendorSel();}
 
 // ===== Slip Edit/Copy =====
-function editSlip(id){var j=D.journals.find(x=>x.id===id);if(!j)return;closeModal();window._editSlipId=id;go('slip');setTimeout(function(){var e=document.getElementById('sl_edt');if(e)e.value=j.edt||'';var p=document.getElementById('sl_pdt');if(p)p.value=j.pdt||'';var d2=document.getElementById('sl_desc');if(d2)d2.value=j.desc||'';var c2=document.getElementById('sl_cur');if(c2)c2.value=j.cur||'JPY';var vs=document.getElementById('sl_vendor_sel');if(vs)vs.value=j.vendor||'';var vi=document.getElementById('sl_vendor_inp');if(vi){vi.value=j.vendor||'';vi.style.display=vs&&vs.value?'none':'block';}var rows=document.querySelectorAll('#slipRows tr');if(rows[0]){rows[0].querySelector('.sl_side').value='dr';rows[0].querySelector('.sl_acct').value=j.dr;rows[0].querySelector('.sl_amt').value=j.amt;var tc=rows[0].querySelector('.sl_taxcls');if(tc)tc.value=j.taxCls||'';}if(rows[1]){rows[1].querySelector('.sl_side').value='cr';rows[1].querySelector('.sl_acct').value=j.cr;rows[1].querySelector('.sl_amt').value=j.amt;}updSlipBal();var sb=document.getElementById('slipSubmit');if(sb){sb.textContent='수정 저장';sb.style.background='#2563eb';}},300);}
+function editSlip(id){var j=D.journals.find(x=>x.id===id);if(!j)return;closeModal();window._editSlipId=id;go('slip');setTimeout(function(){var e=document.getElementById('sl_edt');if(e)e.value=j.edt||'';var p=document.getElementById('sl_pdt');if(p)p.value=j.pdt||'';var d2=document.getElementById('sl_desc');if(d2)d2.value=j.desc||'';var c2=document.getElementById('sl_cur');if(c2)c2.value=j.cur||'JPY';var vs=document.getElementById('sl_vendor_sel');if(vs)vs.value=j.vendor||'';var vi=document.getElementById('sl_vendor_inp');if(vi){vi.value=j.vendor||'';vi.style.display=vs&&vs.value?'none':'block';}var rows=document.querySelectorAll('#slipRows tr');if(rows[0]){rows[0].querySelector('.sl_side').value='dr';rows[0].querySelector('.sl_acct').value=j.dr;rows[0].querySelector('.sl_amt').value=j.amt;var tc=rows[0].querySelector('.sl_taxcls');if(tc){if(j.taxCls&&TAXCLS_ALL.indexOf(j.taxCls)<0){tc.insertAdjacentHTML('beforeend','<option value="'+j.taxCls+'">'+j.taxCls+' (구표기)</option>');}tc.value=j.taxCls||'';}}if(rows[1]){rows[1].querySelector('.sl_side').value='cr';rows[1].querySelector('.sl_acct').value=j.cr;rows[1].querySelector('.sl_amt').value=j.amt;}updSlipBal();var sb=document.getElementById('slipSubmit');if(sb){sb.textContent='수정 저장';sb.style.background='#2563eb';}},300);}
 
 function copySlip(id){var j=D.journals.find(x=>x.id===id);if(!j)return;closeModal();window._editSlipId=null;go('slip');setTimeout(function(){var d2=document.getElementById('sl_desc');if(d2)d2.value=(j.desc||'')+' (복사)';var c2=document.getElementById('sl_cur');if(c2)c2.value=j.cur||'JPY';var vs=document.getElementById('sl_vendor_sel');if(vs)vs.value=j.vendor||'';var vi=document.getElementById('sl_vendor_inp');if(vi){vi.value=j.vendor||'';vi.style.display=vs&&vs.value?'none':'block';}var rows=document.querySelectorAll('#slipRows tr');if(rows[0]){rows[0].querySelector('.sl_side').value='dr';rows[0].querySelector('.sl_acct').value=j.dr;rows[0].querySelector('.sl_amt').value=j.amt;}if(rows[1]){rows[1].querySelector('.sl_side').value='cr';rows[1].querySelector('.sl_acct').value=j.cr;rows[1].querySelector('.sl_amt').value=j.amt;}updSlipBal();},300);}
 
@@ -2422,24 +2513,35 @@ function rFS(){
   ].filter(x=>x.a>0);
 
   return '<div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:10px"><div class="pt">재무제표</div>'+fySelector()+'</div><button class="bt" onclick="exportFSWord()" style="background:#2563eb;font-size:11px">📥 워드 내보내기 (日本語)</button></div><div class="tabs"><button class="tab on" data-tab="pl">손익계산서</button><button class="tab" data-tab="bs">대차대조표</button><button class="tab" data-tab="tx">법인세추정</button><button class="tab" data-tab="monthly" onclick="showMonthlyTab(this)">월차추이</button><button class="tab" data-tab="expense" onclick="showExpenseTab(this)">비용분석</button><button class="tab" data-tab="cashflow">현금흐름</button><button class="tab" data-tab="taxsum">소비세</button><button class="tab" data-tab="withholding">원천징수</button><button class="tab" data-tab="fyrep">결산자료</button><button class="tab" data-tab="trial">시산표</button></div>'+
-  '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서 (잠정)</div><div style="font-size:12px;color:#64748b">태성주식회사 (단위:엔)</div></div>'+
-  '<div class="fr"><span>Ⅰ 매출액</span><span class="m">0</span></div><div class="fr b"><span>매출총이익</span><span class="m">0</span></div><div style="height:8px"></div>'+
-  '<div class="fr h"><span>Ⅱ 판매비와 일반관리비</span></div>'+
+  '<div id="TC"><div class="pn" style="padding:18px;max-width:680px"><div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700">손 익 계 산 서</div><div style="font-size:12px;color:#64748b">태성주식회사 · 제'+curFY()+'기 ('+fyRange(curFY()).start+' ~ '+fyRange(curFY()).end+') · 단위:엔</div></div>'+
+  // ── Ⅰ 매출액 ──
+  (function(){window._plN=0;return '';})()+
+  '<div class="fr h"><span>'+_rn()+' 매출액</span><span class="m">'+fm(d.sales)+'</span></div>'+
+  d.salesDetail.map(function(x){var a=D.accts.find(function(y){return y.c===x.c;});return '<div class="fr i"><span>'+(a?a.k:x.c)+' <span style="font-size:10px;color:#64748b">('+(a?a.n:'')+')</span></span><span class="m">'+fm(x.v)+'</span></div>';}).join('')+
+  // ── Ⅱ 매출원가 ──
+  ((d.cogs!==0||d.purchase!==0||d.invBegin!==0||d.invEnd!==0)?
+    '<div class="fr h"><span>'+_rn()+' 매출원가</span><span class="m">'+fm(d.cogs)+'</span></div>'+
+    '<div class="fr i"><span>기초재고</span><span class="m">'+fm(d.invBegin)+'</span></div>'+
+    d.cogsDetail.map(function(x){var a=D.accts.find(function(y){return y.c===x.c;});return '<div class="fr i"><span>'+(a?a.k:x.c)+'</span><span class="m">'+fm(x.v)+'</span></div>';}).join('')+
+    '<div class="fr i"><span>기말재고 (차감)</span><span class="m">△'+fm(d.invEnd)+'</span></div>'
+    :'')+
+  '<div class="fr b tl"><span>매출총이익</span><span class="m">'+fm(d.gross)+'</span></div><div style="height:8px"></div>'+
+  '<div class="fr h"><span>'+_rn()+' 판매비와 일반관리비</span></div>'+
   sga.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
   '<div class="fr b tl"><span>판관비 합계</span><span class="m">'+fm(d.sgaT)+'</span></div>'+
-  '<div class="fr"><span>설립비</span><span class="m">'+fm(d.su)+'</span></div>'+
-  '<div class="fr b tl" style="color:#dc2626"><span>영업손실</span><span class="m">'+fm(d.ol)+'</span></div><div style="height:8px"></div>'+
-  '<div class="fr h"><span>Ⅲ 영업외수익</span></div>'+
+  (d.su!==0?'<div class="fr"><span>설립비</span><span class="m">'+fm(d.su)+'</span></div>':'')+
+  '<div class="fr b tl" style="color:'+(d.opInc>=0?'#059669':'#dc2626')+'"><span>'+(d.opInc>=0?'영업이익':'영업손실')+'</span><span class="m">'+fm(d.opInc)+'</span></div><div style="height:8px"></div>'+
+  '<div class="fr h"><span>'+_rn()+' 영업외수익</span></div>'+
   noi.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
   '<div class="fr b tl"><span>영업외수익 합계</span><span class="m">'+fm(d.noiT)+'</span></div><div style="height:6px"></div>'+
-  '<div class="fr h"><span>Ⅳ 영업외비용</span></div>'+
+  '<div class="fr h"><span>'+_rn()+' 영업외비용</span></div>'+
   noe.map(s=>'<div class="fr i"><span>'+s.nm+(s.n?' <span style="font-size:10px;color:#64748b">('+s.n+')</span>':'')+'</span><span class="m">'+fm(s.a)+'</span></div>').join('')+
   '<div class="fr b tl"><span>영업외비용 합계</span><span class="m">'+fm(d.noeT)+'</span></div><div style="height:8px"></div>'+
-  '<div class="fr b tl" style="color:#059669"><span>경상이익</span><span class="m">'+fm(d.oi)+'</span></div>'+
-  '<div class="fr"><span>Ⅴ 법인세 등</span><span class="m">'+fm(d.ct)+'</span></div>'+
+  '<div class="fr b tl" style="color:'+(d.oi>=0?'#059669':'#dc2626')+'"><span>경상이익 (세전당기순이익)</span><span class="m">'+fm(d.oi)+'</span></div>'+
+  '<div class="fr"><span>'+_rn()+' 법인세 등</span><span class="m">'+fm(d.ct)+'</span></div>'+
     (d.ct!==d.estTax?'<div style="font-size:9px;color:#d97706;padding:2px 16px">※ 추정세액 '+fm(d.estTax)+' (법인세추정탭에서 전표 갱신 가능)</div>':'')+
   '<div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:16px;font-weight:700;border-top:3px solid #e2e6ed;margin-top:8px;background:#d1fae560;border-radius:0 0 6px 6px"><span>당기순이익</span><span style="color:'+(d.ni>=0?'#059669':'#dc2626')+'" class="m">'+fy(d.ni)+'</span></div>'+
-  '<div class="ib" style="margin-top:8px;font-size:10px">💡 유가증권평가손·법인세는 보유종목 시가 기준 자동 반영됩니다</div>'+
+  '<div class="ib" style="margin-top:8px;font-size:10px">💡 제'+curFY()+'기 ('+fyRange(curFY()).start+' ~ '+fyRange(curFY()).end+') · 매출원가 = 기초재고 + 당기매입 − 기말재고<br>💡 유가증권평가손·법인세는 결산전표 우선, 없으면 시가 기준 자동 추정</div>'+
   '</div></div>';
 }
 
@@ -2644,7 +2746,7 @@ function importBackup(){
         // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
 if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}
-D.accts=ACCT_INIT.concat(D.customAccts); // Always use fresh accounts
+D.accts=mergeAccts(); // Always use fresh accounts
         saveD();
         // Restore settings
         if(backup.settings){
@@ -2822,23 +2924,25 @@ function exportFSWord(){
 <table>
 <tr><th style="width:35%">科目</th><th class="r" style="width:20%">内訳</th><th class="r" style="width:20%">小計</th><th class="r" style="width:25%">合計</th></tr>
 
-<tr class="sec"><td colspan="3">Ⅰ　売上高</td><td class="r">0</td></tr>
-<tr class="sub"><td colspan="3">売上総利益</td><td class="r b">0</td></tr>
+<tr class="sec"><td colspan="3">Ⅰ　売上高</td><td class="r">${fm(d.sales)}</td></tr>
+${d.salesDetail.map(function(x){var a=D.accts.find(function(y){return y.c===x.c;});return '<tr><td>　'+(a?a.n:x.c)+'</td><td class="r">'+fm(x.v)+'</td><td></td><td></td></tr>';}).join('')}
+${(d.cogs!==0||d.purchase!==0)?'<tr class="sec"><td colspan="3">Ⅱ　売上原価</td><td class="r">'+fm(d.cogs)+'</td></tr>'+'<tr><td>　期首棚卸高</td><td class="r">'+fm(d.invBegin)+'</td><td></td><td></td></tr>'+d.cogsDetail.map(function(x){var a=D.accts.find(function(y){return y.c===x.c;});return '<tr><td>　'+(a?a.n:x.c)+'</td><td class="r">'+fm(x.v)+'</td><td></td><td></td></tr>';}).join('')+'<tr><td>　期末棚卸高（控除）</td><td class="r">△'+fm(d.invEnd)+'</td><td></td><td></td></tr>':''}
+<tr class="sub"><td colspan="3">売上総利益</td><td class="r b">${fm(d.gross)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
-<tr class="sec"><td colspan="4">Ⅱ　販売費及び一般管理費</td></tr>
+<tr class="sec"><td colspan="4">Ⅲ　販売費及び一般管理費</td></tr>
 ${(function(){var excl=['537','540','541','542','543','544','545','546','550','551','552','553','560','561','562','563','564','565'];var r='';D.accts.filter(function(ac){return ac.g==='비용'&&excl.indexOf(ac.c)<0;}).forEach(function(ac){var b=acctBalFY(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});return r;})()}
 <tr class="sub"><td>　販管費合計</td><td></td><td class="r b">${fm(d.sgaT)}</td><td></td></tr>
 <tr><td>　創立費</td><td></td><td class="r">${fm(d.su)}</td><td></td></tr>
-<tr class="sub"><td>営業損失</td><td></td><td></td><td class="r b" style="color:#c0392b">${fm(d.ol)}</td></tr>
+<tr class="sub"><td>${d.opInc>=0?'営業利益':'営業損失'}</td><td></td><td></td><td class="r b" style="color:${d.opInc>=0?'#27ae60':'#c0392b'}">${fm(d.opInc)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
-<tr class="sec"><td colspan="4">Ⅲ　営業外収益</td></tr>
+<tr class="sec"><td colspan="4">Ⅳ　営業外収益</td></tr>
 ${(function(){var r='';D.accts.filter(function(ac){return ac.g==='수익'&&ac.c!=='414';}).forEach(function(ac){var b=acctBalFY(ac.c);if(b>0)r+='<tr><td>　'+(ac.n||ac.k)+'</td><td class="r">'+fm(b)+'</td><td></td><td></td></tr>';});if(d.evalGain>0)r+='<tr><td>　有価証券評価益（未実現）</td><td class="r">'+fm(d.evalGain)+'</td><td></td><td></td></tr><tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>';return r;})()}
 <tr class="sub"><td>　営業外収益合計</td><td></td><td></td><td class="r b">${fm(d.noiT)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 
-<tr class="sec"><td colspan="4">Ⅳ　営業外費用</td></tr>
+<tr class="sec"><td colspan="4">Ⅴ　営業外費用</td></tr>
 <tr><td>　有価証券売買手数料</td><td class="r">${fm(d.secFee)}</td><td></td><td></td></tr>
 ${d.evalLoss>0?'<tr><td>　有価証券評価損（未実現）</td><td class="r">'+fm(d.evalLoss)+'</td><td></td><td></td></tr><tr><td colspan="4" class="note">　　※保有銘柄の時価基準により自動反映</td></tr>':''}
 <tr><td>　支払利息（役員借入金 年1%）</td><td class="r">${fm(d.interestPay)}</td><td></td><td></td></tr>
@@ -2847,7 +2951,7 @@ ${d.evalLoss>0?'<tr><td>　有価証券評価損（未実現）</td><td class="r
 
 <tr class="sub"><td>経常利益（税引前）</td><td></td><td></td><td class="r b" style="color:#27ae60;font-size:11pt">${fm(d.oi)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
-<tr class="sec"><td colspan="3">Ⅴ　法人税等（推定）</td><td class="r">${fm(d.ct)}</td></tr>
+<tr class="sec"><td colspan="3">Ⅵ　法人税等</td><td class="r">${fm(d.ct)}</td></tr>
 <tr class="gap"><td colspan="4"></td></tr>
 <tr class="total"><td colspan="3">税引後当期純利益</td><td class="r" style="font-size:12pt">${fm(d.ni)}</td></tr>
 </table>
@@ -3404,87 +3508,212 @@ function saveOIAccts(){
 
 
 // ===== 소비세 집계표 (일반과세·세빼기경리) =====
-function rTaxSummary(){
-  var _FJ=fyJournals();
-
-  // 154(가지급소비세) and 211(가수소비세) balances from journals
-  var inputTax=acctBalFY('154');  // 매입세액 (지급한 소비세)
-  var outputTax=acctBalFY('211'); // 매출세액 (받은 소비세)
-  var netTax=outputTax-inputTax; // 양수=납부, 음수=환급
-
-  // Breakdown by taxCls
-  var expCodes={};D.accts.filter(function(ac){return ac.g==='비용';}).forEach(function(ac){expCodes[ac.c]=true;});
-  var revCodes={};D.accts.filter(function(ac){return ac.g==='수익';}).forEach(function(ac){revCodes[ac.c]=true;});
-  var cats={'과세10%':{exp:0,rev:0,tax154:0,tax211:0,cnt:0},'경감8%':{exp:0,rev:0,tax154:0,tax211:0,cnt:0},'비과세':{exp:0,rev:0,cnt:0},'불과세':{exp:0,rev:0,cnt:0},'미분류':{exp:0,rev:0,cnt:0}};
-  _FJ.forEach(function(j){
-    var cls=j.taxCls||'미분류';
-    if(!cats[cls]) cats[cls]={exp:0,rev:0,tax154:0,tax211:0,cnt:0};
-    if(expCodes[j.dr]) cats[cls].exp+=j.amt;
-    if(revCodes[j.cr]) cats[cls].rev+=j.amt;
-    if(j.dr==='154') cats[cls].tax154=(cats[cls].tax154||0)+j.amt;
-    if(j.cr==='211') cats[cls].tax211=(cats[cls].tax211||0)+j.amt;
-    cats[cls].cnt++;
+function taxAggregate(fy){
+  // 税込経理 전제: 전표의 금액이 세포함. 비용/수익 계정이 걸린 전표만 집계.
+  var f=fy||curFY(), FJ=D.journals.filter(function(j){return jFY(j)===f;});
+  var isExp={},isRev={};
+  D.accts.forEach(function(a){ if(a.g==='비용')isExp[a.c]=1; else if(a.g==='수익')isRev[a.c]=1; });
+  var buckets={}; TAXCLS_ALL.forEach(function(c){buckets[c]={amt:0,tax:0,cnt:0};});
+  buckets['미분류']={amt:0,tax:0,cnt:0};
+  function put(side,j,code,amt,useCls){
+    // 복합전표의 비대표측은 전표 라벨이 아닌 계정 기본값을 사용
+    var cls=useCls?normTaxCls(j,side,code):(ACCT_TAX_DEFAULT[code]||'対象外');
+    if(!buckets[cls]) buckets[cls]={amt:0,tax:0,cnt:0};
+    buckets[cls].amt+=amt; buckets[cls].cnt++;
+    var rt=taxRateOf(cls);
+    if(rt>0) buckets[cls].tax+=Math.floor(amt*rt/(100+rt));   // 税込 → 세액 역산
+  }
+  // 한 전표가 비용·수익 양쪽에 걸리면 (예: DR550/CR401 원천세 총액계상) 양측 모두 집계
+  FJ.forEach(function(j){
+    var rep=null;                                          // 전표 taxCls가 가리키는 대표측 (비용 우선)
+    if(isExp[j.dr]||isExp[j.cr]) rep='buy'; else if(isRev[j.cr]||isRev[j.dr]) rep='sell';
+    if(isExp[j.dr]) put('buy',j,j.dr,j.amt,rep==='buy');
+    else if(isExp[j.cr]) put('buy',j,j.cr,-j.amt,rep==='buy');   // 비용 취소·대체
+    if(isRev[j.cr]) put('sell',j,j.cr,j.amt,rep==='sell');
+    else if(isRev[j.dr]) put('sell',j,j.dr,-j.amt,rep==='sell'); // 수익 취소·값인
   });
+  // 課税売上割合
+  var taxSale = buckets['課税売上10%'].amt + buckets['課税売上8%'].amt + buckets['輸出免税0%'].amt;
+  var nonTaxSale = buckets['非課税売上'].amt;
+  // 유가증권 양도는 대가의 5%만 분모 산입 (소비세법시행령 §48③)
+  var secSale = (D.real||[]).filter(function(r){return (r.fy||1)===f;}).reduce(function(t,r){return t+(r.sa||0);},0);
+  var secDen = Math.round(secSale*0.05);
+  var num = taxSale;
+  var den = taxSale + nonTaxSale + secDen;
+  var ratio = den>0 ? (num/den) : 0;
+  var inTax = buckets['課税仕入10%'].tax + buckets['課税仕入8%'].tax;
+  var outTax = buckets['課税売上10%'].tax + buckets['課税売上8%'].tax;
+  return {fy:f,buckets:buckets,taxSale:taxSale,nonTaxSale:nonTaxSale,secSale:secSale,secDen:secDen,
+          num:num,den:den,ratio:ratio,inTax:inTax,outTax:outTax,
+          ippan:Math.round(inTax*ratio),        // 一括比例配分方式 공제액
+          fullDeduct:(ratio>=0.95&&den>0)};     // 課税売上割合 95% 이상 → 전액공제
+}
 
-  // Header
-  var html='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:11px">';
-  html+='<b>📋 일반과세 (本則課税) · 세포함 경리 (税込経理方式)</b>';
-  html+='<br>자본금 1,000만엔 → 설립 제1기부터 과세사업자. 전표는 세포함 총액으로 기표하고, 税区分 라벨로 분류합니다.';
-  html+='<br>신고기한: 결산일('+fyRange(curFY()).end+') 익일부터 2개월 이내';
-  html+='<br><b>課税売上割合 = '+(function(){var num=0,den=0;_FJ.forEach(function(j){if(j.cr==='400'||j.cr==='415')num+=j.amt;if(j.cr==='400'||j.cr==='415')den+=j.amt;if(j.cr==='401')den+=j.amt;if(j.cr==='403')den+=Math.round(j.amt*0.05);});return den?((num/den*100).toFixed(2)+'% (분자 '+fm(num)+' / 분모 '+fm(den)+')'):'0% — 課税売上 없음 → 매입세액공제 불가';})()+'</b>';
-  html+='</div>';
+function rTaxSummary(){
+  var A=taxAggregate(), f=A.fy, R=fyRange(f);
+  var pct=(A.ratio*100).toFixed(2);
+  var deduct = A.fullDeduct ? A.inTax : A.ippan;   // 공제 가능 매입세액
+  var payable = A.outTax - deduct;                  // 양수=납부 / 음수=환급
+  var h='';
 
-  // 매출세액 vs 매입세액 summary
-  var isRefund=netTax<0;
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">';
-  html+='<div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:12px;text-align:center;border-top:3px solid #d97706">';
-  html+='<div style="font-size:10px;color:#d97706;font-weight:600">매출세액 (売上税額)</div>';
-  html+='<div style="font-size:16px;font-weight:700;margin-top:4px">'+fm(outputTax)+'</div>';
-  html+='<div style="font-size:9px;color:#64748b">211 가수소비세 잔액</div></div>';
-  html+='<div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:12px;text-align:center;border-top:3px solid #2563eb">';
-  html+='<div style="font-size:10px;color:#2563eb;font-weight:600">매입세액 (仕入税額)</div>';
-  html+='<div style="font-size:16px;font-weight:700;margin-top:4px">'+fm(inputTax)+'</div>';
-  html+='<div style="font-size:9px;color:#64748b">154 가지급소비세 잔액</div></div>';
-  html+='<div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(isRefund?'#059669':'#dc2626')+'">';
-  html+='<div style="font-size:10px;color:'+(isRefund?'#059669':'#dc2626')+';font-weight:600">'+(isRefund?'환급세액 (還付)':'납부세액 (納付)')+'</div>';
-  html+='<div style="font-size:16px;font-weight:700;margin-top:4px;color:'+(isRefund?'#059669':'#dc2626')+'">'+fm(Math.abs(netTax))+'</div>';
-  html+='<div style="font-size:9px;color:#64748b">매출세액 - 매입세액</div></div></div>';
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:11px">';
+  h+='<b>📋 일반과세 (本則課税) · 세포함 경리 (税込経理方式)</b> — 세리사 방식과 통일';
+  h+='<br>자본금 1,000만엔 → 소비세법 §12-2에 의해 설립 제1기부터 과세사업자';
+  h+='<br>제'+f+'기 '+R.start+' ~ '+R.end+' · 신고기한: 결산일 익일부터 2개월 이내';
+  h+='</div>';
 
-  // 결산 정산전표 생성
-  html+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:10px">📋 소비세 결산 정산전표</div>';
-  if(isRefund){
-    html+='<div style="margin-bottom:8px;font-size:12px">① DR 211(가수소비세) '+fm(outputTax)+' / CR 154(가지급소비세) '+fm(outputTax)+' (상계)</div>';
-    html+='<div style="margin-bottom:8px;font-size:12px">② DR 122(미수입금) '+fm(Math.abs(netTax))+' / CR 154(가지급소비세) '+fm(Math.abs(netTax))+' (환급)</div>';
-  } else if(netTax>0){
-    html+='<div style="margin-bottom:8px;font-size:12px">① DR 211(가수소비세) '+fm(inputTax)+' / CR 154(가지급소비세) '+fm(inputTax)+' (상계)</div>';
-    html+='<div style="margin-bottom:8px;font-size:12px">② DR 211(가수소비세) '+fm(netTax)+' / CR 206(미지급소비세) '+fm(netTax)+' (납부)</div>';
-  } else {
-    html+='<div style="margin-bottom:8px;font-size:12px">소비세 = 0 (과세거래 없음)</div>';
+  // ── 課税売上割合 ──
+  h+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">📊 課税売上割合</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">';
+  h+='<div style="text-align:center;padding:10px;background:#f8fafc;border-radius:6px"><div style="font-size:10px;color:#64748b">분자 (課税売上+輸出免税)</div><div style="font-size:15px;font-weight:700">'+fm(A.num)+'</div></div>';
+  h+='<div style="text-align:center;padding:10px;background:#f8fafc;border-radius:6px"><div style="font-size:10px;color:#64748b">분모 (+非課税売上)</div><div style="font-size:15px;font-weight:700">'+fm(A.den)+'</div></div>';
+  h+='<div style="text-align:center;padding:10px;background:'+(A.fullDeduct?'#d1fae5':'#fef2f2')+';border-radius:6px"><div style="font-size:10px;color:#64748b">割合</div><div style="font-size:18px;font-weight:700;color:'+(A.fullDeduct?'#059669':'#dc2626')+'">'+pct+'%</div></div>';
+  h+='</div>';
+  h+='<table style="font-size:11px"><tbody>';
+  h+='<tr><td>課税売上 (10%·8%·輸出免税0%)</td><td class="r m">'+fm(A.taxSale)+'</td><td class="mu" style="font-size:10px">분자·분모</td></tr>';
+  h+='<tr class="a"><td>非課税売上 (수취이자 등)</td><td class="r m">'+fm(A.nonTaxSale)+'</td><td class="mu" style="font-size:10px">분모만</td></tr>';
+  h+='<tr><td>유가증권 양도대가 '+fm(A.secSale)+' × 5%</td><td class="r m">'+fm(A.secDen)+'</td><td class="mu" style="font-size:10px">시행령 §48③ (수익실현 기준)</td></tr>';
+  h+='<tr class="a"><td colspan="3" class="mu" style="font-size:10px">※ 403 有価証券売却益은 분모에 넣지 않습니다 — 산입액은 매각익이 아니라 <b>양도대가의 5%</b>이므로 위 행과 이중계상됩니다</td></tr>';
+  h+='</tbody></table>';
+  h+='<div style="font-size:10px;color:#64748b;margin-top:6px">'+(A.den===0?'※ 課税売上·非課税売上 모두 0 → 割合 산정 불가':(A.fullDeduct?'※ 95% 이상 → 매입세액 <b>전액공제</b>':'※ 95% 미만 → 個別対応方式 또는 一括比例配分方式으로 안분 필요'))+'</div>';
+  h+='</div>';
+
+  // ── 税区分별 집계 ──
+  function tbl(title,list,color){
+    var r='<div style="font-size:12px;font-weight:700;margin:10px 0 4px;color:'+color+'">'+title+'</div>';
+    r+='<table style="font-size:11px"><thead><tr><th>税区分</th><th class="r">세율</th><th class="r">금액(税込)</th><th class="r">세액</th><th class="r">건수</th></tr></thead><tbody>';
+    var tA=0,tT=0,tC=0,i=0;
+    list.forEach(function(c){
+      var b=A.buckets[c]; if(!b||(b.amt===0&&b.cnt===0))return;
+      var rt=taxRateOf(c);
+      r+='<tr class="'+(i++%2?'a':'')+'"><td>'+c+'</td><td class="r">'+(rt>0?rt+'%':'—')+'</td><td class="r m">'+fm(b.amt)+'</td><td class="r m">'+(rt>0?fm(b.tax):'—')+'</td><td class="r">'+b.cnt+'</td></tr>';
+      tA+=b.amt; tT+=b.tax; tC+=b.cnt;
+    });
+    if(i===0) r+='<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px">해당 없음</td></tr>';
+    else r+='<tr style="font-weight:700;background:#f1f5f9"><td colspan="2">합계</td><td class="r m">'+fm(tA)+'</td><td class="r m">'+fm(tT)+'</td><td class="r">'+tC+'</td></tr>';
+    return r+'</tbody></table>';
   }
-  html+='<button class="bt '+(isRefund?'gn':'rd')+'" onclick="genTaxSettlement()" '+(netTax===0?'disabled':'')+'>정산전표 생성 (결산 시)</button>';
-  html+=' <span style="font-size:10px;color:#64748b">중복 체크 있음</span>';
-  var taxJournals=_FJ.filter(function(j){return j.desc&&j.desc.indexOf('[소비세정산]')>=0;});
-  if(taxJournals.length>0){
-    html+='<div style="margin-top:8px;font-size:10px;color:#d97706">⚠️ 이미 정산전표 '+taxJournals.length+'건: ';
-    taxJournals.forEach(function(j){html+=j.no+' '+fm(j.amt)+'엔 ';});
-    html+='</div>';
+  h+='<div class="pn" style="padding:14px;margin-bottom:14px">';
+  h+=tbl('◆ 매출측 (売上)',TAXCLS_SELL,'#d97706');
+  h+=tbl('◆ 매입측 (仕入)',TAXCLS_BUY,'#2563eb');
+  if(A.buckets['미분류'].cnt>0)
+    h+='<div style="margin-top:8px;padding:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px">⚠️ 미분류 '+A.buckets['미분류'].cnt+'건 ('+fm(A.buckets['미분류'].amt)+') — 아래 정규화 버튼을 실행하세요</div>';
+  h+='</div>';
+
+  // ── 납부·환급 추정 ──
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">';
+  h+='<div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:12px;text-align:center;border-top:3px solid #d97706"><div style="font-size:10px;color:#d97706;font-weight:600">매출세액 (売上税額)</div><div style="font-size:16px;font-weight:700;margin-top:4px">'+fm(A.outTax)+'</div></div>';
+  h+='<div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:12px;text-align:center;border-top:3px solid #2563eb"><div style="font-size:10px;color:#2563eb;font-weight:600">공제대상 매입세액</div><div style="font-size:16px;font-weight:700;margin-top:4px">'+fm(deduct)+'</div><div style="font-size:9px;color:#64748b">발생 '+fm(A.inTax)+' × '+(A.fullDeduct?'전액':pct+'%')+'</div></div>';
+  var isRef=payable<0;
+  h+='<div style="background:#fff;border:1px solid #e2e6ed;border-radius:8px;padding:12px;text-align:center;border-top:3px solid '+(isRef?'#059669':'#dc2626')+'"><div style="font-size:10px;color:'+(isRef?'#059669':'#dc2626')+';font-weight:600">'+(isRef?'환급세액 (還付)':'납부세액 (納付)')+'</div><div style="font-size:16px;font-weight:700;margin-top:4px;color:'+(isRef?'#059669':'#dc2626')+'">'+fm(Math.abs(payable))+'</div></div>';
+  h+='</div>';
+
+  // ── 방식 비교 ──
+  if(A.den>0&&!A.fullDeduct){
+    h+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">⚖️ 공제방식 비교 (課税売上割合 95% 미만)</div>';
+    h+='<table style="font-size:11px"><thead><tr><th>방식</th><th class="r">공제 매입세액</th><th>비고</th></tr></thead><tbody>';
+    h+='<tr><td>一括比例配分方式</td><td class="r m">'+fm(A.ippan)+'</td><td class="mu" style="font-size:10px">매입세액 전체 × 課税売上割合. 2년 계속 적용 의무</td></tr>';
+    h+='<tr class="a"><td>個別対応方式</td><td class="r m">用途区分 필요</td><td class="mu" style="font-size:10px">課税/非課税/共通 3구분. 통상 유리하나 구분 관리 필요</td></tr>';
+    h+='</tbody></table>';
+    h+='<div style="font-size:10px;color:#d97706;margin-top:6px">※ 방식 선택은 세리사 확인 필요. 태성은 유가증권 양도(非課税売上)가 크므로 個別対応方式이 유리할 수 있습니다.</div></div>';
   }
-  html+='</div>';
 
-  // 소비세 전표 상세 (154/211 entries)
-  var taxEntries=_FJ.filter(function(j){return j.dr==='154'||j.cr==='211';});
-  html+='<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">📋 소비세 전표 상세 ('+taxEntries.length+'건)</span>';
-  html+='<div style="display:flex;gap:4px"><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'date\')">일자순</button><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'no\')">전표번호순</button><button class="bt gh" style="font-size:10px" onclick="sortTaxEntries(\'amt\')">금액순</button></div></div>';
-  html+='<div id="taxEntryTable">';
-  html+=buildTaxEntryTable(taxEntries,'date');
-  html+='</div>';
+  // ── 税区分 정규화 ──
+  var unnorm=D.journals.filter(function(j){return j.taxCls&&TAXCLS_ALL.indexOf(j.taxCls)<0;}).length;
+  var noCls=D.journals.filter(function(j){return !j.taxCls;}).length;
+  h+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:6px">🔧 税区分 정규화</div>';
+  h+='<div style="font-size:11px;color:#64748b;margin-bottom:8px">구 표기(과세10%·불과세·課税10% 등)를 소비세법 11종 표준 구분으로 일괄 변환합니다. 계정별 기본 구분(ACCT_TAX_DEFAULT) 기준이며 <b>금액·계정은 변경하지 않습니다</b>.</div>';
+  h+='<div style="font-size:11px;margin-bottom:8px">비표준 표기 <b>'+unnorm+'건</b> · 미지정 <b>'+noCls+'건</b> (전체 '+D.journals.length+'건)</div>';
+  h+='<button class="bt" onclick="previewTaxNorm()" style="background:#2563eb">🔍 변환 미리보기</button> ';
+  h+='<button class="bt gh" onclick="runTaxNorm()">✅ 정규화 실행</button>';
+  h+='<div id="taxNormPrev"></div></div>';
 
-  html+='<div class="ib" style="margin-top:14px;font-size:10px">';
-  html+='💡 <b>세포함 경리 (税込経理方式) — 세리사 방식과 통일:</b> 전표는 세포함 총액 1건으로 기표하고, 税区分은 분류 라벨로만 사용합니다. 154/211 자동분리는 하지 않습니다.<br>';
-  html+='• 매입: DR 비용(세포함) / CR 미지급금 — 소비세 계정 없음<br>';
-  html+='• 課税売上割合이 0%면 매입세액공제가 불가하므로 환급도 발생하지 않습니다<br>';
-  html+='• 매출(400·415)이 발생하면 割合이 올라가 공제·환급 대상이 됩니다 (415 輸出免税는 분자·분모 모두 산입)</div>';
-  return html;
+  h+='<div class="ib" style="font-size:10px">';
+  h+='💡 <b>税込経理:</b> 전표는 세포함 총액 1건으로 기표하고 税区分은 분류 라벨로만 사용합니다 (154/211 자동분리 없음).<br>';
+  h+='• 세액은 집계 시 세포함 금액에서 역산합니다 (10% → ×10/110, 8% → ×8/108)<br>';
+  h+='• <b>415 売上高-輸出免税</b>는 분자·분모 모두 산입되어 割合을 올립니다 → 환급에 유리<br>';
+  h+='• <b>416 売上高-国外不課税</b>는 분자·분모 모두 불산입 → 割合에 영향 없음</div>';
+  return h;
+}
+
+// 국외 거래 판정 키워드 (課税仕入 계정이라도 국외 사용분은 不課税)
+var OVERSEAS_RE=/KRW|海外|渡航|SEOUL|ソウル|韓国|한국|香港|台北|バンコク/i;
+// 전표 → 정규 税区分 (측별 계정 기본값 우선, 구 표기 폴백)
+function normTaxCls(j,side,code){
+  var cur=j.taxCls||'';
+  var fam=(side==='buy'?TAXCLS_BUY:TAXCLS_SELL).concat(['対象外']);
+  if(fam.indexOf(cur)>=0) return cur;                 // 해당 측의 정규 구분이면 채택
+  var def=ACCT_TAX_DEFAULT[code];
+  if(def&&fam.indexOf(def)>=0){
+    // 과세매입 계정이라도 국외 사용분(명시 표기 또는 적요 키워드)은 不課税
+    if(def.indexOf('課税仕入')===0){
+      if(/不課税\(海外\)/.test(cur)) return '不課税';
+      if(OVERSEAS_RE.test(j.desc||'')) return '不課税';
+    }
+    return def;
+  }
+  if(def) return def;
+  if(/^(과세|課税)10/.test(cur)) return side==='buy'?'課税仕入10%':'課税売上10%';
+  if(/8%/.test(cur)) return side==='buy'?'課税仕入8%':'課税売上8%';
+  if(/비과세|非課税/.test(cur)) return side==='buy'?'非課税':'非課税売上';
+  if(/불과세|不課税/.test(cur)) return side==='buy'?'不課税':'不課税売上';
+  return '対象外';
+}
+
+function taxNormPlan(){
+  var isExp={},isRev={};
+  D.accts.forEach(function(a){ if(a.g==='비용')isExp[a.c]=1; else if(a.g==='수익')isRev[a.c]=1; });
+  var plan=[];
+  D.journals.forEach(function(j){
+    var side=null,code=null;
+    if(isExp[j.dr]){side='buy';code=j.dr;}
+    else if(isExp[j.cr]){side='buy';code=j.cr;}
+    else if(isRev[j.cr]){side='sell';code=j.cr;}
+    else if(isRev[j.dr]){side='sell';code=j.dr;}
+    var nc = side ? normTaxCls(j,side,code) : '対象外';   // BS↔BS 전표는 対象外
+    if((j.taxCls||'')!==nc) plan.push({id:j.id,no:j.no,acct:code||'',desc:(j.desc||'').slice(0,30),amt:j.amt,from:(j.taxCls||'(없음)'),to:nc});
+  });
+  return plan;
+}
+
+function previewTaxNorm(){
+  var plan=taxNormPlan(), el=document.getElementById('taxNormPrev');
+  if(!el) return;
+  if(!plan.length){ el.innerHTML='<div style="margin-top:10px;padding:10px;background:#d1fae5;border-radius:6px;font-size:11px">✅ 이미 전부 정규화되어 있습니다.</div>'; return; }
+  var agg={};
+  plan.forEach(function(p){var k=p.from+' → '+p.to; agg[k]=(agg[k]||0)+1;});
+  var h='<div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e6ed;border-radius:6px">';
+  h+='<div style="font-size:12px;font-weight:700;margin-bottom:6px">변환 대상 '+plan.length+'건 / 전체 '+D.journals.length+'건</div>';
+  h+='<table style="font-size:11px"><thead><tr><th>변환</th><th class="r">건수</th></tr></thead><tbody>';
+  Object.keys(agg).sort(function(a,b){return agg[b]-agg[a];}).forEach(function(k,i){
+    h+='<tr class="'+(i%2?'a':'')+'"><td>'+k+'</td><td class="r">'+agg[k]+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  var ovs=plan.filter(function(p){return p.to==='不課税'&&OVERSEAS_RE.test(p.desc);});
+  if(ovs.length){
+    h+='<div style="margin-top:8px;font-size:11px"><b>🌏 국외거래로 판정된 건 ('+ovs.length+') — 확인 권장</b>';
+    h+='<table style="font-size:10px"><tbody>';
+    ovs.slice(0,15).forEach(function(p,i){h+='<tr class="'+(i%2?'a':'')+'"><td>'+p.no+'</td><td>'+p.acct+'</td><td class="r m">'+fm(p.amt)+'</td><td>'+p.desc+'</td></tr>';});
+    h+='</tbody></table></div>';
+  }
+  h+='<div style="font-size:10px;color:#64748b;margin-top:6px">※ 금액·계정·전표번호는 변경되지 않습니다. 税区分 라벨만 바뀝니다. 개별 건은 전표조회에서 수정할 수 있습니다.</div></div>';
+  el.innerHTML=h;
+}
+
+function runTaxNorm(){
+  var plan=taxNormPlan();
+  if(!plan.length) return toast('이미 전부 정규화되어 있습니다','info');
+  if(!confirm('税区分 '+plan.length+'건을 표준 구분으로 변환합니다.\n금액·계정은 변경되지 않습니다.\n\n계속하시겠습니까?')) return;
+  try{ localStorage.setItem('taesung_taxcls_BACKUP', JSON.stringify(D.journals.map(function(j){return {id:j.id,taxCls:j.taxCls||''};}))); }
+  catch(e){ return toast('백업 실패 — 중단합니다: '+e.message,'error'); }
+  if(!localStorage.getItem('taesung_taxcls_BACKUP')) return toast('백업 검증 실패 — 중단합니다','error');
+  var m={}; plan.forEach(function(p){m[p.id]=p.to;});
+  var n=0; D.journals.forEach(function(j){ if(m[j.id]!==undefined){ j.taxCls=m[j.id]; n++; } });
+  saveD();
+  var raw=localStorage.getItem(DKEY);
+  if(!raw){ return toast('저장 검증 실패','error'); }
+  toast('税区分 정규화 완료: '+n+'건 (백업 taesung_taxcls_BACKUP)','ok');
+  go('fs');
 }
 
 // --- 소비세 결산 정산전표 ---
