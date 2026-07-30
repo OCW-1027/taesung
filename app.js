@@ -206,6 +206,32 @@ function acctBal(code){
   D.journals.forEach(j=>{if(j.dr===code)dr+=j.amt;if(j.cr===code)cr+=j.amt;});
   return isDb?dr-cr:cr-dr;
 }
+// ===== 법인세 등 계산 (일본, 자본금1억엔 이하 중소법인·도쿄23구) =====
+// 법인세법 §66 / 조특법 §42-3-2 : 年800万円以下 15%, 超過分 23.2%
+// 방위특별법인세 : 2026.04.01 이후 개시 사업연도, 基準法人税額 − 年500万円 의 4%
+function calcCorpTax(oi,fy){
+  var f=fy||curFY();
+  var r={oi:oi,houjin:0,houjinLow:0,houjinHigh:0,chihou:0,jigyou:0,tokubetsu:0,toumin:0,kintou:70000,bouei:0,total:0,rate:'0',boueiApply:false};
+  if(oi>0){
+    // 법인세 (2단계)
+    r.houjinLow=Math.round(Math.min(oi,8000000)*0.15);
+    r.houjinHigh=oi>8000000?Math.round((oi-8000000)*0.232):0;
+    r.houjin=r.houjinLow+r.houjinHigh;
+    r.chihou=Math.round(r.houjin*0.103);            // 지방법인세 10.3%
+    // 법인사업세 (누진 3단계)
+    if(oi<=4000000) r.jigyou=Math.round(oi*0.035);
+    else if(oi<=8000000) r.jigyou=Math.round(4000000*0.035+(oi-4000000)*0.053);
+    else r.jigyou=Math.round(4000000*0.035+4000000*0.053+(oi-8000000)*0.07);
+    r.tokubetsu=Math.round(r.jigyou*0.37);          // 특별법인사업세 37%
+    r.toumin=Math.round(r.houjin*0.07);             // 법인도민세(법인세할) 7%
+  }
+  // 방위특별법인세: 회기 개시일이 2026-04-01 이후인 사업연도부터
+  r.boueiApply=(fyRange(f).start>='2026-04-01');
+  if(r.boueiApply&&r.houjin>5000000) r.bouei=Math.round((r.houjin-5000000)*0.04);
+  r.total=r.houjin+r.chihou+r.jigyou+r.tokubetsu+r.toumin+r.kintou+r.bouei;
+  r.rate=oi>0?((r.total/oi)*100).toFixed(2):'0';
+  return r;
+}
 function dynamicFS(){
   const c=calc();
   // P&L: all computed from journals
@@ -232,11 +258,8 @@ function dynamicFS(){
   const oi=ol+noiTWithEval-noeT;
   // Use journal tax if exists, otherwise estimate
   const journalCt=acctBalFY('550');
-  // Detailed tax: 법인세15%+지방법인세10.3%+사업세7%+특별사업세37%+도민세7%+균등할7만
-  // Progressive business tax
-  var estJigyou=0;
-  if(oi>0){if(oi<=4000000)estJigyou=Math.round(oi*0.035);else if(oi<=8000000)estJigyou=Math.round(4000000*0.035+(oi-4000000)*0.053);else estJigyou=Math.round(4000000*0.035+4000000*0.053+(oi-8000000)*0.07);}
-  const estTax=oi>0?(Math.round(oi*0.15)+Math.round(Math.round(oi*0.15)*0.103)+estJigyou+Math.round(estJigyou*0.37)+Math.round(Math.round(oi*0.15)*0.07)+70000):70000; // 적자여도 법인도민세 均等割 7만엔 발생
+  const _tx=calcCorpTax(oi);   // 법인세 등 상세 (800만 초과분 23.2% 반영)
+  const estTax=_tx.total;      // 적자여도 均等割 7만엔 발생
   const ct=journalCt>0?journalCt:estTax;
   const estTaxVal=estTax;
   const ni=oi-ct;
@@ -4479,21 +4502,10 @@ function rBSTab(){
 function rTxTab(){
   const d=dynamicFS();
   const oi=d.oi; // 경상이익
-  // Japan corporate tax structure for small company (자본금 1억이하, 소득800만이하)
-  const houjinzei=oi>0?Math.round(oi*0.15):0; // 법인세 15% (800만이하)
-  const chihou_houjin=Math.round(houjinzei*0.103); // 지방법인세 10.3%
-  // 사업세: 누진세율 (자본금1억엔이하, 3단계)
-  var jigyouzei=0;
-  if(oi>0){
-    if(oi<=4000000) jigyouzei=Math.round(oi*0.035);
-    else if(oi<=8000000) jigyouzei=Math.round(4000000*0.035+(oi-4000000)*0.053);
-    else jigyouzei=Math.round(4000000*0.035+4000000*0.053+(oi-8000000)*0.07);
-  }
-  const tokubetsu_jigyou=Math.round(jigyouzei*0.37); // 특별법인사업세 37%
-  const touminzei=Math.round(houjinzei*0.07); // 도민세(법인세할) 7%
-  const kintou=70000; // 균등할 7만엔 (도쿄도 최저)
-  const totalTax=houjinzei+chihou_houjin+jigyouzei+tokubetsu_jigyou+touminzei+kintou;
-  const effectiveRate=oi>0?((totalTax/oi)*100).toFixed(2):'0';
+  const T=calcCorpTax(oi);
+  const houjinzei=T.houjin, chihou_houjin=T.chihou, jigyouzei=T.jigyou;
+  const tokubetsu_jigyou=T.tokubetsu, touminzei=T.toumin, kintou=T.kintou;
+  const totalTax=T.total, effectiveRate=T.rate;
   
   return '<div class="pn" style="padding:18px;max-width:520px">'+
     '<div style="text-align:center;font-size:14px;font-weight:700;margin-bottom:4px">법인세 등 추정 상세</div>'+
@@ -4501,8 +4513,9 @@ function rTxTab(){
     '<div class="fr h"><span>경상이익 (과세소득)</span><span class="m">'+fm(oi)+'</span></div>'+
     '<div style="height:8px"></div>'+
     '<div class="fr h" style="color:#1e3a5f"><span>① 국세</span></div>'+
-    '<div class="fr i"><span>법인세 (15%)</span><span class="m">'+fm(houjinzei)+'</span></div>'+
-    '<div class="fr i" style="font-size:10px;color:#64748b"><span>　※자본금1억엔이하·소득800만이하 경감세율</span></div>'+
+    '<div class="fr i"><span>법인세</span><span class="m">'+fm(houjinzei)+'</span></div>'+
+    (oi>0?'<div class="fr i" style="font-size:10px;color:#64748b"><span>　800万円以下 × 15% = '+fm(T.houjinLow)+(T.houjinHigh>0?'　／　800万円超 × 23.2% = '+fm(T.houjinHigh):'')+'</span></div>':'')+
+    '<div class="fr i" style="font-size:10px;color:#64748b"><span>　※법인세법 §66 / 조특법 §42-3-2 (자본금1억엔이하 중소법인)</span></div>'+
     '<div class="fr i"><span>지방법인세 (법인세×10.3%)</span><span class="m">'+fm(chihou_houjin)+'</span></div>'+
     '<div style="height:6px"></div>'+
     '<div class="fr h" style="color:#d97706"><span>② 도도부현세 (도쿄도)</span></div>'+
@@ -4511,9 +4524,14 @@ function rTxTab(){
     '<div class="fr i"><span>특별법인사업세 (사업세×37%)</span><span class="m">'+fm(tokubetsu_jigyou)+'</span></div>'+
     '<div class="fr i"><span>법인도민세 (법인세×7%)</span><span class="m">'+fm(touminzei)+'</span></div>'+
     '<div class="fr i"><span>균등할 (도쿄도 최저)</span><span class="m">'+fm(kintou)+'</span></div>'+
+    (T.boueiApply?'<div class="fr i"><span>방위특별법인세 ((법인세−500万)×4%)</span><span class="m">'+fm(T.bouei)+'</span></div>'+(T.bouei===0?'<div class="fr i" style="font-size:10px;color:#64748b"><span>　※법인세액 500万円 이하이므로 0</span></div>':''):'')+
     '<div style="height:8px"></div>'+
     '<div class="fr b tl" style="color:#dc2626;font-size:13px"><span>법인세 등 합계</span><span class="m">'+fm(totalTax)+'</span></div>'+
     '<div class="fr" style="font-size:11px;color:#64748b"><span>실효세율</span><span class="m">'+effectiveRate+'%</span></div>'+
+    (function(){var jc=acctBalFY('550');if(jc===0)return '';var gap=jc-totalTax;
+      return '<div class="fr" style="font-size:11px"><span>전표 계상액 (550)</span><span class="m">'+fm(jc)+'</span></div>'+
+        '<div class="fr" style="font-size:11px;color:'+(Math.abs(gap)<50000?'#059669':'#d97706')+'"><span>추정 대비 차액</span><span class="m">'+fys(gap)+'</span></div>'+
+        (Math.abs(gap)>=50000?'<div style="font-size:10px;color:#d97706;padding:2px 16px">※ 차액이 큽니다. 결손금 이월공제·사업세 손금산입·端数処理 등을 확인하세요</div>':'');})()+
     '<div style="height:10px"></div>'+
     '<div class="ib" style="font-size:9px">💡 참고용 추정치입니다. 실제 세액은 세무사 확인이 필요합니다.<br>'+
     '사업세는 손금산입 가능하나 여기서는 미반영. 결손금 이월공제 미반영.</div>'+
@@ -4524,7 +4542,7 @@ function rTxTab(){
     '<tr><td>400만~800만엔</td><td style="text-align:right">5.3%</td></tr>'+
     '<tr><td>800만엔 초과</td><td style="text-align:right">7.0%</td></tr>'+
     '</tbody></table>'+
-    '<div style="margin-top:6px;color:#64748b">※ 특별법인사업세: 사업세 × 37%<br>※ 방위특별법인세: 2026.04.01 이후 개시 사업연도부터 (1기 해당없음)</div>'+
+    '<div style="margin-top:6px;color:#64748b">※ 특별법인사업세: 사업세 × 37%<br>※ 방위특별법인세: 2026.04.01 이후 개시 사업연도부터 — 제'+curFY()+'기('+fyRange(curFY()).start+' 개시) '+(T.boueiApply?'<b>해당</b>':'해당없음')+'</div>'+
     '</div>'+
     '<div style="margin-top:12px"><button class="bt" onclick="updateTaxJournal()" style="background:#dc2626">📋 이 금액으로 법인세 전표 갱신</button></div>'+
     '</div>';
