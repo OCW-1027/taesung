@@ -3628,6 +3628,31 @@ function rTaxSummary(){
   h+='<button class="bt gh" onclick="runTaxNorm()">✅ 정규화 실행</button>';
   h+='<div id="taxNormPrev"></div></div>';
 
+  // ── 국외거래 확인 (자동 판정하지 않고 사용자가 확정) ──
+  var cand=D.journals.filter(function(j){
+    if(jFY(j)!==f) return false;
+    var a=D.accts.find(function(x){return x.c===j.dr;});
+    if(!a||a.g!=='비용') return false;
+    var def=ACCT_TAX_DEFAULT[j.dr]||'';
+    if(def.indexOf('課税仕入')!==0) return false;      // 이미 不課税 계정은 제외
+    return OVERSEAS_HINT.test(j.desc||'');
+  });
+  if(cand.length){
+    h+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:6px">🌏 국외거래 확인 ('+cand.length+'건)</div>';
+    h+='<div style="font-size:11px;color:#64748b;margin-bottom:8px">과세매입 계정인데 적요에 외화·해외 표기가 있는 전표입니다. <b>자동 변환하지 않았습니다</b> — 役務提供地가 국외인 건만 체크해서 지정하세요.<br>※ 목적지 표기(韓国出張 등)만으로는 국외거래가 아닙니다. 일본 국내에서 제공받은 역무(고속도로·국내교통 등)는 課税仕入10%가 맞습니다.</div>';
+    h+='<table style="font-size:11px"><thead><tr><th style="width:30px"></th><th>전표</th><th>계정</th><th class="r">금액</th><th>적요</th><th>현재 税区分</th></tr></thead><tbody>';
+    cand.forEach(function(j,i){
+      h+='<tr class="'+(i%2?'a':'')+'"><td><input type="checkbox" class="ovsChk" value="'+j.id+'"></td><td>'+(j.no||'')+'</td><td>'+j.dr+'</td><td class="r m">'+fm(j.amt)+'</td><td style="font-size:10px">'+(j.desc||'').slice(0,38)+'</td><td style="font-size:10px">'+(j.taxCls||'-')+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
+    h+='<button class="bt gh" style="font-size:11px" onclick="document.querySelectorAll(\'.ovsChk\').forEach(function(c){c.checked=true;})">전체선택</button>';
+    h+='<button class="bt gh" style="font-size:11px" onclick="document.querySelectorAll(\'.ovsChk\').forEach(function(c){c.checked=false;})">전체해제</button>';
+    h+='<button class="bt" style="background:#d97706;font-size:11px" onclick="setTaxClsBulk(\'不課税\')">선택 건을 不課税(국외)로 지정</button>';
+    h+='<button class="bt" style="background:#2563eb;font-size:11px" onclick="setTaxClsBulk(\'課税仕入10%\')">선택 건을 課税仕入10%로 지정</button>';
+    h+='</div></div>';
+  }
+
   h+='<div class="ib" style="font-size:10px">';
   h+='💡 <b>税込経理:</b> 전표는 세포함 총액 1건으로 기표하고 税区分은 분류 라벨로만 사용합니다 (154/211 자동분리 없음).<br>';
   h+='• 세액은 집계 시 세포함 금액에서 역산합니다 (10% → ×10/110, 8% → ×8/108)<br>';
@@ -3636,8 +3661,10 @@ function rTaxSummary(){
   return h;
 }
 
-// 국외 거래 판정 키워드 (課税仕入 계정이라도 국외 사용분은 不課税)
-var OVERSEAS_RE=/KRW|海外|渡航|SEOUL|ソウル|韓国|한국|香港|台北|バンコク/i;
+// 국외거래 「후보」 탐지용 키워드 — 자동 변환에는 쓰지 않고 확인 목록에만 사용.
+// 목적지 표기(韓国出張 등)는 役務提供地와 무관하므로 단정 불가.
+// 예: 「ETC 高速 (韓国出張 出発)」는 일본 국내 고속도로 → 課税仕入10%
+var OVERSEAS_HINT=/KRW|USD|EUR|CNY|THB|海外|SEOUL|ソウル/i;
 // 전표 → 정규 税区分 (측별 계정 기본값 우선, 구 표기 폴백)
 function normTaxCls(j,side,code){
   var cur=j.taxCls||'';
@@ -3645,11 +3672,8 @@ function normTaxCls(j,side,code){
   if(fam.indexOf(cur)>=0) return cur;                 // 해당 측의 정규 구분이면 채택
   var def=ACCT_TAX_DEFAULT[code];
   if(def&&fam.indexOf(def)>=0){
-    // 과세매입 계정이라도 국외 사용분(명시 표기 또는 적요 키워드)은 不課税
-    if(def.indexOf('課税仕入')===0){
-      if(/不課税\(海外\)/.test(cur)) return '不課税';
-      if(OVERSEAS_RE.test(j.desc||'')) return '不課税';
-    }
+    // 명시적 「不課税(海外)」 표기만 존중. 적요 키워드로는 자동 변환하지 않음.
+    if(def.indexOf('課税仕入')===0 && /不課税\(海外\)/.test(cur)) return '不課税';
     return def;
   }
   if(def) return def;
@@ -3676,6 +3700,21 @@ function taxNormPlan(){
   return plan;
 }
 
+function setTaxClsBulk(cls){
+  var ids=[];
+  document.querySelectorAll('.ovsChk').forEach(function(c){ if(c.checked) ids.push(parseInt(c.value,10)); });
+  if(!ids.length) return toast('선택된 전표가 없습니다','warn');
+  if(!confirm(ids.length+'건의 税区分을 「'+cls+'」로 지정합니다.\n금액·계정은 변경되지 않습니다.\n\n계속하시겠습니까?')) return;
+  try{ localStorage.setItem('taesung_taxcls_BACKUP2', JSON.stringify(D.journals.map(function(j){return {id:j.id,taxCls:j.taxCls||''};}))); }
+  catch(e){ return toast('백업 실패 — 중단합니다','error'); }
+  if(!localStorage.getItem('taesung_taxcls_BACKUP2')) return toast('백업 검증 실패 — 중단합니다','error');
+  var m={}; ids.forEach(function(i){m[i]=1;});
+  var n=0; D.journals.forEach(function(j){ if(m[j.id]){ j.taxCls=cls; n++; } });
+  saveD();
+  if(!localStorage.getItem(DKEY)) return toast('저장 검증 실패','error');
+  toast(n+'건을 「'+cls+'」로 지정했습니다','ok');
+  go('fs');
+}
 function previewTaxNorm(){
   var plan=taxNormPlan(), el=document.getElementById('taxNormPrev');
   if(!el) return;
@@ -3689,13 +3728,6 @@ function previewTaxNorm(){
     h+='<tr class="'+(i%2?'a':'')+'"><td>'+k+'</td><td class="r">'+agg[k]+'</td></tr>';
   });
   h+='</tbody></table>';
-  var ovs=plan.filter(function(p){return p.to==='不課税'&&OVERSEAS_RE.test(p.desc);});
-  if(ovs.length){
-    h+='<div style="margin-top:8px;font-size:11px"><b>🌏 국외거래로 판정된 건 ('+ovs.length+') — 확인 권장</b>';
-    h+='<table style="font-size:10px"><tbody>';
-    ovs.slice(0,15).forEach(function(p,i){h+='<tr class="'+(i%2?'a':'')+'"><td>'+p.no+'</td><td>'+p.acct+'</td><td class="r m">'+fm(p.amt)+'</td><td>'+p.desc+'</td></tr>';});
-    h+='</tbody></table></div>';
-  }
   h+='<div style="font-size:10px;color:#64748b;margin-top:6px">※ 금액·계정·전표번호는 변경되지 않습니다. 税区分 라벨만 바뀝니다. 개별 건은 전표조회에서 수정할 수 있습니다.</div></div>';
   el.innerHTML=h;
 }
