@@ -1116,7 +1116,15 @@ function fyOf(iso){
 }
 function fyRange(fy){var st=FY_BASE+(fy||1)-1;return {start:st+'-06-01',end:(st+1)+'-05-31'};}
 function curFY(){var v=parseInt(SET.curFY);return (v&&v>0)?v:1;}
-function setCurFY(fy){SET.curFY=parseInt(fy)||1;saveS();if(typeof toast==='function')toast('제'+curFY()+'기로 전환했습니다','info');if(typeof cur!=='undefined'&&cur&&typeof go==='function')go(cur);}
+function setCurFY(fy){
+  SET.curFY=parseInt(fy)||1; saveS();
+  if(typeof toast==='function') toast('제'+curFY()+'기로 전환했습니다','info');
+  // 현재 열려 있는 탭을 유지한 채 재렌더
+  var t=document.querySelector('.tab.on'), tid=t?t.dataset.tab:null;
+  if(typeof cur!=='undefined'&&cur&&typeof go==='function'){
+    if(tid&&typeof goTab==='function') goTab(cur,tid); else go(cur);
+  }
+}
 function jFY(j){return fyOf(jFullDate(j));}
 function fyJournals(fy){var f=fy||curFY();return D.journals.filter(function(j){return jFY(j)===f;});}
 function acctBalFY(code,fy){
@@ -3638,18 +3646,32 @@ function rTaxSummary(){
     return OVERSEAS_HINT.test(j.desc||'');
   });
   if(cand.length){
-    h+='<div class="pn" style="padding:14px;margin-bottom:14px"><div style="font-size:13px;font-weight:700;margin-bottom:6px">🌏 국외거래 확인 ('+cand.length+'건)</div>';
-    h+='<div style="font-size:11px;color:#64748b;margin-bottom:8px">과세매입 계정인데 적요에 외화·해외 표기가 있는 전표입니다. <b>자동 변환하지 않았습니다</b> — 役務提供地가 국외인 건만 체크해서 지정하세요.<br>※ 목적지 표기(韓国出張 등)만으로는 국외거래가 아닙니다. 일본 국내에서 제공받은 역무(고속도로·국내교통 등)는 課税仕入10%가 맞습니다.</div>';
-    h+='<table style="font-size:11px"><thead><tr><th style="width:30px"></th><th>전표</th><th>계정</th><th class="r">금액</th><th>적요</th><th>현재 税区分</th></tr></thead><tbody>';
-    cand.forEach(function(j,i){
-      h+='<tr class="'+(i%2?'a':'')+'"><td><input type="checkbox" class="ovsChk" value="'+j.id+'"></td><td>'+(j.no||'')+'</td><td>'+j.dr+'</td><td class="r m">'+fm(j.amt)+'</td><td style="font-size:10px">'+(j.desc||'').slice(0,38)+'</td><td style="font-size:10px">'+(j.taxCls||'-')+'</td></tr>';
-    });
-    h+='</tbody></table>';
+    var todo=cand.filter(function(j){return !j.taxRev;}), done=cand.filter(function(j){return j.taxRev;});
+    function rows(list){
+      return list.map(function(j,i){
+        return '<tr class="'+(i%2?'a':'')+'"><td><input type="checkbox" class="ovsChk" value="'+j.id+'"></td><td>'+(j.no||'')+'</td><td>'+j.dr+'</td><td class="r m">'+fm(j.amt)+'</td><td style="font-size:10px">'+(j.desc||'').slice(0,38)+'</td><td style="font-size:10px"><b>'+(j.taxCls||'-')+'</b></td></tr>';
+      }).join('');
+    }
+    h+='<div class="pn" style="padding:14px;margin-bottom:14px">';
+    h+='<div style="font-size:13px;font-weight:700;margin-bottom:6px">🌏 국외거래 확인 — 미확인 <b style="color:'+(todo.length?'#dc2626':'#059669')+'">'+todo.length+'건</b> / 확인완료 '+done.length+'건</div>';
+    h+='<div style="font-size:11px;color:#64748b;margin-bottom:8px">과세매입 계정인데 적요에 외화·해외 표기가 있는 전표입니다. <b>자동 변환하지 않습니다</b> — 役務提供地가 국외인 건만 지정하세요.<br>※ 목적지 표기(韓国出張 등)는 국외거래가 아닙니다. 일본 국내에서 제공받은 역무(고속도로·국내교통 등)는 課税仕入10%가 맞습니다.<br>※ 판단이 끝난 건은 「확인완료」로 표시하면 아래로 내려갑니다 — 매 회기 재검토용 목록이므로 사라지지는 않습니다.</div>';
+    if(todo.length){
+      h+='<div style="font-size:12px;font-weight:700;color:#dc2626;margin:8px 0 4px">⚠️ 미확인</div>';
+      h+='<table style="font-size:11px"><thead><tr><th style="width:30px"></th><th>전표</th><th>계정</th><th class="r">금액</th><th>적요</th><th>현재 税区分</th></tr></thead><tbody>'+rows(todo)+'</tbody></table>';
+    } else {
+      h+='<div style="padding:10px;background:#d1fae5;border-radius:6px;font-size:11px;margin:8px 0">✅ 미확인 건이 없습니다. 이 회기의 국외거래 판단이 전부 끝났습니다.</div>';
+    }
+    if(done.length){
+      h+='<div style="font-size:12px;font-weight:700;color:#059669;margin:12px 0 4px">✅ 확인완료</div>';
+      h+='<table style="font-size:11px;opacity:.7"><thead><tr><th style="width:30px"></th><th>전표</th><th>계정</th><th class="r">금액</th><th>적요</th><th>확정 税区分</th></tr></thead><tbody>'+rows(done)+'</tbody></table>';
+    }
     h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
     h+='<button class="bt gh" style="font-size:11px" onclick="document.querySelectorAll(\'.ovsChk\').forEach(function(c){c.checked=true;})">전체선택</button>';
     h+='<button class="bt gh" style="font-size:11px" onclick="document.querySelectorAll(\'.ovsChk\').forEach(function(c){c.checked=false;})">전체해제</button>';
-    h+='<button class="bt" style="background:#d97706;font-size:11px" onclick="setTaxClsBulk(\'不課税\')">선택 건을 不課税(국외)로 지정</button>';
-    h+='<button class="bt" style="background:#2563eb;font-size:11px" onclick="setTaxClsBulk(\'課税仕入10%\')">선택 건을 課税仕入10%로 지정</button>';
+    h+='<button class="bt" style="background:#d97706;font-size:11px" onclick="setTaxClsBulk(\'不課税\')">不課税(국외)로 지정</button>';
+    h+='<button class="bt" style="background:#2563eb;font-size:11px" onclick="setTaxClsBulk(\'課税仕入10%\')">課税仕入10%로 지정</button>';
+    h+='<button class="bt gn" style="font-size:11px" onclick="setTaxClsBulk(\'\')">✓ 확인완료 (변경 없음)</button>';
+    h+='<button class="bt gh" style="font-size:11px" onclick="setTaxClsBulk(\'__undo\')">확인완료 해제</button>';
     h+='</div></div>';
   }
 
@@ -3700,20 +3722,31 @@ function taxNormPlan(){
   return plan;
 }
 
+// cls='' → 税区分 유지하고 「확인완료」 표시만 / cls='__undo' → 확인완료 해제
 function setTaxClsBulk(cls){
   var ids=[];
   document.querySelectorAll('.ovsChk').forEach(function(c){ if(c.checked) ids.push(parseInt(c.value,10)); });
   if(!ids.length) return toast('선택된 전표가 없습니다','warn');
-  if(!confirm(ids.length+'건의 税区分을 「'+cls+'」로 지정합니다.\n금액·계정은 변경되지 않습니다.\n\n계속하시겠습니까?')) return;
-  try{ localStorage.setItem('taesung_taxcls_BACKUP2', JSON.stringify(D.journals.map(function(j){return {id:j.id,taxCls:j.taxCls||''};}))); }
+  var undo=(cls==='__undo'), keep=(cls==='');
+  var msg = undo ? ids.length+'건의 「확인완료」 표시를 해제합니다.'
+          : keep ? ids.length+'건을 税区分 변경 없이 「확인완료」로 표시합니다.'
+                 : ids.length+'건의 税区分을 「'+cls+'」로 지정합니다.\n금액·계정은 변경되지 않습니다.';
+  if(!confirm(msg+'\n\n계속하시겠습니까?')) return;
+  try{ localStorage.setItem('taesung_taxcls_BACKUP2', JSON.stringify(D.journals.map(function(j){return {id:j.id,taxCls:j.taxCls||'',taxRev:j.taxRev||0};}))); }
   catch(e){ return toast('백업 실패 — 중단합니다','error'); }
   if(!localStorage.getItem('taesung_taxcls_BACKUP2')) return toast('백업 검증 실패 — 중단합니다','error');
   var m={}; ids.forEach(function(i){m[i]=1;});
-  var n=0; D.journals.forEach(function(j){ if(m[j.id]){ j.taxCls=cls; n++; } });
+  var n=0;
+  D.journals.forEach(function(j){
+    if(!m[j.id]) return;
+    if(undo){ delete j.taxRev; }
+    else { if(!keep) j.taxCls=cls; j.taxRev=1; }
+    n++;
+  });
   saveD();
   if(!localStorage.getItem(DKEY)) return toast('저장 검증 실패','error');
-  toast(n+'건을 「'+cls+'」로 지정했습니다','ok');
-  go('fs');
+  toast(n+'건 '+(undo?'확인완료 해제':keep?'확인완료 표시':'「'+cls+'」로 지정')+' 되었습니다','ok');
+  goTab('fs','taxsum');
 }
 function previewTaxNorm(){
   var plan=taxNormPlan(), el=document.getElementById('taxNormPrev');
@@ -3745,7 +3778,7 @@ function runTaxNorm(){
   var raw=localStorage.getItem(DKEY);
   if(!raw){ return toast('저장 검증 실패','error'); }
   toast('税区分 정규화 완료: '+n+'건 (백업 taesung_taxcls_BACKUP)','ok');
-  go('fs');
+  goTab('fs','taxsum');
 }
 
 // --- 소비세 결산 정산전표 ---
@@ -4712,6 +4745,14 @@ function rAsset(){
 const pages={dash:rDash,slip:rSlip,jrn:rJrn,gl:rGL,fs:rFS,sec:rSec,bank:rBank,rpt:rRpt,oi:rOI,asset:rAsset,set:rSet};
 let cur='dash';
 
+// 페이지 이동 후 특정 탭 열기 (예: goTab('fs','taxsum'))
+function goTab(page,tabId){
+  go(page);
+  setTimeout(function(){
+    var t=document.querySelector('.tab[data-tab="'+tabId+'"]');
+    if(t) t.click();
+  },50);
+}
 function go(p){
   cur=p;
   document.getElementById('M').innerHTML=pages[p]();
@@ -4723,7 +4764,7 @@ function go(p){
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));this.classList.add('on');
     const tc=document.getElementById('TC'),id=this.dataset.tab;if(!tc)return;
     if(cur==='sec'){if(id==='real')tc.innerHTML=rRealTab();else go('sec');}
-    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML=rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">📊 월별 비용분석</div>'+fySelector()+'</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else if(id==='cashflow')tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">💰 월별 현금흐름표</div>'+fySelector()+'</div>'+rCashFlow()+'</div>';else if(id==='taxsum')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">🧾 소비세 집계표</div>'+rTaxSummary()+'</div>';else if(id==='withholding')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">💰 원천징수세 관리 (155)</div>'+rWithholding()+'</div>';else if(id==='fyrep')tc.innerHTML='<div class="pn" style="padding:14px">'+rFYReport()+'</div>';else if(id==='trial')tc.innerHTML=rTrialBalance();else go('fs');}
+    if(cur==='fs'){if(id==='bs')tc.innerHTML=rBSTab();else if(id==='tx')tc.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+fySelector()+'</div>'+rTxTab();else if(id==='expense'){tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">📊 월별 비용분석</div>'+fySelector()+'</div>'+rExpenseAnalysis()+'</div>';}else if(id==='monthly')tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';else if(id==='cashflow')tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">💰 월별 현금흐름표</div>'+fySelector()+'</div>'+rCashFlow()+'</div>';else if(id==='taxsum')tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">🧾 소비세 집계표</div>'+fySelector()+'</div>'+rTaxSummary()+'</div>';else if(id==='withholding')tc.innerHTML='<div class="pn" style="padding:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:14px;font-weight:700">💰 원천징수세 관리 (155)</div>'+fySelector()+'</div>'+rWithholding()+'</div>';else if(id==='fyrep')tc.innerHTML='<div class="pn" style="padding:14px">'+rFYReport()+'</div>';/*자체 선택기 보유*/else if(id==='trial')tc.innerHTML=rTrialBalance();else go('fs');}
     if(cur==='asset'){if(id==='fa')tc.innerHTML=rFATab();else if(id==='lease')tc.innerHTML=rLeaseTab();else if(id==='contract')tc.innerHTML=rContractTab();}
   }));
 }
