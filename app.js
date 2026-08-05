@@ -1549,14 +1549,14 @@ function exportWord(){
   });
 
   let realRows='';
-  var _WR=D.real.filter(function(r){return recFY(r)===curFY();}).slice().sort(function(a,b){return String(a.dt||'').localeCompare(String(b.dt||''));});
+  var _WR=scopeFilter(D.real).sort(function(a,b){return String(a.dt||'').localeCompare(String(b.dt||''));});
   _WR.forEach((r,i)=>{const bg2=i%2?'background:#f5f5f5;':'';
     realRows+='<tr><td style="'+S+bg2+'color:#888">'+r.dt+'</td><td style="'+S+bg2+B+'font-weight:bold">'+r.tk+'</td><td style="'+S+bg2+'">'+r.nm+'</td><td style="'+HR+bg2+'">'+fm(r.sh)+'</td><td style="'+HR+bg2+'">'+fm(r.buyAmt)+'</td><td style="'+HR+bg2+'color:#888">'+fm(r.bC+r.bT)+'</td><td style="'+HB+bg2+'">'+fm(r.tc)+'</td><td style="'+HR+bg2+'">'+fm(r.sa)+'</td><td style="'+HR+bg2+'color:#888">'+fm(r.sC+r.sT)+'</td><td style="'+HR+bg2+G+'font-weight:bold">'+fm(r.net)+'</td><td style="'+HR+bg2+G+'">'+r.rr.toFixed(2)+'%</td></tr>';
   });
 
   let bkInRows='',cI=0;
-  var _WBI=D.bkIn.filter(function(d){return recFY(d)===curFY();});
-  var _WBO=D.bkOut.filter(function(d){return recFY(d)===curFY();});
+  var _WBI=scopeFilter(D.bkIn);
+  var _WBO=scopeFilter(D.bkOut);
   _WBI.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cI+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
     bkInRows+='<tr><td style="'+S+bg2+'color:#888">'+d.dt+'</td><td style="'+S+bg2+'">'+d.cat+'</td><td style="'+HR+bg2+G+'">'+fm(d.amt)+'</td><td style="'+HB+bg2+'">'+fm(cI)+'</td></tr>';});
   let bkOutRows='',cO=0;
@@ -1568,7 +1568,7 @@ function exportWord(){
 <head><meta charset="utf-8">
 <style>@page{size:A4 landscape;margin:12mm} body{font-family:'Malgun Gothic',sans-serif;font-size:11pt;color:#1a2030}</style></head>
 <body>
-<div style="text-align:center;margin-bottom:16pt"><div style="font-size:20pt;font-weight:bold;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:11pt;color:#666;margin-top:4pt">${rptDt()} 기준</div></div>
+<div style="text-align:center;margin-bottom:16pt"><div style="font-size:20pt;font-weight:bold;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:11pt;color:#666;margin-top:4pt">${rptDt()} 기준 · ${recScope()==='all'?'전기간 누적 (제1기~제'+curFY()+'기)':'제'+curFY()+'기 '+fyRange(curFY()).start+' ~ '+fyRange(curFY()).end}</div></div>
 
 <h2 style="font-size:13pt;color:#1e3a5f;border-bottom:2pt solid #1e3a5f;padding-bottom:4pt">1. 총자산내역</h2>
 <table ${T}><tr><td style="${TH}">구분</td><td style="${THR}">내역(엔)</td><td style="${TH}">비고</td></tr>
@@ -2713,9 +2713,11 @@ function clearRptEdits(){
 }
 
 function rRpt(){
-  var RL2=D.real.filter(function(r){return recFY(r)===curFY();}).slice().sort(function(a,b){return String(a.dt||'').localeCompare(String(b.dt||''));});
-  var _BI=D.bkIn.filter(function(d){return recFY(d)===curFY();});
-  var _BO=D.bkOut.filter(function(d){return recFY(d)===curFY();});
+  var RL2=scopeFilter(D.real).sort(function(a,b){return String(a.dt||'').localeCompare(String(b.dt||''));});
+  var _BI=scopeFilter(D.bkIn);
+  var _BO=scopeFilter(D.bkOut);
+  // 회기별 소계 (전기간 표시일 때)
+  var _rsub={}; D.real.forEach(function(r){var f=recFY(r); if(!_rsub[f])_rsub[f]={n:0,tc:0,sa:0,gr:0,net:0}; _rsub[f].n++; _rsub[f].tc+=r.tc||0; _rsub[f].sa+=r.sa||0; _rsub[f].gr+=r.gr||0; _rsub[f].net+=r.net||0;});
   const c=calc();
   // 운용보고서 자금흐름: 普通預金(110) 기준 (자본금·役員借入金·증권이체 제외, 증권→법인 이체는 별도행)
   var rptIn=0,rptOut=0,secToCorp=0,loanIn=0;
@@ -2758,7 +2760,8 @@ function rRpt(){
   _BO.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cO+=d.amt;bkOutRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m rd">'+fm(d.amt)+'</td><td class="r m">'+fm(cO)+'</td></tr>';});
 
   return '<div style="max-width:1100px" id="rptContent">'+
-    '<div contenteditable="true" style="text-align:center;margin-bottom:20px"><div style="font-size:22px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:13px;color:#64748b;margin-top:4px">'+rptDt()+' 기준</div></div>'+
+    '<div style="text-align:center;margin-bottom:20px"><div contenteditable="true" style="font-size:22px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:11px;color:#64748b;margin-top:2px">'+(recScope()==='all'?'전기간 누적 (제1기~제'+curFY()+'기)':'제'+curFY()+'기 '+fyRange(curFY()).start+' ~ '+fyRange(curFY()).end)+'</div><div style="font-size:13px;color:#64748b;margin-top:4px">'+rptDt()+' 기준</div></div>'+
+    '<div class="no-print" style="display:flex;gap:8px;align-items:center;margin-bottom:10px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e6ed;border-radius:6px;flex-wrap:wrap"><span style="font-size:12px;font-weight:600">보고 범위:</span>'+fySelector()+scopeSelector()+'<span style="font-size:11px;color:#64748b">현재 <b>'+scopeLabel()+'</b> 기준으로 3·4번 항목이 집계됩니다</span></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="bt" onclick="window.print()">🖨 인쇄 (A4)</button><button class="bt" onclick="exportWord()" style="background:#2563eb">📥 워드 내보내기</button><button class="bt" onclick="saveRptEdits()" style="background:#059669">💾 편집 저장</button><button class="bt gh" onclick="clearRptEdits()">🔄 원본 복원</button></div>'+
 
     // 1. 총자산내역
@@ -2807,23 +2810,33 @@ function rRpt(){
     '<tr class="t"><td>합계</td><td class="r m">'+fm(c.allC)+'</td><td class="r m">'+fm(c.allMv)+'</td><td class="r">100%</td><td class="r">'+bg(c.allPl)+'</td><td class="r m '+(c.allPl>=0?'gn':'rd')+'">'+(c.allPl/c.allC*100).toFixed(2)+'%</td></tr></tbody></table></div>'+
 
     // 3. 수익실현내역
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">3. 수익실현내역 <span style="font-size:11px;color:#64748b;font-weight:400">(제'+curFY()+'기)</span></div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'수익실현\')">+ 행추가</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">3. 수익실현내역 <span style="font-size:11px;color:#64748b;font-weight:400">('+scopeLabel()+' '+RL2.length+'건)</span></div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'수익실현\')">+ 행추가</button></div>'+
     '<div class="pn"><div style="overflow-x:auto"><table style="min-width:1050px"><thead><tr><th>확정일</th><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">매수수수료</th><th class="r">취득원가</th><th class="r">매도가</th><th class="r">매도금액</th><th class="r">실현순익</th><th class="r">매도수수료</th><th class="r">순수익</th><th class="r">수익률</th></tr></thead>'+
     '<tbody>'+realRows+'</tbody>'+
     (function(){
+      var rr='';
+      if(recScope()==='all'){
+        Object.keys(_rsub).sort().forEach(function(f){
+          var x=_rsub[f];
+          rr+='<tr style="background:#f1f5f9;font-size:11px"><td colspan="4" class="r" style="font-weight:600">제'+f+'기 소계 ('+x.n+'건)</td>'+
+              '<td colspan="2"></td><td class="r m">'+fm(x.tc)+'</td><td></td><td class="r m">'+fm(x.sa)+'</td>'+
+              '<td class="r m">'+fm(x.gr)+'</td><td></td><td class="r">'+bg(x.net)+'</td>'+
+              '<td class="r m">'+(x.tc?(x.net/x.tc*100).toFixed(2):'0.00')+'%</td></tr>';
+        });
+      }
       var tTC=RL2.reduce(function(s,r){return s+(r.tc||0);},0);
       var tSA=RL2.reduce(function(s,r){return s+(r.sa||0);},0);
       var tNet=RL2.reduce(function(s,r){return s+(r.net||0);},0);
-      return '<tr class="t"><td colspan="4" class="r">제'+curFY()+'기 합계</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.buyAmt||0);},0))+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.bC||0)+(r.bT||0);},0))+'</td><td class="r m">'+fm(tTC)+'</td><td></td><td class="r m">'+fm(tSA)+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.gr||0);},0))+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.sC||0)+(r.sT||0);},0))+'</td><td class="r">'+bg(tNet)+'</td><td class="r m">'+(tTC?(tNet/tTC*100).toFixed(2):'0.00')+'%</td></tr>';
+      return rr+'<tr class="t"><td colspan="4" class="r">'+scopeLabel()+' 합계</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.buyAmt||0);},0))+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.bC||0)+(r.bT||0);},0))+'</td><td class="r m">'+fm(tTC)+'</td><td></td><td class="r m">'+fm(tSA)+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.gr||0);},0))+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.sC||0)+(r.sT||0);},0))+'</td><td class="r">'+bg(tNet)+'</td><td class="r m">'+(tTC?(tNet/tTC*100).toFixed(2):'0.00')+'%</td></tr>';
     })()+
     '</table></div></div>'+
 
     // 4. 은행 법인 계좌 상세 내역
     '<div contenteditable="true" style="font-size:15px;font-weight:700;margin:20px 0 8px;color:#1e3a5f">4. 은행 법인 계좌 상세 내역</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-    '<div class="pn"><div class="ph" style="color:#059669;font-size:12px"><span>입금 상세내역 (제'+curFY()+'기 '+_BI.length+'건)</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'입금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">입금금액(엔)</th><th class="r">누적입금액(엔)</th></tr></thead><tbody>'+bkInRows+'</tbody></table></div>'+
-    '<div class="pn"><div class="ph" style="color:#dc2626;font-size:12px"><span>출금 상세내역 (제'+curFY()+'기 '+_BO.length+'건)</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'출금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">출금금액(엔)</th><th class="r">누적출금액(엔)</th></tr></thead><tbody>'+bkOutRows+'</tbody>'+
-    '<tr class="t"><td colspan="2" class="r">제'+curFY()+'기 출금계</td><td colspan="2" class="r m">'+fm(cO)+'</td></tr>'+
+    '<div class="pn"><div class="ph" style="color:#059669;font-size:12px"><span>입금 상세내역 ('+scopeLabel()+' '+_BI.length+'건)</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'입금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">입금금액(엔)</th><th class="r">누적입금액(엔)</th></tr></thead><tbody>'+bkInRows+'</tbody></table></div>'+
+    '<div class="pn"><div class="ph" style="color:#dc2626;font-size:12px"><span>출금 상세내역 ('+scopeLabel()+' '+_BO.length+'건)</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'출금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">출금금액(엔)</th><th class="r">누적출금액(엔)</th></tr></thead><tbody>'+bkOutRows+'</tbody>'+
+    '<tr class="t"><td colspan="2" class="r">'+scopeLabel()+' 출금계</td><td colspan="2" class="r m">'+fm(cO)+'</td></tr>'+
     '<tr class="t"><td colspan="2" class="r">통장잔액 (전기간 누적)</td><td colspan="2" class="r m" style="font-size:14px;color:#2563eb">'+fm(c.bb)+'</td></tr></table></div>'+
     '</div>'+
     '</div>';
