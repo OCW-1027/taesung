@@ -955,17 +955,28 @@ function showMonthlyTab(btn){
   if(tc) tc.innerHTML='<div class="pn" style="padding:14px"><div style="font-size:14px;font-weight:700;margin-bottom:10px">📅 월차 추이</div>'+rMonthlyTable()+'</div>';
 }
 function rMonthlyTable(){
-  if(!D.monthlyClosed||Object.keys(D.monthlyClosed).length===0) return '<div style="padding:20px;text-align:center;color:#94a3b8">월차 마감 데이터가 없습니다.\n설정에서 월차 마감을 실행하세요.</div>';
-  const keys=Object.keys(D.monthlyClosed).sort();
+  if(!D.monthlyClosed||Object.keys(D.monthlyClosed).length===0) return '<div style="padding:20px;text-align:center;color:#94a3b8">월차 마감 데이터가 없습니다.<br><span style="font-size:11px">설정에서 월차 마감을 실행하세요.</span></div>';
+  var _allKeys=Object.keys(D.monthlyClosed).sort();
+  // 'YYYY-MM' → 회기 판정 (6월 시작)
+  function _mfy(k){ var y=parseInt(k.slice(0,4)),mo=parseInt(k.slice(5,7)); return (mo>=6)?(y-FY_BASE+1):(y-FY_BASE); }
+  const keys=(recScope()==='all')?_allKeys:_allKeys.filter(function(k){return _mfy(k)===curFY();});
+  if(keys.length===0) return '<div style="padding:20px;text-align:center;color:#94a3b8">제'+curFY()+'기 월차 마감 데이터가 없습니다.<br><span style="font-size:11px">설정에서 월차 마감을 실행하거나, 위 선택기에서 「전기간 누적」으로 전환하세요.</span></div>';
   let rows='';
+  var _lastFY=null;
   keys.forEach((k,i)=>{
     const m=D.monthlyClosed[k];
     const prev=i>0?D.monthlyClosed[keys[i-1]]:null;
     const diff=prev?(m.totA-prev.totA):0;
     const diffColor=diff>=0?'#059669':'#dc2626';
-    rows+='<tr class="'+(i%2?'a':'')+'"><td class="m">'+k+'</td><td class="r m">'+fm(m.totA)+'</td><td class="r m">'+fm(m.bb)+'</td><td class="r m">'+fm(m.allMv)+'</td><td class="r m">'+fm(m.oi)+'</td><td class="r m">'+fm(m.ni)+'</td><td class="r m" style="color:'+diffColor+'">'+(diff>=0?'+':'')+fm(diff)+'</td><td class="mu">'+m.journals+'건</td></tr>';
+    var _kf=_mfy(k);
+    if(recScope()==='all'&&_kf!==_lastFY){
+      rows+='<tr style="background:#eff6ff"><td colspan="8" style="font-weight:700;color:#2563eb;font-size:11px">제'+_kf+'기 ('+fyRange(_kf).start+' ~ '+fyRange(_kf).end+')</td></tr>';
+      _lastFY=_kf;
+    }
+    rows+='<tr class="'+(i%2?'a':'')+'"><td class="m">'+k+'<span style="font-size:9px;color:#94a3b8;margin-left:4px">'+_kf+'기</span></td><td class="r m">'+fm(m.totA)+'</td><td class="r m">'+fm(m.bb)+'</td><td class="r m">'+fm(m.allMv)+'</td><td class="r m">'+fm(m.oi)+'</td><td class="r m">'+fm(m.ni)+'</td><td class="r m" style="color:'+diffColor+'">'+(diff>=0?'+':'')+fm(diff)+'</td><td class="mu">'+m.journals+'건</td></tr>';
   });
-  return '<table><thead><tr><th>월</th><th class="r">총자산</th><th class="r">은행잔액</th><th class="r">유가증권</th><th class="r">경상이익</th><th class="r">순이익</th><th class="r">전월대비</th><th>전표</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:12px;font-weight:600">'+scopeLabel()+' '+keys.length+'개월</span>'+fySelector()+scopeSelector()+'</div>'+
+    '<table><thead><tr><th>월</th><th class="r">총자산</th><th class="r">은행잔액</th><th class="r">유가증권</th><th class="r">경상이익</th><th class="r">순이익</th><th class="r">전월대비</th><th>전표</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 
@@ -1171,6 +1182,35 @@ function warekiDate(iso){ // ISO → 令和N年M月D日
   var y=parseInt(iso.slice(0,4)),m=parseInt(iso.slice(5,7)),d=parseInt(iso.slice(8,10));
   return '令和'+(y-2018)+'年'+m+'月'+d+'日';
 }
+// 일자 기반 레코드(D.real / D.bkIn / D.bkOut)의 회기 판정
+function recFY(r){
+  if(r && r.fy) return r.fy;
+  var d=(r&&(r.dt||r.date))||'';
+  if(!d) return 1;
+  if(d.indexOf('-')<0) return 1;              // 'M/D' 형식 legacy → 제1기
+  return fyOf(d);
+}
+// 표시 범위: SET.realScope = 'fy'(당기) | 'all'(전기간)
+function recScope(){ return (SET.realScope==='all')?'all':'fy'; }
+function setRecScope(v){
+  SET.realScope=(v==='all')?'all':'fy'; saveS();
+  if(typeof toast==='function') toast(v==='all'?'전기간 표시로 전환':'제'+curFY()+'기만 표시','info');
+  var t=document.querySelector('.tab.on'), tid=t?t.dataset.tab:null;
+  if(typeof cur!=='undefined'&&cur){ if(tid&&typeof goTab==='function') goTab(cur,tid); else go(cur); }
+}
+// 범위에 맞춰 필터
+function scopeFilter(list){
+  var f=curFY();
+  return (recScope()==='all') ? (list||[]).slice() : (list||[]).filter(function(r){return recFY(r)===f;});
+}
+// 범위 선택 UI
+function scopeSelector(){
+  var sc=recScope();
+  return '<select onchange="setRecScope(this.value)" style="padding:4px 8px;border:1px solid #e2e6ed;border-radius:5px;font-size:11px;background:#fff">'+
+    '<option value="fy"'+(sc==='fy'?' selected':'')+'>제'+curFY()+'기만</option>'+
+    '<option value="all"'+(sc==='all'?' selected':'')+'>전기간 누적</option></select>';
+}
+function scopeLabel(){ return recScope()==='all' ? '전기간 누적' : ('제'+curFY()+'기'); }
 function fyWareki(fy){ // 회기 → 일본 和暦 기간 문자열
   var f=fy||curFY(), r=fyRange(f);
   function w(iso){
@@ -1509,15 +1549,18 @@ function exportWord(){
   });
 
   let realRows='';
-  D.real.forEach((r,i)=>{const bg2=i%2?'background:#f5f5f5;':'';
+  var _WR=D.real.filter(function(r){return recFY(r)===curFY();}).slice().sort(function(a,b){return String(a.dt||'').localeCompare(String(b.dt||''));});
+  _WR.forEach((r,i)=>{const bg2=i%2?'background:#f5f5f5;':'';
     realRows+='<tr><td style="'+S+bg2+'color:#888">'+r.dt+'</td><td style="'+S+bg2+B+'font-weight:bold">'+r.tk+'</td><td style="'+S+bg2+'">'+r.nm+'</td><td style="'+HR+bg2+'">'+fm(r.sh)+'</td><td style="'+HR+bg2+'">'+fm(r.buyAmt)+'</td><td style="'+HR+bg2+'color:#888">'+fm(r.bC+r.bT)+'</td><td style="'+HB+bg2+'">'+fm(r.tc)+'</td><td style="'+HR+bg2+'">'+fm(r.sa)+'</td><td style="'+HR+bg2+'color:#888">'+fm(r.sC+r.sT)+'</td><td style="'+HR+bg2+G+'font-weight:bold">'+fm(r.net)+'</td><td style="'+HR+bg2+G+'">'+r.rr.toFixed(2)+'%</td></tr>';
   });
 
   let bkInRows='',cI=0;
-  D.bkIn.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cI+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
+  var _WBI=D.bkIn.filter(function(d){return recFY(d)===curFY();});
+  var _WBO=D.bkOut.filter(function(d){return recFY(d)===curFY();});
+  _WBI.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cI+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
     bkInRows+='<tr><td style="'+S+bg2+'color:#888">'+d.dt+'</td><td style="'+S+bg2+'">'+d.cat+'</td><td style="'+HR+bg2+G+'">'+fm(d.amt)+'</td><td style="'+HB+bg2+'">'+fm(cI)+'</td></tr>';});
   let bkOutRows='',cO=0;
-  D.bkOut.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cO+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
+  _WBO.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cO+=d.amt;const bg2=i%2?'background:#f5f5f5;':'';
     bkOutRows+='<tr><td style="'+S+bg2+'color:#888">'+d.dt+'</td><td style="'+S+bg2+'">'+d.cat+'</td><td style="'+HR+bg2+R+'">'+fm(d.amt)+'</td><td style="'+HR+bg2+'">'+fm(cO)+'</td></tr>';});
 
   const T='style="width:100%;border-collapse:collapse;margin-bottom:10pt"';
@@ -2498,11 +2541,39 @@ function rSec(){const c=calc();const jpT=c.jpMv;
     <tr class="t"><td>합계</td><td class="r m">${fm(c.allC)}</td><td class="r m">${fm(c.allMv)}</td><td class="r">100%</td><td class="r">${bg(c.allPl)}</td><td class="r m ${c.allPl>=0?'gn':'rd'}">${(c.allPl/c.allC*100).toFixed(2)}%</td></tr></tbody></table></div>
   </div>`;}
 
-function rRealTab(){const c=calc();const _fy=curFY();const RL=D.real.filter(function(r){return (r.fy||1)===_fy;});
-  return `<div class="pn"><div class="ph"><div style="display:flex;align-items:center;gap:10px"><span>수익실현 내역 (제${_fy}기 ${RL.length}건)</span>${fySelector()}</div><button class="bt gn" onclick="addReal()">+ 내역추가</button></div>
+function rRealTab(){const c=calc();const _fy=curFY();
+  const RL=scopeFilter(D.real).slice().sort(function(a,b){return String(a.dt||'').localeCompare(String(b.dt||''));});
+  // 회기별 소계 (전기간 표시일 때 구분선용)
+  const _sub={}; D.real.forEach(function(r){var f=recFY(r); if(!_sub[f])_sub[f]={n:0,tc:0,sa:0,net:0}; _sub[f].n++; _sub[f].tc+=r.tc||0; _sub[f].sa+=r.sa||0; _sub[f].net+=r.net||0;});
+  return `<div class="pn"><div class="ph"><div style="display:flex;align-items:center;gap:10px"><span>수익실현 내역 (${scopeLabel()} ${RL.length}건)</span>${fySelector()}${scopeSelector()}</div><button class="bt gn" onclick="addReal()">+ 내역추가</button></div>
   <div style="overflow-x:auto"><table style="min-width:1150px"><thead><tr><th>확정일</th><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">매수수수료</th><th class="r">매수소비세</th><th class="r">취득원가</th><th class="r">매도금액</th><th class="r">매도수수료</th><th class="r">매도소비세</th><th class="r">순수익</th><th class="r">수익률</th><th></th></tr></thead>
-  <tbody>${RL.map((r,i)=>`<tr class="${i%2?'a':''}"><td class="mu m">${r.dt}</td><td class="b bl">${r.tk}</td><td>${r.nm}</td><td class="r m">${fm(r.sh)}</td><td class="r m">${fm(r.buyAmt)}</td><td class="r m mu">${fm(r.bC)}</td><td class="r m rd">${fm(r.bT)}</td><td class="r m b">${fm(r.tc)}</td><td class="r m">${fm(r.sa)}</td><td class="r m mu">${fm(r.sC)}</td><td class="r m rd">${fm(r.sT)}</td><td class="r">${bg(r.net)}</td><td class="r m gn">${r.rr.toFixed(2)}%</td><td><button class="del" onclick="editReal(${r.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delReal(${r.id})">✕</button></td></tr>`).join('')}</tbody>
-  <tr class="t"><td colspan="4" class="r">합계</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.buyAmt,0))}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.bC,0))}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.bT,0))}</td><td class="r m">${fm(c.rC)}</td><td class="r m">${fm(c.rS)}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.sC,0))}</td><td class="r m">${fm(RL.reduce((s,r)=>s+r.sT,0))}</td><td class="r">${bg(c.rpl)}</td><td class="r m gn">${c.rC?(c.rpl/c.rC*100).toFixed(2):'0.00'}%</td><td></td></tr>
+  <tbody>${RL.map((r,i)=>`<tr class="${i%2?'a':''}"><td class="mu m">${r.dt}<span style="font-size:9px;color:#94a3b8;margin-left:4px">${recFY(r)}기</span></td><td class="b bl">${r.tk}</td><td>${r.nm}</td><td class="r m">${fm(r.sh)}</td><td class="r m">${fm(r.buyAmt)}</td><td class="r m mu">${fm(r.bC)}</td><td class="r m rd">${fm(r.bT)}</td><td class="r m b">${fm(r.tc)}</td><td class="r m">${fm(r.sa)}</td><td class="r m mu">${fm(r.sC)}</td><td class="r m rd">${fm(r.sT)}</td><td class="r">${bg(r.net)}</td><td class="r m gn">${r.rr.toFixed(2)}%</td><td><button class="del" onclick="editReal(${r.id})" style="color:#2563eb;margin-right:4px">✏️</button><button class="del" onclick="delReal(${r.id})">✕</button></td></tr>`).join('')}</tbody>
+  ${(function(){
+    // 전기간 표시일 때만 회기별 소계행 삽입
+    if(recScope()!=='all') return '';
+    var rr='';
+    Object.keys(_sub).sort().forEach(function(f){
+      var x=_sub[f];
+      rr+='<tr style="background:#f1f5f9;font-size:11px"><td colspan="4" class="r" style="font-weight:600">제'+f+'기 소계 ('+x.n+'건)</td>'+
+          '<td colspan="3"></td><td class="r m">'+fm(x.tc)+'</td><td class="r m">'+fm(x.sa)+'</td>'+
+          '<td colspan="2"></td><td class="r">'+bg(x.net)+'</td><td class="r m">'+(x.tc?(x.net/x.tc*100).toFixed(2):'0.00')+'%</td><td></td></tr>';
+    });
+    return rr;
+  })()}
+  ${(function(){
+    var tTC=RL.reduce(function(s,r){return s+(r.tc||0);},0);
+    var tSA=RL.reduce(function(s,r){return s+(r.sa||0);},0);
+    var tNet=RL.reduce(function(s,r){return s+(r.net||0);},0);
+    return '<tr class="t"><td colspan="4" class="r">'+scopeLabel()+' 합계</td>'+
+      '<td class="r m">'+fm(RL.reduce(function(s,r){return s+(r.buyAmt||0);},0))+'</td>'+
+      '<td class="r m">'+fm(RL.reduce(function(s,r){return s+(r.bC||0);},0))+'</td>'+
+      '<td class="r m">'+fm(RL.reduce(function(s,r){return s+(r.bT||0);},0))+'</td>'+
+      '<td class="r m">'+fm(tTC)+'</td><td class="r m">'+fm(tSA)+'</td>'+
+      '<td class="r m">'+fm(RL.reduce(function(s,r){return s+(r.sC||0);},0))+'</td>'+
+      '<td class="r m">'+fm(RL.reduce(function(s,r){return s+(r.sT||0);},0))+'</td>'+
+      '<td class="r">'+bg(tNet)+'</td>'+
+      '<td class="r m">'+(tTC?(tNet/tTC*100).toFixed(2):'0.00')+'%</td><td></td></tr>';
+  })()}
   </table></div></div>`;}
 
 function bkTagByType(d){
@@ -2529,14 +2600,16 @@ function bkSummary(){
   return {secOut,expOut,capIn,secIn,incIn,loanIn};
 }
 function rBank(){const c=calc();let cI=0,cO=0;
-  var sortedIn=D.bkIn.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
-  var sortedOut=D.bkOut.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
-  return `<div class="pt">법인계좌</div>
+  var sortedIn=scopeFilter(D.bkIn).sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
+  var sortedOut=scopeFilter(D.bkOut).sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');});
+  var sI=sortedIn.reduce(function(s,d){return s+(d.amt||0);},0);
+  var sO=sortedOut.reduce(function(s,d){return s+(d.amt||0);},0);
+  return `<div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:10px"><div class="pt">법인계좌</div>${fySelector()}${scopeSelector()}</div></div>
   <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:10px 14px;margin:8px 0;font-size:12px;color:#1e40af">💡 이 내역은 <b>전표(📝)에서 자동 추출</b>됩니다. 입금/출금을 추가하려면 전표 작성에서 DR=110 또는 CR=110으로 입력하세요.</div>
-  <div class="cards"><div class="cd bl"><div class="l">잔액</div><div class="v">${fy(c.bb)}</div></div><div class="cd gn"><div class="l">총입금</div><div class="v">${fy(c.tI)}</div></div><div class="cd rd"><div class="l">총출금</div><div class="v">${fy(c.tO)}</div></div></div>
-  <div class="pn"><div class="ph" style="color:#059669"><span>입금</span><button class="bt gn" onclick="go('slip')">📝 전표 작성</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">입금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
+  <div class="cards"><div class="cd bl"><div class="l">잔액 (전기간 누적)</div><div class="v">${fy(c.bb)}</div></div><div class="cd gn"><div class="l">입금 (${scopeLabel()})</div><div class="v">${fy(sI)}</div></div><div class="cd rd"><div class="l">출금 (${scopeLabel()})</div><div class="v">${fy(sO)}</div></div></div>
+  <div class="pn"><div class="ph" style="color:#059669"><span>입금 (${scopeLabel()} ${sortedIn.length}건)</span><button class="bt gn" onclick="go('slip')">📝 전표 작성</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">입금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
   <tbody>${sortedIn.map((d,i)=>{cI+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m gn">${fm(d.amt)}</td><td class="r m b">${fm(cI)}</td><td><button class="del" onclick="editSlip(${d.id})" title="전표 편집" style="background:#eff6ff;color:#2563eb">📝</button></td></tr>`;}).join('')}</tbody></table></div>
-  <div class="pn"><div class="ph" style="color:#dc2626"><span>출금</span><button class="bt rd" onclick="go('slip')">📝 전표 작성</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">출금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
+  <div class="pn"><div class="ph" style="color:#dc2626"><span>출금 (${scopeLabel()} ${sortedOut.length}건)</span><button class="bt rd" onclick="go('slip')">📝 전표 작성</button></div><table><thead><tr><th>일자</th><th>구분</th><th class="r">출금액(엔)</th><th class="r">누적(엔)</th><th></th></tr></thead>
   <tbody>${sortedOut.map((d,i)=>{cO+=d.amt;return`<tr class="${i%2?'a':''}"><td class="mu m">${d.dt}</td><td>${d.cat}</td><td class="r m rd">${fm(d.amt)}</td><td class="r m">${fm(cO)}</td><td><button class="del" onclick="editSlip(${d.id})" title="전표 편집" style="background:#eff6ff;color:#2563eb">📝</button></td></tr>`;}).join('')}</tbody>
   <tr class="t"><td colspan="2" class="r">잔액</td><td colspan="3" class="r m" style="font-size:15px;color:#2563eb">${fm(c.bb)}</td></tr></table></div>`;}
 
@@ -2640,7 +2713,9 @@ function clearRptEdits(){
 }
 
 function rRpt(){
-  var RL2=D.real.filter(function(r){return (r.fy||1)===curFY();}); // 회기 필터
+  var RL2=D.real.filter(function(r){return recFY(r)===curFY();}).slice().sort(function(a,b){return String(a.dt||'').localeCompare(String(b.dt||''));});
+  var _BI=D.bkIn.filter(function(d){return recFY(d)===curFY();});
+  var _BO=D.bkOut.filter(function(d){return recFY(d)===curFY();});
   const c=calc();
   // 운용보고서 자금흐름: 普通預金(110) 기준 (자본금·役員借入金·증권이체 제외, 증권→법인 이체는 별도행)
   var rptIn=0,rptOut=0,secToCorp=0,loanIn=0;
@@ -2673,14 +2748,14 @@ function rRpt(){
   });
   // Build realized table
   let realRows='';
-  D.real.forEach((r,i)=>{
+  RL2.forEach((r,i)=>{
     realRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+r.dt+'</td><td class="b bl">'+r.tk+'</td><td>'+r.nm+'</td><td class="r m">'+fm(r.sh)+'</td><td class="r m">'+fm(r.buyAmt)+'</td><td class="r m mu">'+fm(r.bC+r.bT)+'</td><td class="r m b">'+fm(r.tc)+'</td><td class="r m">'+fm(r.sp)+'</td><td class="r m">'+fm(r.sa)+'</td><td class="r m">'+fm(r.gr)+'</td><td class="r m mu">'+fm(r.sC+r.sT)+'</td><td class="r">'+bg(r.net)+'</td><td class="r m gn">'+r.rr.toFixed(2)+'%</td></tr>';
   });
   // Bank tables (sorted by date)
   let bkInRows='',cI=0;
-  D.bkIn.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cI+=d.amt;bkInRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m gn">'+fm(d.amt)+'</td><td class="r m b">'+fm(cI)+'</td></tr>';});
+  _BI.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cI+=d.amt;bkInRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m gn">'+fm(d.amt)+'</td><td class="r m b">'+fm(cI)+'</td></tr>';});
   let bkOutRows='',cO=0;
-  D.bkOut.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cO+=d.amt;bkOutRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m rd">'+fm(d.amt)+'</td><td class="r m">'+fm(cO)+'</td></tr>';});
+  _BO.slice().sort(function(a,b){return (a.dt||'').localeCompare(b.dt||'');}).forEach((d,i)=>{cO+=d.amt;bkOutRows+='<tr class="'+(i%2?'a':'')+'"><td class="mu m">'+d.dt+'</td><td>'+d.cat+'</td><td class="r m rd">'+fm(d.amt)+'</td><td class="r m">'+fm(cO)+'</td></tr>';});
 
   return '<div style="max-width:1100px" id="rptContent">'+
     '<div contenteditable="true" style="text-align:center;margin-bottom:20px"><div style="font-size:22px;font-weight:700;color:#1e3a5f">태성㈜ 자금운용보고서</div><div style="font-size:13px;color:#64748b;margin-top:4px">'+rptDt()+' 기준</div></div>'+
@@ -2732,18 +2807,24 @@ function rRpt(){
     '<tr class="t"><td>합계</td><td class="r m">'+fm(c.allC)+'</td><td class="r m">'+fm(c.allMv)+'</td><td class="r">100%</td><td class="r">'+bg(c.allPl)+'</td><td class="r m '+(c.allPl>=0?'gn':'rd')+'">'+(c.allPl/c.allC*100).toFixed(2)+'%</td></tr></tbody></table></div>'+
 
     // 3. 수익실현내역
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">3. 수익실현내역</div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'수익실현\')">+ 행추가</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><div contenteditable="true" style="font-size:15px;font-weight:700;color:#1e3a5f">3. 수익실현내역 <span style="font-size:11px;color:#64748b;font-weight:400">(제'+curFY()+'기)</span></div><button class="bt gh no-print" style="font-size:10px" onclick="rptAddRow(\'수익실현\')">+ 행추가</button></div>'+
     '<div class="pn"><div style="overflow-x:auto"><table style="min-width:1050px"><thead><tr><th>확정일</th><th>코드</th><th>종목명</th><th class="r">수량</th><th class="r">매수금액</th><th class="r">매수수수료</th><th class="r">취득원가</th><th class="r">매도가</th><th class="r">매도금액</th><th class="r">실현순익</th><th class="r">매도수수료</th><th class="r">순수익</th><th class="r">수익률</th></tr></thead>'+
     '<tbody>'+realRows+'</tbody>'+
-    '<tr class="t"><td colspan="4" class="r">합계</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.buyAmt,0))+'</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.bC+r.bT,0))+'</td><td class="r m">'+fm(c.rC)+'</td><td></td><td class="r m">'+fm(c.rS)+'</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.gr,0))+'</td><td class="r m">'+fm(RL2.reduce((s,r)=>s+r.sC+r.sT,0))+'</td><td class="r">'+bg(c.rpl)+'</td><td class="r m gn">'+(c.rpl/c.rC*100).toFixed(2)+'%</td></tr>'+
+    (function(){
+      var tTC=RL2.reduce(function(s,r){return s+(r.tc||0);},0);
+      var tSA=RL2.reduce(function(s,r){return s+(r.sa||0);},0);
+      var tNet=RL2.reduce(function(s,r){return s+(r.net||0);},0);
+      return '<tr class="t"><td colspan="4" class="r">제'+curFY()+'기 합계</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.buyAmt||0);},0))+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.bC||0)+(r.bT||0);},0))+'</td><td class="r m">'+fm(tTC)+'</td><td></td><td class="r m">'+fm(tSA)+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.gr||0);},0))+'</td><td class="r m">'+fm(RL2.reduce(function(s,r){return s+(r.sC||0)+(r.sT||0);},0))+'</td><td class="r">'+bg(tNet)+'</td><td class="r m">'+(tTC?(tNet/tTC*100).toFixed(2):'0.00')+'%</td></tr>';
+    })()+
     '</table></div></div>'+
 
     // 4. 은행 법인 계좌 상세 내역
     '<div contenteditable="true" style="font-size:15px;font-weight:700;margin:20px 0 8px;color:#1e3a5f">4. 은행 법인 계좌 상세 내역</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-    '<div class="pn"><div class="ph" style="color:#059669;font-size:12px"><span>입금 상세내역</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'입금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">입금금액(엔)</th><th class="r">누적입금액(엔)</th></tr></thead><tbody>'+bkInRows+'</tbody></table></div>'+
-    '<div class="pn"><div class="ph" style="color:#dc2626;font-size:12px"><span>출금 상세내역</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'출금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">출금금액(엔)</th><th class="r">누적출금액(엔)</th></tr></thead><tbody>'+bkOutRows+'</tbody>'+
-    '<tr class="t"><td colspan="2" class="r">잔액</td><td colspan="2" class="r m" style="font-size:14px;color:#2563eb">'+fm(c.bb)+'</td></tr></table></div>'+
+    '<div class="pn"><div class="ph" style="color:#059669;font-size:12px"><span>입금 상세내역 (제'+curFY()+'기 '+_BI.length+'건)</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'입금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">입금금액(엔)</th><th class="r">누적입금액(엔)</th></tr></thead><tbody>'+bkInRows+'</tbody></table></div>'+
+    '<div class="pn"><div class="ph" style="color:#dc2626;font-size:12px"><span>출금 상세내역 (제'+curFY()+'기 '+_BO.length+'건)</span><button class="bt gh no-print" style="font-size:9px" onclick="rptAddRow(\'출금\')">+</button></div><table><thead><tr><th>일자</th><th>구분(내역)</th><th class="r">출금금액(엔)</th><th class="r">누적출금액(엔)</th></tr></thead><tbody>'+bkOutRows+'</tbody>'+
+    '<tr class="t"><td colspan="2" class="r">제'+curFY()+'기 출금계</td><td colspan="2" class="r m">'+fm(cO)+'</td></tr>'+
+    '<tr class="t"><td colspan="2" class="r">통장잔액 (전기간 누적)</td><td colspan="2" class="r m" style="font-size:14px;color:#2563eb">'+fm(c.bb)+'</td></tr></table></div>'+
     '</div>'+
     '</div>';
 }
