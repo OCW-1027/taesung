@@ -112,7 +112,7 @@ if(!D.customAccts)D.customAccts=[];
 if(D._oiAccts){var _s={};OI_ACCTS=D._oiAccts.filter(function(c){return _s[c]?false:(_s[c]=true);});}
 D.accts=mergeAccts();
 if(D.secDeposit===undefined)D.secDeposit=SEC_DEP;
-if(!D.fxSecDeposit)D.fxSecDeposit={USD:{amt:0,avgRate:0,curRate:0}};
+if(!D.fxSecDeposit)D.fxSecDeposit=(typeof INIT_FX_SECDEP!=='undefined')?JSON.parse(JSON.stringify(INIT_FX_SECDEP)):{USD:{amt:0,avgRate:0,curRate:0}};
 if(!D.vendors)D.vendors=INIT_VENDORS;
 if(!D.fixedAssets)D.fixedAssets=[];
 if(!D.leases)D.leases=[];
@@ -2332,6 +2332,30 @@ function doHardReset(){
   alert('초기화했습니다. 직전 전표는 '+DKEY+'_BEFORE_RESET 에 보관되어 있습니다.\n새로고침합니다.');
   location.reload();
 }
+// data.js 씨앗과 현재 데이터의 뒤처짐 표시 (설정 페이지)
+function seedDriftInfo(){
+  var sj=(typeof INIT_JOURNALS!=='undefined')?INIT_JOURNALS.length:0;
+  var cj=(D.journals||[]).length;
+  var gap=cj-sj;
+  var ok=(gap===0);
+  var h='<div style="border:1px solid '+(ok?'#a7f3d0':'#fca5a5')+';background:'+(ok?'#f0fdf4':'#fef2f2')+';border-radius:8px;padding:12px 14px">';
+  h+='<div style="font-size:13px;font-weight:700;color:'+(ok?'#059669':'#dc2626')+';margin-bottom:6px">'+
+     (ok?'✅ data.js 씨앗 동기화됨':'⚠️ data.js 씨앗이 '+Math.abs(gap)+'건 '+(gap>0?'뒤처짐':'앞섬'))+'</div>';
+  h+='<table style="font-size:11px"><tbody>';
+  h+='<tr><td>data.js 씨앗 전표</td><td class="r m">'+fm(sj)+'건</td></tr>';
+  h+='<tr class="a"><td>현재 전표</td><td class="r m">'+fm(cj)+'건</td></tr>';
+  h+='</tbody></table>';
+  if(!ok){
+    h+='<div style="font-size:11px;color:#dc2626;margin-top:8px"><b>전표가 바뀌었습니다 — data.js 재생성이 필요합니다.</b><br>'+
+       'localStorage와 Firebase가 모두 소실되면 이 차이만큼 되돌아갑니다.<br>'+
+       '☁️ Firebase 업로드 후 data.js를 최신본으로 다시 만들어 푸쉬하세요.</div>';
+  } else {
+    h+='<div style="font-size:10px;color:#64748b;margin-top:6px">시세·환율·스냅샷은 소모성 데이터라 씨앗 갱신 대상이 아닙니다 (증권사 화면으로 재입력 가능).</div>';
+  }
+  h+='<div style="font-size:10px;color:#64748b;margin-top:6px">방어 순서: ① localStorage → ② Firebase → ③ data.js 씨앗</div>';
+  h+='</div>';
+  return h;
+}
 function seedWarnBanner(){
   if(!_SEEDED_FROM_FILE) return '';
   var n=(D.journals||[]).length;
@@ -3004,6 +3028,9 @@ function rSet(){return `<div class="pt">설정</div>
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-top:6px">💡 PC에서 내보내기 → 휴대폰에서 가져오기로 동기화 가능</div></div>
   
+  <div class="sc"><h4>🛡️ 데이터 보호 상태</h4>
+  ${seedDriftInfo()}</div>
+
   <div class="sc"><h4>📈 자산추이 스냅샷 관리</h4>
   <div style="font-size:11px;color:#64748b;margin-bottom:8px">스냅샷은 대시보드 방문 시 그 시점의 시스템 값으로 기록됩니다. 전표를 나중에 소급 입력하면 과거 스냅샷은 실제 자산과 어긋납니다.</div>
   <div id="snapMgr">${rSnapList()}</div></div>

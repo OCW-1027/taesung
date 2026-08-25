@@ -176,9 +176,9 @@ const ACCT_INIT = [
 ];
 
 const INIT_HOLD_JP = [
-{"id": 1, "tk": "1540", "nm": "순금신탁ETF", "ja": "純金上場信託(1540)", "sh": 417, "px": 23960, "buyAmt": 9991320, "fee": 80241, "tc": 10071561, "bep": 24152, "cp": 21090, "mv": 8794530},
-{"id": 2, "tk": "464A", "nm": "QPS홀딩스", "ja": "QPSホールディングス(464A)", "sh": 5000, "px": 2461, "buyAmt": 12305085, "fee": 101629, "tc": 12406714, "bep": 2481, "cp": 1825, "mv": 9125000},
-{"id": 3, "tk": "6594", "nm": "니덱", "ja": "ニデック(6594)", "sh": 2000, "px": 2306, "buyAmt": 4611920, "fee": 44311, "tc": 4656231, "bep": 2328, "cp": 2810, "mv": 5620000}
+{"id": 1, "tk": "1540", "nm": "순금신탁ETF", "ja": "純金上場信託(1540)", "sh": 417, "px": 23960, "buyAmt": 9991320, "fee": 80241, "tc": 10071561, "bep": 24152, "cp": 22255, "mv": 9280335},
+{"id": 2, "tk": "464A", "nm": "QPS홀딩스", "ja": "QPSホールディングス(464A)", "sh": 5000, "px": 2461, "buyAmt": 12305085, "fee": 101629, "tc": 12406714, "bep": 2481, "cp": 1785, "mv": 8925000},
+{"id": 3, "tk": "6594", "nm": "니덱", "ja": "ニデック(6594)", "sh": 2000, "px": 2306, "buyAmt": 4611920, "fee": 44311, "tc": 4656231, "bep": 2328, "cp": 2606, "mv": 5212000}
 ];
 
 const INIT_HOLD_US = [
@@ -1249,7 +1249,7 @@ const FS = {"sga":[{"k":"sga_entertainment","a":350036},{"k":"sga_vehicle","a":2
 
 const SEC_DEP = 90112255;
 
-const INIT_FX_SECDEP = {"USD":{"amt":209139.34,"avgRate":159.1018,"curRate":163.46}};
+const INIT_FX_SECDEP = {"USD": {"amt": 209139.34, "avgRate": 159.1018, "curRate": 159.33}};
 
 const DEF_SET = {"rates":{"USDJPY":163.46,"JPYKRW":9.12},"reportDate":"","curFY":2};
 
