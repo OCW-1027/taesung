@@ -101,7 +101,11 @@ function loadJ(k,def){try{const v=localStorage.getItem(k);return v?{...def,...JS
 
 // Initialize data from data.js constants
 const DEF_DATA={holdJP:INIT_HOLD_JP,holdUS:INIT_HOLD_US,real:INIT_REAL,bkIn:INIT_BK_IN,bkOut:INIT_BK_OUT,journals:INIT_JOURNALS,accts:ACCT_INIT};
+// ⚠️ data.js(INIT_*)는 「초기 씨앗」일 뿐 진실 원천이 아님.
+//    localStorage가 비어 있으면 시드로 시작하지만, 그 사실을 표시하고 Firebase 복원을 유도한다.
+var _SEEDED_FROM_FILE = !localStorage.getItem(DKEY);
 let D=loadJ(DKEY,DEF_DATA);
+if(_SEEDED_FROM_FILE){ D=JSON.parse(JSON.stringify(D)); }   // 시드 객체 참조 분리 (data.js 상수 오염 방지)
 // Migrate: always use fresh accts from ACCT_INIT (fixes JP->KR group name change)
 // Merge: keep ACCT_INIT + user-added custom accounts
 if(!D.customAccts)D.customAccts=[];
@@ -115,7 +119,38 @@ if(!D.leases)D.leases=[];
 if(!D.contracts)D.contracts=[];
 // Also migrate any saved holdings/journals group refs
 
-function saveD(){D._lastSaved=new Date().toISOString();localStorage.setItem(DKEY,JSON.stringify(D));}
+// 저장 전 안전검사 — 전표가 갑자기 크게 줄면 차단 (data.js 시드 덮어쓰기·사고 방지)
+function saveD(opt){
+  try{
+    var prevRaw=localStorage.getItem(DKEY);
+    if(prevRaw && !(opt&&opt.force)){
+      var prev=JSON.parse(prevRaw);
+      var pn=(prev.journals||[]).length, cn=(D.journals||[]).length;
+      if(pn>0 && cn < pn-5){
+        var msg='⚠️ 전표가 '+pn+'건 → '+cn+'건으로 '+(pn-cn)+'건 줄어듭니다.\n\n'+
+                '의도한 삭제가 아니라면 「취소」를 누르고 ☁️동기화 → Firebase 다운로드로 복원하세요.\n\n'+
+                '그래도 저장하시겠습니까?';
+        if(!confirm(msg)){
+          if(typeof toast==='function') toast('저장을 취소했습니다 (기존 '+pn+'건 유지)','warn');
+          return false;
+        }
+      }
+    }
+  }catch(e){}
+  D._lastSaved=new Date().toISOString();
+  D._seed=false;                       // 한 번이라도 저장되면 더 이상 시드 아님
+  try{
+    localStorage.setItem(DKEY,JSON.stringify(D));
+  }catch(e){
+    if(typeof toast==='function') toast('저장 실패: '+e.message+' — 백업을 삭제하거나 Firebase에 업로드하세요','error');
+    else alert('저장 실패: '+e.message);
+    return false;
+  }
+  // 재독출 검증 (조용한 실패 탐지)
+  var chk=localStorage.getItem(DKEY);
+  if(!chk){ if(typeof toast==='function') toast('저장 검증 실패 — localStorage 용량을 확인하세요','error'); return false; }
+  return true;
+}
 function saveS(){localStorage.setItem(SKEY,JSON.stringify(SET));}
 function nid(){return Date.now()+Math.floor(Math.random()*1000);}
 
@@ -2279,7 +2314,35 @@ function renderAlerts(){
   return html;
 }
 
-function rDash(){saveSnapshot();const c=calc();return `<div class="pt">대시보드</div>
+// data.js 시드로 시작했을 때 경고 배너 (Firebase 복원 유도)
+// 데이터 초기화 — 되돌릴 수 없으므로 문자 입력 확인
+function doHardReset(){
+  var cn=(D.journals||[]).length;
+  var seed=(typeof INIT_JOURNALS!=='undefined')?INIT_JOURNALS.length:0;
+  var msg='⚠️ 되돌릴 수 없는 작업입니다.\n\n'+
+    '현재 전표 '+cn+'건 → data.js 씨앗 '+seed+'건으로 되돌립니다.\n';
+  if(cn>seed) msg+='최근 입력분 '+(cn-seed)+'건이 사라집니다.\n';
+  msg+='\n먼저 ☁️동기화에서 Firebase 업로드를 해두셨습니까?\n\n'+
+    '계속하려면 아래에 정확히 「초기화」라고 입력하세요.';
+  var ans=prompt(msg,'');
+  if(ans!=='초기화'){ if(typeof toast==='function')toast('초기화를 취소했습니다','info'); return; }
+  try{ localStorage.setItem(DKEY+'_BEFORE_RESET', JSON.stringify(D.journals||[])); }catch(e){}
+  try{ localStorage.setItem(DKEY+'_preserve', JSON.stringify({snapshots:D.snapshots||[],monthlyClosed:D.monthlyClosed||{},fxSecDeposit:D.fxSecDeposit||null})); }catch(e){}
+  localStorage.removeItem(DKEY); localStorage.removeItem(SKEY);
+  alert('초기화했습니다. 직전 전표는 '+DKEY+'_BEFORE_RESET 에 보관되어 있습니다.\n새로고침합니다.');
+  location.reload();
+}
+function seedWarnBanner(){
+  if(!_SEEDED_FROM_FILE) return '';
+  var n=(D.journals||[]).length;
+  return '<div style="background:#fef2f2;border:2px solid #dc2626;border-radius:8px;padding:12px 16px;margin-bottom:14px">'+
+    '<div style="font-size:14px;font-weight:700;color:#dc2626;margin-bottom:6px">⚠️ 로컬 데이터가 없어 data.js 초기값으로 시작했습니다</div>'+
+    '<div style="font-size:12px;color:#334155;margin-bottom:8px">현재 전표 <b>'+n+'건</b>은 파일에 박힌 <b>씨앗 데이터</b>이며 최신이 아닐 수 있습니다.<br>'+
+    '이 상태에서 전표를 입력·수정하면 <b>서버의 최신 데이터와 충돌</b>합니다. 먼저 Firebase에서 복원하세요.</div>'+
+    '<button class="bt" style="background:#dc2626" onclick="doFbDownload()">☁️ Firebase에서 복원 (권장)</button> '+
+    '<button class="bt gh" onclick="_SEEDED_FROM_FILE=false;go(cur);">무시하고 계속</button></div>';
+}
+function rDash(){saveSnapshot();const c=calc();const _seedW=seedWarnBanner();return `${_seedW}<div class="pt">대시보드</div>
   <div class="cards"><div class="cd bl"><div class="l">총 보유 자산 (시가)</div><div class="v">${fy(c.totA)}</div>${(function(){var _d=dynamicFS();var _gap=_d.totA-c.totA;return '<div style="font-size:9px;color:#64748b;margin-top:2px" title="B/S는 취득원가(장부가) 기준 — 洗替方式이므로 평가는 결산 시에만 반영. 기타자산: '+otherAssetDesc()+'">제'+curFY()+'기 B/S 장부가 '+fy(_d.totA)+(_gap!==0?' <span style="color:'+(_gap>0?'#dc2626':'#059669')+'">미실현 '+fys(-_gap)+'</span>':'')+'</div>';})()}</div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd ${c.rpl>=0?'gn':'rd'}"><div class="l">실현손익</div><div class="v">${fys(c.rpl)}</div></div></div>
   <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>
   ${renderAlerts()}
@@ -2946,7 +3009,7 @@ function rSet(){return `<div class="pt">설정</div>
   <div id="snapMgr">${rSnapList()}</div></div>
 
   <div class="sc"><h4>🔄 데이터 초기화</h4><div style="font-size:11px;color:#64748b;margin-bottom:8px">모든 수정사항을 원래 데이터로 복원합니다 (자산추이·월차마감·외화예수금은 보존)</div>
-  <button class="bt rd" onclick="if(confirm('정말 초기화하시겠습니까?')){try{localStorage.setItem('${DKEY}_preserve',JSON.stringify({snapshots:D.snapshots||[],monthlyClosed:D.monthlyClosed||{},fxSecDeposit:D.fxSecDeposit||null}));}catch(e){}localStorage.removeItem('${DKEY}');localStorage.removeItem('${SKEY}');location.reload();}">🗑 초기화</button></div>`;}
+  <button class="bt rd" onclick="doHardReset()">⚠️ 데이터 초기화 (data.js 씨앗으로 되돌림)</button></div>`;}
 
 
 
