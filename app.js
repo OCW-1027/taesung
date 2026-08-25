@@ -375,8 +375,11 @@ function dynamicFS(){
   const journalCt=acctBalFY('550');
   const _tx=calcCorpTax(oi);   // 법인세 등 상세 (800만 초과분 23.2% 반영)
   const estTax=_tx.total;      // 적자여도 均等割 7만엔 발생
-  const ct=journalCt>0?journalCt:estTax;
+  // ⚠️ 추정세액을 PL에 넣으면 BS의 205(未払法人税等)와 어긋나 차대불일치가 남.
+  //    PL은 전표 계상액만 반영하고, 추정치는 법인세추정 탭에서 별도 표시.
+  const ct=journalCt;
   const estTaxVal=estTax;
+  const taxNotBooked=(journalCt===0&&estTax>0); // 미계상 경고용
   const ni=oi-ct;
   // B/S: 선택 회기의 결산일 시점 누적잔액 기준 (회기 전환 대응)
   const _bsEnd=fyRange(curFY()).end;
@@ -401,7 +404,7 @@ function dynamicFS(){
   // 이익잉여금 = journal retained + current period NI (if not yet closed)
   const eqNI=ni;
   const totE=capitalBal+retainedBal+eqNI;
-  return {sales,salesDetail,cogs,cogsDetail,purchase,invBegin,invEnd,gross,opInc,sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,estTax:estTaxVal,ni,deposit,secDep,fxDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,retainedBal,eqNI,totE,evalAdj,useJEval,noeEtc,bsEnd:_bsEnd};
+  return {taxNotBooked,sales,salesDetail,cogs,cogsDetail,purchase,invBegin,invEnd,gross,opInc,sgaT,su,ol,noiT:noiTWithEval,evalGain,evalLoss,interestPay,secFee,noeT,oi,ct,estTax:estTaxVal,ni,deposit,secDep,fxDep,secBookVal,secForBS,secMV,cashT,otherAssets,totA,totL,capitalBal,retainedBal,eqNI,totE,evalAdj,useJEval,noeEtc,bsEnd:_bsEnd};
 }
 
 
@@ -2660,6 +2663,7 @@ function rFS(){
   '<div class="fr b tl"><span>영업외비용 합계</span><span class="m">'+fm(d.noeT)+'</span></div><div style="height:8px"></div>'+
   '<div class="fr b tl" style="color:'+(d.oi>=0?'#059669':'#dc2626')+'"><span>경상이익 (세전당기순이익)</span><span class="m">'+fm(d.oi)+'</span></div>'+
   '<div class="fr"><span>'+_rn()+' 법인세 등</span><span class="m">'+fm(d.ct)+'</span></div>'+
+  (d.taxNotBooked?'<div class="fr i" style="font-size:10px;color:#d97706"><span>　⚠️ 전표 미계상 — 추정 '+fm(d.estTax)+' (법인세추정 탭에서 전표 생성)</span><span></span></div>':'')+
     (d.ct!==d.estTax?'<div style="font-size:9px;color:#d97706;padding:2px 16px">※ 추정세액 '+fm(d.estTax)+' (법인세추정탭에서 전표 갱신 가능)</div>':'')+
   '<div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:16px;font-weight:700;border-top:3px solid #e2e6ed;margin-top:8px;background:#d1fae560;border-radius:0 0 6px 6px"><span>당기순이익</span><span style="color:'+(d.ni>=0?'#059669':'#dc2626')+'" class="m">'+fy(d.ni)+'</span></div>'+
   '<div class="ib" style="margin-top:8px;font-size:10px">💡 제'+curFY()+'기 ('+fyRange(curFY()).start+' ~ '+fyRange(curFY()).end+') · 매출원가 = 기초재고 + 당기매입 − 기말재고<br>💡 유가증권평가손·법인세는 결산전표 우선, 없으면 시가 기준 자동 추정</div>'+
