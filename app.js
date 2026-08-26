@@ -1449,6 +1449,7 @@ function editHoldJP(id){
   '<div><label>매수금액</label><input type="number" id="f_ba" value="'+h.buyAmt+'"></div>'+
   '<div><label>수수료</label><input type="number" id="f_fee" value="'+h.fee+'"></div>'+
   '<div><label>현재가</label><input type="number" id="f_cp" value="'+h.cp+'"></div>'+
+  '<div><label>증권사 표시 평균단가 <span style="font-size:9px;color:#64748b">(대조용·선택)</span></label><input type="number" step="0.01" id="f_avgd" value="'+(h.avgDisp||'')+'" placeholder="예: 24152.43"></div>'+
   '<div class="full" style="padding:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;margin-top:4px">'+
     '<label style="font-size:11px;display:flex;align-items:center;gap:6px;cursor:pointer">'+
     '<input type="checkbox" id="f_man" '+(isMan?'checked':'')+' onchange="toggleManual()"> <b>수동모드</b> (평가액 직접 입력)</label>'+
@@ -1475,6 +1476,8 @@ function doEditHoldJP(id){
   h.tc=h.buyAmt+h.fee;
   h.bep=h.sh?Math.round(h.tc/h.sh):0;
   h.manual=document.getElementById('f_man').checked;
+  var _ad=document.getElementById('f_avgd');
+  if(_ad){ var v=parseFloat(_ad.value); if(v>0) h.avgDisp=v; else delete h.avgDisp; }
   if(h.manual){h.mv=+document.getElementById('f_mv').value;}
   else{h.mv=h.sh*h.cp;}
   saveD();closeModal();toast('종목 수정 완료');go('sec');
@@ -2593,6 +2596,21 @@ function showXIRRDetail(){
   document.body.appendChild(overlay);
 }
 
+// ── 증권사 화면 대조용 ──────────────────────────────
+// 증권사는 「평균취득단가」를 소수 2자리로 반올림해 표시하고, 그 단가 × 수량으로
+// 평가손익을 계산한다. 시스템은 실제 전표(체결금액+수수료) 기준이라 130 계정과 정합하지만
+// 증권사 화면과는 종목당 수엔~수십엔이 어긋난다. 아래는 그 대조값을 산출한다.
+// h.avgDisp(증권사 표시 평균단가)가 있으면 사용, 없으면 차이 0으로 처리.
+function brokerPl(h){
+  if(!h || !h.avgDisp) return null;
+  var cost=h.avgDisp*h.sh;                 // 증권사 기준 취득액
+  return Math.trunc((h.mv||0)-cost);       // 증권사 표시 평가손익 (절사)
+}
+function brokerPlTotal(){
+  var t=0, any=false;
+  (D.holdJP||[]).forEach(function(h){ var v=brokerPl(h); if(v!==null){ t+=v; any=true; } });
+  return any?t:null;
+}
 function rSec(){const c=calc();const jpT=c.jpMv;
   var xirrResult=calcXIRR();
   var xirrOK=!!(xirrResult&&!xirrResult.noSolution);
@@ -2611,7 +2629,8 @@ function rSec(){const c=calc();const jpT=c.jpMv;
   var fxPl=fxMvJpy-fxBookJpy;
   
   return `<div class="pt">유가증권</div>
-  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl>=0?'gn':'rd'}"><div class="l">실현손익</div><div class="v">${fys(c.rpl)}</div></div><div class="cd ${xirrColor}" onclick="showXIRRDetail()" style="cursor:pointer" title="클릭하면 상세 계산내역 보기"><div class="l">XIRR (설립~현재 누적·연환산)</div><div class="v">${xirrDisplay}</div>${xirrNote?'<div style="font-size:8px;color:#64748b;margin-top:2px">'+xirrNote+'</div>':''}</div>${fxUsdAmt>0?'<div class="cd '+(fxPl>=0?'gn':'rd')+'"><div class="l">USD 예수금</div><div class="v">$'+fm(fxUsdAmt)+'</div><div style="font-size:9px;color:#64748b;margin-top:2px">¥'+fm(fxMvJpy)+' (평가손익 '+(fxPl>=0?'+':'')+fm(fxPl)+')</div></div>':''}</div>
+  <div class="cards"><div class="cd bl"><div class="l">평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div>${(function(){var b=brokerPlTotal();if(b===null||b===c.allPl)return '';var g=c.allPl-b;return '<div style="font-size:9px;color:#64748b;margin-top:2px" title="증권사는 평균취득단가를 소수2자리로 반올림 표시하므로 차이가 납니다. 시스템 값이 전표(130 계정)와 정합하는 정확한 값입니다.">증권사표시 '+fm(b)+' (차 '+fys(g)+')</div>';})()}</div><div class="cd ${c.rpl>=0?'gn':'rd'}"><div class="l">실현손익</div><div class="v">${fys(c.rpl)}</div></div><div class="cd ${xirrColor}" onclick="showXIRRDetail()" style="cursor:pointer" title="클릭하면 상세 계산내역 보기"><div class="l">XIRR (설립~현재 누적·연환산)</div><div class="v">${xirrDisplay}</div>${xirrNote?'<div style="font-size:8px;color:#64748b;margin-top:2px">'+xirrNote+'</div>':''}</div>${fxUsdAmt>0?'<div class="cd '+(fxPl>=0?'gn':'rd')+'"><div class="l">USD 예수금</div><div class="v">$'+fxUsdAmt.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div><div style="font-size:9px;color:#64748b;margin-top:2px">¥'+fm(fxMvJpy)+' (평가손익 '+(fxPl>=0?'+':'')+fm(fxPl)+')</div></div>':''}</div>
+  ${(function(){var rows=(D.holdJP||[]).filter(function(h){return h.avgDisp;}).map(function(h){var bp=brokerPl(h);var sp=(h.mv||0)-(h.tc||0);return h.tk+' '+fm(sp)+' / 증권사 '+fm(bp)+' (차 '+fys(sp-bp)+')';});if(!rows.length)return '';return '<div style="font-size:10px;color:#64748b;padding:6px 14px;margin-bottom:8px;background:#f8fafc;border:1px solid #e2e6ed;border-radius:6px">📊 <b>증권사 화면 대조</b> — '+rows.join(' · ')+'<br>증권사는 평균취득단가를 소수2자리로 반올림 표시합니다. <b>시스템 값이 전표(130 계정)와 정합하는 정확한 값</b>이며 결산·신고는 시스템 기준입니다.</div>';})()}
   <div class="pn" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">증권예수금 (191 전표잔액): <span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:2px 8px;color:#1e3a8a">${fm(acctBal('191'))}</span> 엔</span><span style="font-size:10px;color:#64748b">📊 전표 기반 자동 계산 (수동 입력 불가)</span></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:6px"><div class="tabs" style="margin-bottom:0"><button class="tab on" data-tab="hold">보유현황</button><button class="tab" data-tab="real">수익실현</button></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" onclick="updatePrices()" style="background:#d97706">📊 시세 업데이트</button> <button class="bt" onclick="autoEvalAdjust()" style="background:#7c3aed;font-size:11px">📋 결산조정 (평가)</button>${fxUsdAmt>0?'<button class="bt" onclick="autoFxEvalAdjust()" style="background:#0891b2;font-size:11px">💱 외화 결산조정</button>':''}</div></div>
   <div id="TC">
