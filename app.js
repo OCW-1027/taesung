@@ -2370,7 +2370,13 @@ function seedWarnBanner(){
     '<button class="bt gh" onclick="_SEEDED_FROM_FILE=false;go(cur);">무시하고 계속</button></div>';
 }
 function rDash(){saveSnapshot();const c=calc();const _seedW=seedWarnBanner();return `${_seedW}<div class="pt">대시보드</div>
-  <div class="cards"><div class="cd bl"><div class="l">총 보유 자산 (시가)</div><div class="v">${fy(c.totA)}</div>${(function(){var _d=dynamicFS();var _gap=_d.totA-c.totA;return '<div style="font-size:9px;color:#64748b;margin-top:2px" title="B/S는 취득원가(장부가) 기준 — 洗替方式이므로 평가는 결산 시에만 반영. 기타자산: '+otherAssetDesc()+'">제'+curFY()+'기 B/S 장부가 '+fy(_d.totA)+(_gap!==0?' <span style="color:'+(_gap>0?'#dc2626':'#059669')+'">미실현 '+fys(-_gap)+'</span>':'')+'</div>';})()}</div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd ${c.rpl>=0?'gn':'rd'}"><div class="l">실현손익</div><div class="v">${fys(c.rpl)}</div></div></div>
+  <div class="cards"><div class="cd bl"><div class="l">총 보유 자산 (시가)</div><div class="v">${fy(c.totA)}</div>${(function(){
+  var fund=c.bb+c.secBal, etc=c.totA-fund;
+  var r='';
+  if(etc!==0) r+='<div style="font-size:9px;color:#64748b;margin-top:2px" title="'+otherAssetDesc()+'">자금계(법인+증권) '+fm(fund)+' + 기타자산 '+fm(etc)+'</div>';
+  var _d=dynamicFS();var _gap=_d.totA-c.totA;
+  r+='<div style="font-size:9px;color:#64748b;margin-top:1px" title="B/S는 취득원가(장부가) 기준 — 洗替方式이므로 평가는 결산 시에만 반영">제'+curFY()+'기 B/S 장부가 '+fy(_d.totA)+(_gap!==0?' <span style="color:'+(_gap>0?'#dc2626':'#059669')+'">미실현 '+fys(-_gap)+'</span>':'')+'</div>';
+  return r;})()}</div><div class="cd go"><div class="l">법인계좌</div><div class="v">${fy(c.bb)}</div></div><div class="cd bl"><div class="l">증권계좌</div><div class="v">${fy(c.secBal)}</div></div><div class="cd ${c.rpl>=0?'gn':'rd'}"><div class="l">실현손익</div><div class="v">${fys(c.rpl)}</div></div></div>
   <div class="cards"><div class="cd bl"><div class="l">유가증권평가액</div><div class="v">${fy(c.allMv)}</div></div><div class="cd ${c.allPl>=0?'gn':'rd'}"><div class="l">평가손익</div><div class="v">${fy(c.allPl)}</div></div><div class="cd ${c.rpl+c.allPl>=0?'gn':'rd'}"><div class="l">총합손익</div><div class="v">${fy(c.rpl+c.allPl)}</div></div></div>
   ${renderAlerts()}
   <div class="pn" style="margin-top:14px">
